@@ -14,8 +14,11 @@ class Policy:
         
     def act(self, delta_t):
         """Act over the time of delta T. When implemented, it should add an action to be executed to
-        the robot's action queue - it is not supposed to execute it here"""
+        the robot's action queue - it is not supposed to execute it here"""        
         pass
+    
+    def __str__(self):
+        return self.name
     
     
 class AbstractWaypointPolicy(Policy):
@@ -92,8 +95,9 @@ class RandomWaypointPolicy(AbstractWaypointPolicy):
     """A policy that makes the robot follow a random waypoint behavior within a specified region
     using a constant velocity.
     The region is specied with the low_point and high_point each of them having (x,y) formats """
-    def __init__(self, env, robot, vel, low_point, high_point):
+    def __init__(self, env, robot, vel, low_point, high_point, seed):
         super().__init__("RandomWaypointPolicy", env, robot)
+        self.random = np.random.default_rng(seed)
         self.vel = vel
         self.low_point = low_point
         self.high_point = high_point
@@ -102,9 +106,24 @@ class RandomWaypointPolicy(AbstractWaypointPolicy):
     def act(self, delta_t):
         """Moves towards the chosen waypoint. If the waypoint is """
         if self.nextwaypoint == None:
-            x = random.uniform(self.low_point[0], self.high_point[0])
-            y = random.uniform(self.low_point[1], self.high_point[1])
+            x = self.random.uniform(self.low_point[0], self.high_point[0])
+            y = self.random.uniform(self.low_point[1], self.high_point[1])
             self.nextwaypoint = [x, y]
         done = self.move_towards_location(self.nextwaypoint[0], self.nextwaypoint[1], self.vel, delta_t)
         if done:
             self.nextwaypoint = None
+            
+def generate_lawnmower(xmin, xmax, ymin, ymax, winds):
+    """Generates a horizontal lawnmower path on the list """
+    current = [xmin, ymin]
+    ystep = (ymax - ymin) / (2 * winds)
+    path = []
+    path.append(current)
+    for i in range(winds):
+        path.append([xmax, current[1]])
+        path.append([xmax, current[1]+ystep])
+        path.append([xmin, current[1]+ystep])
+        current = [xmin, current[1]+2 * ystep]
+        path.append(current)
+    path.append([xmax, current[1]])
+    return path

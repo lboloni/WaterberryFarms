@@ -1,4 +1,5 @@
 import ast
+from collections import deque
 
 class Robot:
     """The representation of a robot / drone."""    
@@ -10,10 +11,14 @@ class Robot:
         self.vel_x = self.vel_y = self.vel_altitude = 0
         # actions requested at a particular timestep
         self.pending_actions = []
-        self.everystep_actions = ["Move", "Observe"]
+        if env == None:
+            self.everystep_actions = ["Move", "History"]
+        else:
+            self.everystep_actions = ["Move", "Observe", "History"]
         self.grid_resolution = grid_resolution
         self.energy = 100 # energy level
         self.value = 0 # accumulated value
+        self.location_history = deque()
         self.policy = None
         self.env = env
         self.im = im
@@ -44,19 +49,24 @@ class Robot:
         """Enacts one pending action. We are allowing here for a couple of shorthand
         actions like east, west, south, north..."""
         if action == "Observe":
-            """Simple point observation"""
-            reading = self.env.value[int(self.x),int(self.y)]
+            # simple point observation, skip it if we are outside the environment
+            try:
+                reading = self.env.value[int(self.x),int(self.y)]
+            except IndexError:
+                return
             obs = {"x": self.x, "y": self.y, "value": reading}
             self.im.add_observation(obs)
             self.energy = self.energy - 1
             # FIXME: this should be the VoI
             self.value = self.value + 1
-            return            
             return
         if action == "Move":
             self.x = self.x + delta_t * self.vel_x
             self.y = self.y + delta_t * self.vel_y
             self.altitude = self.altitude + delta_t * self.vel_altitude
+            return
+        if action == "History": # appends x, y, altitude 
+            self.location_history.appendleft([self.x, self.y, self.altitude])
             return
         if action == "West":
             self.vel_x = - self.grid_resolution
@@ -68,14 +78,14 @@ class Robot:
             self.vel_y = 0
             self.vel_altitude = 0
             return
-        if action == "North":
-            self.vel_x = 0
-            self.vel_y = self.grid_resolution
-            self.vel_altitude = 0
-            return
-        if action == "South":
+        if action == "North": # this is the opposite of what one would think due to coord system
             self.vel_x = 0
             self.vel_y = -self.grid_resolution
+            self.vel_altitude = 0
+            return
+        if action == "South": # this is the opposite of what one would think due to coord system
+            self.vel_x = 0
+            self.vel_y = self.grid_resolution
             self.vel_altitude = 0
             return
         if action[0:4] == "loc ":
@@ -108,6 +118,13 @@ class Robot:
         """Simple HTML formatting"""
         value = f"<b>{self.name}</b><br/> loc = [x:{self.x:.2f},y:{self.y:.2f}, alt:{self.altitude:.2f}]<br/>" + \
             f"vel = [x:{self.vel_x:.2f},y:{self.vel_y:.2f},alt:{self.vel_altitude:.2f}]" 
+        value += "<br>Policy: "
+        if self.policy == None:
+            value += "None"
+        else: 
+            value += str(self.policy)
+        value += "<br>Pending actions:"
+        value += str(self.pending_actions)
         return value
             
     def __str__(self):

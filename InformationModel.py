@@ -7,8 +7,7 @@ from functools import partial
 import numpy as np
 from scipy import signal
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
-# , WhiteKernel, RationalQuadratic, ExpSineSquared
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
@@ -49,13 +48,18 @@ class ScalarFieldInformationModel_stored_observation(InformationModel):
     It stores all the observations, and then uses them at estimate 
     time. This version is just keeping stored observations."""
 
-    def __init__(self, name, width, height, estimation_type = "point", estimation_radius = 5):
+        
+    def __init__(self, name, width, height, estimation_type = "point", \
+                 estimation_radius = 5, gp_kernel = None):
         """Initializes the value to zero, the uncertainty to one. 
         FIXME: what exactly the uncertainty measures??? """
         super().__init__(name, width, height)
+        self.value = np.zeros((self.width, self.height))
+        self.uncertainty = np.ones((self.width, self.height))
         self.observations = []
         self.estimation_type = estimation_type
         self.estimation_radius = estimation_radius 
+        self.gp_kernel = gp_kernel
 
     def score(self, env):
         """Scores the information model by finding the difference from the environment. In this case we are
@@ -134,9 +138,10 @@ class ScalarFieldInformationModel_stored_observation(InformationModel):
             X.append([round(obs["x"]), round(obs["y"])])
             Y.append([obs["value"]])
         # fit the gaussian process
-        #rbf = 2.0 * RBF(length_scale = [1.0, 1.0], length_scale_bounds = [1, 10])
-        rbf = RBF(length_scale = [2.0, 2.0], length_scale_bounds = "fixed")
-        gpr = GaussianProcessRegressor(kernel=rbf, n_restarts_optimizer=5)
+        kernel = RBF(length_scale = [2.0, 2.0], length_scale_bounds = [1, 10]) + WhiteKernel(noise_level=0.5)
+
+        # rbf = RBF(length_scale = [2.0, 2.0], length_scale_bounds = "fixed")
+        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5)
         gpr.fit(X,Y)
         x = []
         X = np.array(list(itertools.product(range(self.width), range(self.height))))
@@ -151,8 +156,8 @@ class ScalarFieldInformationModel_stored_observation(InformationModel):
         """The voi of the observation is the reduction of the uncertainty.
         FIXME this can be made different for the GP"""
         _, uncertainty = self.estimate(self.observations)
-        observations_new = observations.clone()
+        observations_new = self.observations.copy()
         observations_new.append(observation)
         _, uncertainty_new = self.estimate(observations_new)        
         return np.sum(np.abs(uncertainty - uncertainty_new))
-
+    
