@@ -33,44 +33,34 @@ class World:
         self.im.proceed(delta_t)
         self.time = self.time + delta_t
         
-def generate_environment():
-    """Function to generate the environment model"""
-    env = PollutionModelEnvironment("water", 10, 10, seed = 1)
-    env.evolve_speed = 1
-    env.p_pollution = 0.1
-    for i in range(100):
-        env.proceed(1.0)
-    # setting it to unchanging
-    env.evolve_speed = 0
-    env.p_pollution = 0.0
-    return env
+class WorldFactory:
+    @staticmethod
+    def generate_environment_pretrained_static_pollution(width = 10, height = 10, seed = 1):
+        """Generates a pollution model that had some polution but now it is static"""
+        env = PollutionModelEnvironment("water", width, height, seed)
+        env.evolve_speed = 1
+        env.p_pollution = 0.1
+        for i in range(100):
+            env.proceed(1.0)
+        # setting it to unchanging
+        env.evolve_speed = 0
+        env.p_pollution = 0.0
+        return env
+    
+    @staticmethod
+    def generate_im(env, settings):
+        """Generates an information model appropriate to the environment and the estimation 
+        type described by the settings"""
+        im = ScalarFieldInformationModel_stored_observation("sample", 
+                            env.width, env.height, 
+                            estimation_type=settings["estimation_type"])
+        return im
 
-def generate_information_model(settings, env):
-    """Generates an information model of a particular type"""
-    im = ScalarFieldInformationModel_stored_observation("sample", 
-                        env.width, env.height, 
-                        estimation_type=settings["estimation_type"])
-    return im
-
-def generate_robots(settings, world):
-    """Generate the robots and their policies according to the settings. 
-    Current version generate n robots with random waypoint behavior"""
-    count = settings["count"]
-    for i in range(count):
-        robot = Robot(f"Robot-{i}", 0, 0, 0, env=world.env, im=world.im)
-        robot.policy = RandomWaypointPolicy(None, robot, 1, [0,0], [9, 9], seed = 1)
-        world.add_robot(robot)
-        
-def run_experiment(genenv, genim, genrob):
-    """Generates the environment, the model and the robots"""
-    env = genenv()
-    im = genim(env)
-    world = World(env, im)
-    genrob(world)
-    record = []
-    for t in range(100):
-        world.enact_policy(1)
-        world.proceed(1)
-        ## this is where we get some kind of metric
-        record.append(im.score(env))
-    return record
+    @staticmethod
+    def generate_world_pretrained_static_pollution(width = 10, height = 10, 
+                                                   seed = 1, estimation_type = "gaussian-process"):
+        env = WorldFactory.generate_environment_pretrained_static_pollution(width, height, seed)
+        settings = {"estimation_type": estimation_type}
+        im = WorldFactory.generate_im(env, settings)
+        world = World(env, im)
+        return world
