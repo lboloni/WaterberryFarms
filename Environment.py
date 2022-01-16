@@ -5,7 +5,6 @@ from scipy import signal
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
 
-from IPython.display import display, HTML
 import logging
 logging.basicConfig(level=logging.WARNING)
 
@@ -41,8 +40,8 @@ class ScalarFieldEnvironment(Environment):
         pass
     
 
-class PollutionModelEnvironment(ScalarFieldEnvironment):
-    """An environment which models the appearance and spreading of polution"""
+class DissipationModelEnvironment(ScalarFieldEnvironment):
+    """An environment which models values that are gradually spreading and dissipating. This might be something such as water, fertilizer, or also polution"""
     
     def __init__(self, name, width, height, seed, dissipation_rate = 0.95, 
                  p_pollution = 0.1, pollution_max_strength = 1000, evolve_speed = 1):
@@ -81,11 +80,17 @@ class PollutionModelEnvironment(ScalarFieldEnvironment):
     
 
 class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
-    """An environment modeling the spreading of an epidemic in the field. The value 
-    field is 0 or 1 depending whether the location is currently infected. 
-    
-    The status field is 0 if not infected, +number if infected with days left, -1 if 
-    immune"""
+    """An environment modeling the spreading of an epidemic such as a plant disease in the field. 
+
+    The model adjusts the "status" field which is defined as follows:
+       0 - Susceptible (aka healthy)
+       >=1 - Infected - currently spreading infection, the exact number is the number of days remaining until recovery or destruction. 
+       -1 - Recovered and thus immune (or destroyed and thus not spreading any more)
+       -2 - Natural immunity - the epidemic cannot touch this location (eg. different plants). It can be used to set a filter.
+
+    The "value" field is created from the status field. 
+
+    """
     def __init__(self, name, width, height, seed, p_transmission = 0.2, infection_duration = 5):
         super().__init__(name, width, height, seed)
         self.status = np.zeros((width, height))        
@@ -95,8 +100,7 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
     
     @staticmethod
     def calculate_infection_matrix(p_transmission): 
-        """Calculates a matrix for the probability of the transmission function of the number of
-        infected neighbors"""
+        """Calculates a matrix for the probability of the transmission function of the number of infected neighbors"""
         pr = np.ones(9) * (1 - p_transmission)
         pows = np.linspace(0, 8, 9)
         p_infection = np.ones(9) - np.power(pr, pows)
@@ -104,8 +108,7 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
     
     @staticmethod
     def countinfected_neighbor(statusmap):
-        """Given a matrix with the status values, returns a matrix with the counts of the 
-        infected neighbors"""
+        """Given a matrix with the status values, returns a matrix with the counts of the infected neighbors. Uses a convolution kernel for speedup"""
         infected = np.zeros(statusmap.shape)
         infected[statusmap > 0] = 1
         neighborcounting_kernel = np.array([[1,1,1], [1, 0, 1], [1, 1, 1]])
@@ -113,7 +116,8 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
         return infectedcount
 
     def proceed(self, delta_t):
-        # make those that finished their sickness immune
+        """Updates the status field with the evolution"""
+        # mark those that finished their sickness recovered...
         self.status[self.status==1] = -1
         # decrease the time remaining for infection
         self.status[self.status > 0] -= 1
@@ -125,6 +129,40 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
         il[il > p] = 1
         il[il <= p] = 0
         self.status[np.logical_and(self.status== 0, il == 1)] = self.infection_duration
-        self.value = np.zeros(self.status.shape)
-        self.value[self.status > 0] = 1
-        self.value[self.status < 0] = 0.5
+        self.create_value()
+
+    def create_value(self):
+        """Make the value map. This model assumes that an R state means destroyed. Value 1 means that there is a full value in the field."""
+        self.value = np.ones(self.status.shape)
+        # set the infected 
+        self.value[self.status > 0] = 0.5
+        # R means destroyed
+        self.value[self.status == -1] = 0
+        # the filtered one is not valuable either
+        self.value[self.status == -2] = 0
+        return self.value
+
+def animate(env, axesimage, i):
+    """Animates an environment by letting the environment proceed a timestep, then setting the values into image."""
+    env.proceed(1.0)
+    v = env.value.copy()
+    axesimage.set_array(v)
+    return [axesimage]
+
+def animate_environment(env):
+    fig, ax = plt.subplots()
+    # im  = ax.imshow(env.value, cmap="gray", vmin=0, vmax=1.0)
+    axesimage  = ax.imshow(env.value, vmin=0, vmax=1)
+    anim = animation.FuncAnimation(fig, partial(animate, env, axesimage), 
+                                       frames=100, interval=5, 
+                                       blit=True)
+    return anim
+
+if __name__ == "__main__":
+    env = EpidemicSpreadEnvironment("crop", 100, 100, seed=40, infection_duration = 5, p_transmission = 0.1)
+    env.status[6,10] = 2
+    env.status[60,80] = 5
+    # make a filtered area which won't be susceptible 
+    env.status[10:50, 10:50] = -2
+    anim = animate_environment(env)
+    plt.show()

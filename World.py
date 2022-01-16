@@ -1,4 +1,4 @@
-from Environment import Environment, PollutionModelEnvironment, EpidemicSpreadEnvironment
+from Environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 from InformationModel import InformationModel, ScalarFieldInformationModel_stored_observation
 from Robot import Robot
 from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
@@ -37,7 +37,7 @@ class WorldFactory:
     @staticmethod
     def generate_environment_pretrained_static_pollution(width = 10, height = 10, seed = 1):
         """Generates a pollution model that had some polution but now it is static"""
-        env = PollutionModelEnvironment("water", width, height, seed)
+        env = DissipationModelEnvironment("water", width, height, seed)
         env.evolve_speed = 1
         env.p_pollution = 0.1
         for i in range(100):

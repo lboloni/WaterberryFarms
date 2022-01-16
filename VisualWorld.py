@@ -19,14 +19,15 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 
 import PIL.Image
-from ipywidgets import interact, Button, IntText, GridBox, Layout, VBox, HBox, Box, HTML, \
-    Output, Label, FloatSlider, IntText, Image, Checkbox
+from ipywidgets import interact, Button, IntText, GridBox, Layout, VBox, HBox, Box, HTML, Output, Label, FloatSlider, IntText, Image, Checkbox
 from IPython.display import display
-
 from World import World, WorldFactory
 
 
 class VisualWorld:
+    """An interactive representation of an informative path planning world, with a control system that is relying on ipywidgets to control the robots
+    and the evolution of time."""
+
     def __init__(self, world):
         self.world = world
         self.config = {"IMAGE_WIDTH": 900, "IMAGE_HEIGHT": 900, "ROBOT_SIZE": 0.2, 

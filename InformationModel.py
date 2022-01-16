@@ -15,7 +15,7 @@ from matplotlib import animation, rc
 from IPython.display import display, HTML
 
 
-from Environment import Environment, PollutionModelEnvironment, EpidemicSpreadEnvironment
+from Environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -27,28 +27,31 @@ class InformationModel:
         self.name, self.width, self.height = name, width, height
     
     def score(self, env: Environment):
-        """Calculates a score that estimates the quality of this information model in modeling the
-        specified environment"""
+        """Calculates a score that estimates the quality of this information 
+        model in modeling the specified environment"""
         return 0
     
     def add_observation(self, observation: dict):
-        """Adds an observation as a dictionary with the fields value, x, y, timestamp etc. Different 
-        implementations do different things with these observations (store, use it right away 
-        to update the model etc.)"""
+        """Adds an observation as a dictionary with the fields value, x, y, 
+        timestamp etc. Different implementations do different things with these 
+        observations (store, use it right away to update the model etc.)"""
         pass
         
     def proceed(self, delta_t: float):
-        """Proceed with the information model. The general assumption here is that after calling this
-        the estimates are pre-computed and ready to be queried. Some implementations might model the
-        evolution of the system as well."""
+        """Proceed with the information model. The general assumption here is 
+        that after calling this the estimates are pre-computed and ready to be 
+        queried. Some implementations might model the evolution of the system 
+        as well."""
         pass
 
 class ScalarFieldInformationModel_stored_observation(InformationModel):
-    """An information model for scalar fields. It receives a series of observations. 
-    It stores all the observations, and then uses them at estimate 
-    time. This version is just keeping stored observations."""
+    """An information model for scalar fields. It receives a series of 
+    observations. It stores all the observations, and then uses them at 
+    estimate time. This version is just keeping stored observations.
 
-        
+    FIXME: This implementation tries to do everything in one shot, so it has Gaussian Process, point based, disk based etc. Probably this needs to be improved and polished and extended.
+    """
+    
     def __init__(self, name, width, height, estimation_type = "point", \
                  estimation_radius = 5, gp_kernel = None):
         """Initializes the value to zero, the uncertainty to one. 
