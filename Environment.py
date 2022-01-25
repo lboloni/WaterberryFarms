@@ -4,6 +4,7 @@ import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
+import timeit
 
 import logging
 logging.basicConfig(level=logging.WARNING)
@@ -58,11 +59,16 @@ class DissipationModelEnvironment(ScalarFieldEnvironment):
         determined by the evolve speed"""
         self.pollution_init(delta_t)
         iterations = int(self.evolve_speed * delta_t)
-        convspace = np.zeros((self.width * 3, self.height * 3))
-        convspace[self.width: self.width *2, self.height: self.height*2] = self.value
+        # initial implementation: create an space 9 times larger, this is very inefficient
+        #convspace = np.zeros((self.width * 3, self.height * 3))
+        #convspace[self.width: self.width *2, self.height: self.height*2] = #self.value
+        # create a padding model FIXME: intelligent padding
+        padding = 1 + iterations * self.evolve_kernel.shape[0] // 2
+        convspace = np.zeros((self.width + 2 * padding, self.height + 2 * padding))
+        convspace[padding: self.width + padding, padding: self.height + padding] = self.value
         for i in range(iterations):
             convspace = signal.convolve2d(convspace, self.evolve_kernel, mode="same")
-        self.value = convspace[self.width: self.width *2, self.height: self.height*2]
+        self.value = convspace[padding: self.width + padding, padding: self.height + padding]
         logging.info(f"sum {self.value.sum()}")        
         
     def pollution_init(self, delta_t):
@@ -159,10 +165,27 @@ def animate_environment(env):
     return anim
 
 if __name__ == "__main__":
-    env = EpidemicSpreadEnvironment("crop", 100, 100, seed=40, infection_duration = 5, p_transmission = 0.1)
-    env.status[6,10] = 2
-    env.status[60,80] = 5
-    # make a filtered area which won't be susceptible 
-    env.status[10:50, 10:50] = -2
-    anim = animate_environment(env)
-    plt.show()
+    if False:
+        # visualizing the environment
+        env = EpidemicSpreadEnvironment("crop", 100, 100, seed=40, infection_duration = 5, p_transmission = 0.1)
+        env.status[6,10] = 2
+        env.status[60,80] = 5
+        # make a filtered area which won't be susceptible 
+        env.status[10:50, 10:50] = -2
+        anim = animate_environment(env)
+        plt.show()
+    if True:
+        # trying out different sizes of EpidemicSpreadEnvironment
+        for i in [10, 50, 100, 200, 400, 1000, 2000, 4000]:
+            env = EpidemicSpreadEnvironment("crop", i, i, seed=40, infection_duration = 5, p_transmission = 0.1)
+            env.status[i // 2, i // 2] = 2
+            env.status[(3*i) // 4, (3*i) // 4] = 5
+            time = timeit.timeit("env.proceed(1.0)", number=1, globals=globals())
+            print(f"map of size {i}x{i} a proceed took {time:0.2} seconds")
+        # trying out different sizes of DissipationModelEnvironment
+        for i in [10, 50, 100, 200, 400, 1000, 2000, 4000]:
+            env = DissipationModelEnvironment("pollution", i, i, seed=40)
+            # env.status[i // 2, i // 2] = 2
+            # env.status[(3*i) // 4, (3*i) // 4] = 5
+            time = timeit.timeit("env.proceed(1.0)", number=1, globals=globals())
+            print(f"map of size {i}x{i} a proceed took {time:0.2} seconds")

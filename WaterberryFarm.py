@@ -12,6 +12,12 @@ import math
 import unittest
 import timeit
 
+import logging
+# logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger().setLevel(logging.INFO)
+logging.info("Hello world")
+
 class FarmGeometry:
     """Patches should be added in decreasing order"""
 
@@ -124,16 +130,16 @@ class WaterberryFarm(FarmGeometry):
         self.add_patch(name="N4-tomatoes", type="tomato", area = [[0,4000], [1000, 4000], [1000, 1000],[0, 1000] ], color="mistyrose")
 
 class MiniberryFarm(FarmGeometry):
-    """Implements the geometry of a small farm, for testing"""
+    """Implements the geometry of a small farm, for testing. Scalable size for testing performance"""
 
-    def __init__(self):
-            super().__init__()
-            
-            ## the owner's patches
-            # strawberry patch
-            self.add_patch(name="strawberries", type="strawberry", area = [[3,3], [6, 3], [6, 6],[3,6] ], color="lightblue")
-            # tomato patch
-            self.add_patch(name="tomatoes", type="tomato", area=[[8,8], [10, 8], [10, 10],[8, 10] ], color="lightcoral")
+    def __init__(self, scale = 1):
+        super().__init__()
+        print(6*scale)        
+        ## the owner's patches
+        # strawberry patch
+        self.add_patch(name="strawberries", type="strawberry", area = [[3*scale,3*scale], [6* scale, 3*scale], [6*scale, 6*scale],[3*scale,6*scale] ], color="lightblue")
+        # tomato patch
+        self.add_patch(name="tomatoes", type="tomato", area=[[8*scale,8*scale], [10*scale, 8*scale], [10*scale, 10*scale],[8*scale, 10*scale] ], color="lightcoral")
 
 class WaterberryFarmEnvironment(Environment.Environment):
     """An environment that describes the status of the soil and plant diseases on the Waterberry Farm"""
@@ -183,16 +189,19 @@ class WaterberryFarmEnvironment(Environment.Environment):
 
     def animate(self, i):
         """Animates an environment by letting the environment proceed a timestep, then setting the values into image."""
+        logging.info(f"animate {i} before proceed")        
         self.proceed(1.0)
+        logging.info(f"animate {i} after proceed")        
 
         v = self.tylcv.value.copy()
-        self.image_tylcv.set_array(v)
+        self.image_tylcv.set_array(v.T)
 
         v = self.ccr.value.copy()
-        self.image_ccr.set_array(v)
+        self.image_ccr.set_array(v.T)
 
         v = self.soil.value.copy()
-        self.image_soil.set_array(v)
+        self.image_soil.set_array(v.T)
+        logging.info(f"animate {i} after setting arrays")        
 
         return [self.image_tylcv, self.image_ccr, self.image_soil]
 
@@ -228,27 +237,45 @@ class WaterberryFarmInformationModel(InformationModel):
 
     def visualize(self):
         """Visualize the estimates and the uncertainty models for the three components"""
-        
+        pass
 
 
 class TestWaterberryGeometry(unittest.TestCase):
     """Tests for the FarmGeometry model, for specifically the WaterberryFarm setup."""
 
     def setUp(self):
-        self.wbf = WaterberryFarm()
+        pass
 
     def test_positions(self):
-        self.assertTrue(self.wbf.point_in_component(3050, 50, "tomatoes"))
+        self.wbf = WaterberryFarm()
+        self.assertFalse(self.wbf.point_in_component(3050, 50, "tomatoes"))
         self.assertTrue(self.wbf.point_in_component(1050, 2050, "strawberries"))
-        self.assertTrue(self.wbf.point_in_component(1050, 1050, "pond"))
-        self.assertFalse(self.wbf.point_in_component(1050, 1050, "strawberries"))
-        self.assertTrue(self.wbf.point_in_component(2950, 2950, "wetland buffer"))
+        self.assertTrue(self.wbf.point_in_component(2050, 2050, "pond"))
+        self.assertTrue(self.wbf.point_in_component(1050, 1050, "strawberries"))
+        self.assertTrue(self.wbf.point_in_component(3950, 3950, "wetland buffer"))
         self.assertFalse(self.wbf.point_in_component(2950, 2950, "tomatoes"))        
 
+    def test_environment_scale(self):
+        for scale in [1, 5,10, 20, 40, 100, 200, 400]:
+            print(scale)
+            global wbf
+            time = timeit.timeit(f"global wbf; wbf = MiniberryFarm(scale={scale})", number=1,  globals=globals())
+            print(f"MiniberryFarm scaled up {scale} times. Height: {wbf.height}, width: {wbf.width}")
+            print(f"Creation: {time:0.2} seconds")
+            time = timeit.timeit(f"wbf.create_type_map()", number=1,  globals=globals())
+            print(f"Creation of the type map: {time:0.2} seconds")
+            # creation of the environment
+            wbfe = None
+            time = timeit.timeit("global wbfe; wbfe = WaterberryFarmEnvironment(wbf, seed = 10)", number=1,  globals=globals())
+            print(f"Create WaterberryFarmEnvironment for it: {time:0.2} seconds")
+            time = timeit.timeit(f"wbfe.proceed()", number=1,  globals=globals())
+            print(f"Environment proceed: {time:0.2} seconds")
 
 
 
 if __name__ == "__main__":
+    if True:
+        unittest.main()
     if False:
         a = np.array([1, 2, 3, 4, 5, 6])
         index = np.array([1, 2, 4])
@@ -259,34 +286,25 @@ if __name__ == "__main__":
         #a[[1, 2, 4]] = 0
         #print(a)
     if False:
-        unittest.main()
-    if False:
+        logging.basicConfig(level=logging.DEBUG)
+        # logging.setLevel(logging.INFO)
         wbf = WaterberryFarm()
-        #print(wbf.list_components())
-        #val = wbf.point_in_component(3050, 50, "tomatoes")
-        #print(f"wbf contains tomatoes at 3050, 50: {val}")
-        print(wbf.types)
-
-        #wbf.create_type_map()
-        time = timeit.timeit("wbf.create_type_map()", number=1, globals=globals())
-        print(f"create_type_map() took {time} seconds")
-
-        fig,(ax, ax2) = plt.subplots(2)
-        wbf.visualize(ax)
-        ax2.imshow(wbf.type_map)
-        plt.show()
-    if True:
-        #wbf = WaterberryFarm()
-        wbf = MiniberryFarm()
+        # wbf = MiniberryFarm(scale=400)
         wbf.create_type_map()
         wbfe = WaterberryFarmEnvironment(wbf, seed = 10)
 
-        wbfe.tylcv.status[1,1] = 5
-        wbfe.ccr.status[1,1] = 5
+        # place some infections
+        for i in range(1000):
+            locationx = int( wbfe.tylcv.random.random(1) * wbfe.tylcv.width )
+            locationy = int ( wbfe.tylcv.random.random(1) * wbfe.tylcv.height )
+            wbfe.tylcv.status[locationx, locationy] = 5
+            # wbfe.ccr.status[1050,1050] = 5
 
         for i in range(1):
             wbfe.proceed()
         wbfe.visualize()
+        logging.info("Visualize done, proceed to animate")
+        # This is working at approximately 2 sec per frame for the environment progress. Not very fast, but it should be roughly ok. 
         anim = wbfe.animate_environment()
         plt.show()
     if False:

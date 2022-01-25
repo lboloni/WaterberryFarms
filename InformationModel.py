@@ -14,7 +14,6 @@ from matplotlib import animation, rc
 
 from IPython.display import display, HTML
 
-
 from Environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 
 logging.basicConfig(level=logging.WARNING)
