@@ -1,5 +1,5 @@
 from Environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
-from InformationModel import InformationModel, ScalarFieldInformationModel_stored_observation
+from InformationModel import InformationModel, GaussianProcessScalarFieldIM
 from Robot import Robot
 from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
 
@@ -51,9 +51,9 @@ class WorldFactory:
     def generate_im(env, settings):
         """Generates an information model appropriate to the environment and the estimation 
         type described by the settings"""
-        im = ScalarFieldInformationModel_stored_observation("sample", 
-                            env.width, env.height, 
-                            estimation_type=settings["estimation_type"])
+        ## FIXME: this should be different based on settings["estimation_type"]
+        im = GaussianProcessScalarFieldIM("sample", 
+                            env.width, env.height)
         return im
 
     @staticmethod

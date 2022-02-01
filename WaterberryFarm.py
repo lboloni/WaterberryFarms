@@ -1,5 +1,5 @@
 import Environment
-from InformationModel import InformationModel, ScalarFieldInformationModel_stored_observation
+from InformationModel import InformationModel, ScalarFieldIM
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Polygon
@@ -218,9 +218,9 @@ class WaterberryFarmInformationModel(InformationModel):
     def __init__(self, name, width, height):
         """Creating the stuff"""
         super().__init__(name, width, height)
-        self.im_tylcv = ScalarFieldInformationModel_stored_observation("TYLCV", width, height)
-        self.im_ccr = ScalarFieldInformationModel_stored_observation("CCR", width, height)
-        self.im_soil = ScalarFieldInformationModel_stored_observation("Soil")
+        self.im_tylcv = ScalarFieldIM("TYLCV", width, height)
+        self.im_ccr = ScalarFieldIM("CCR", width, height)
+        self.im_soil = ScalarFieldIM("Soil")
 
     def add_observation(self, observation: dict):
         """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity. 
