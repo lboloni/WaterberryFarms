@@ -1,5 +1,5 @@
 import Environment
-from InformationModel import InformationModel, ScalarFieldIM
+from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, im_score, im_score_weighted
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Polygon
@@ -11,12 +11,13 @@ import numpy as np
 import math
 import unittest
 import timeit
+import pathlib 
+import pickle
 
 import logging
 # logging.basicConfig(level=logging.WARNING)
 logging.basicConfig(level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
-logging.info("Hello world")
 
 class FarmGeometry:
     """Patches should be added in decreasing order"""
@@ -46,7 +47,7 @@ class FarmGeometry:
         self.height = int(np.max([np.max(p["polygon"].get_xy()[:,1]) for p in self.patches])) + 1
 
     def visualize(self, ax):
-        """Visualizes the patch in an axis"""
+        """Visualizes the farm geometry in an axis"""
         ax.set_xlim(0, self.width)
         ax.set_ylim(0, self.height)
         for p in self.patches:
@@ -65,13 +66,6 @@ class FarmGeometry:
                 else:
                     return False
         return False
-
-    def point_type(self, x, y):
-        """Returns the type of component here. Useful for setting masks. 
-        FIXME: this is not vectorized, it might be slow, might be worth to make a typemap"""
-        for p in reversed(self.patches):
-            if p["polygon"].get_path().contains_point([x,y]):
-                return p["type"]
 
     def create_type_map(self):
         """Implementation with reshaping..."""
@@ -174,9 +168,12 @@ class WaterberryFarmEnvironment(Environment.Environment):
         self.ccr.proceed(delta_t)
         self.soil.proceed(delta_t)
 
-    def visualize(self):
-        """Plot the components into a four panel figure"""
-        self.fig, ((self.ax_geom, self.ax_tylcv), (self.ax_ccr, self.ax_soil)) = plt.subplots(2,2)
+    def visualize(self, fig = None, ax_geom = None, ax_tylcv= None, ax_ccr = None, ax_soil = None):
+        """Plot the components into a four panel figure. """
+        if fig == None:
+            self.fig, ((self.ax_geom, self.ax_tylcv), (self.ax_ccr, self.ax_soil)) = plt.subplots(2,2)
+        else:
+            self.fig, self.ax_geom, self.ax_tylcv, self.ax_ccr, self.ax_soil = fig, ax_geom,  ax_tylcv, ax_ccr, ax_soil
         self.geometry.visualize(self.ax_geom)
         self.ax_geom.set_title("Layout")
         self.image_tylcv = self.ax_tylcv.imshow(self.tylcv.value.T, vmin=0, vmax=1, origin="lower")
@@ -212,15 +209,15 @@ class WaterberryFarmEnvironment(Environment.Environment):
         anim = animation.FuncAnimation(self.fig, partial(self.animate), frames=100, interval=50, blit=True)
         return anim
 
-class WaterberryFarmInformationModel(InformationModel):
+class WaterberryFarmInformationModel(StoredObservationIM):
     """The information model for the waterberry farm. It is basically a collection of three information models, one for each environmental model."""
 
     def __init__(self, name, width, height):
         """Creating the stuff"""
         super().__init__(name, width, height)
-        self.im_tylcv = ScalarFieldIM("TYLCV", width, height)
-        self.im_ccr = ScalarFieldIM("CCR", width, height)
-        self.im_soil = ScalarFieldIM("Soil")
+        self.im_tylcv = GaussianProcessScalarFieldIM("TYLCV", width, height)
+        self.im_ccr = GaussianProcessScalarFieldIM("CCR", width, height)
+        self.im_soil = GaussianProcessScalarFieldIM("Soil",width, height)
 
     def add_observation(self, observation: dict):
         """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity. 
@@ -239,6 +236,24 @@ class WaterberryFarmInformationModel(InformationModel):
         """Visualize the estimates and the uncertainty models for the three components"""
         pass
 
+
+def waterberry_score(env: WaterberryFarmEnvironment, im: WaterberryFarmInformationModel):
+    """A specialized score function for the waterberry farm environment, which is individually weights the values of the different components
+    # FIXME: we need to mask with "my land" 
+    """
+    score = 0
+    my_strawberry_mask = np.equal(env.geometry.type_map, env.geometry.types["strawberry"])
+    strawberry_importance = 0.2 # not lead to full crop loss
+    score +=  strawberry_importance * im_score_weighted(env.ccr, im.im_ccr, my_strawberry_mask)
+
+    my_tomato_mask = np.equal(env.geometry.type_map, env.geometry.types["tomato"])
+    tomato_importance = 1.0 # leads to full crop loss
+    score += tomato_importance * im_score_weighted(env.tylcv, im.im_tylcv, my_tomato_mask)
+
+    my_land_mask = np.ones((env.width, env.height))
+    soil_importance = 0.1 # the exact value is of lower importance on revenue
+    score += soil_importance * im_score_weighted(env.soil, im.im_soil, my_land_mask)
+    return score
 
 class TestWaterberryGeometry(unittest.TestCase):
     """Tests for the FarmGeometry model, for specifically the WaterberryFarm setup."""
@@ -271,10 +286,76 @@ class TestWaterberryGeometry(unittest.TestCase):
             time = timeit.timeit(f"wbfe.proceed()", number=1,  globals=globals())
             print(f"Environment proceed: {time:0.2} seconds")
 
+def create_wbf():
+    """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulation."""
+    savedir = pathlib.Path("saved")
+    path_geometry = pathlib.Path(savedir,"farm_geometry")
+    path_environment = pathlib.Path(savedir,"farm_environment")
+    if path_geometry.exists():
+        logging.info("loading the geometry and environment from saved data")
+        with open(path_geometry, "rb") as f:
+            wbf = pickle.load(f)
+        with open(path_environment, "rb") as f:
+            wbfe = pickle.load(f)
+        return wbf, wbfe
+    # wbf = WaterberryFarm()
+    wbf = MiniberryFarm(scale=10)
+    wbf.create_type_map()
+    wbfe = WaterberryFarmEnvironment(wbf, seed = 10)
 
+    # place some infections
+    for i in range(1000):
+        locationx = int( wbfe.tylcv.random.random(1) * wbfe.tylcv.width )
+        locationy = int ( wbfe.tylcv.random.random(1) * wbfe.tylcv.height )
+        wbfe.tylcv.status[locationx, locationy] = 5
+        # wbfe.ccr.status[1050,1050] = 5
+
+    for i in range(1):
+        wbfe.proceed()
+    # ************ save the geometry and environment
+    savedir.mkdir(parents=True, exist_ok=True)
+    with open(path_geometry, "wb+") as f:
+        pickle.dump(wbf, f)
+    with open(path_environment, "wb+") as f:
+        pickle.dump(wbfe, f)
+    return wbf, wbfe
 
 if __name__ == "__main__":
     if True:
+    # Put everything together, measure the score for a set of observations
+        wbf, wbfe = create_wbf()
+        # observation locations
+        # for waterberry
+        # locations = [[10, 10], [500, 500], [1500, 1500]]
+        # for miniberry
+        locations = [[10, 10], [30, 30], [50, 50]]
+        observations = []
+        wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height)
+        for location in locations:
+            x = location[0]
+            y = location[1]
+            value_tylcv = wbfe.tylcv.value[x, y]
+            value_ccr = wbfe.ccr.value[x, y]
+            value_soil = wbfe.soil.value[x, y]
+            observation = {}
+            observation["TYLCV"] = {wbfim.X : x, wbfim.Y : y, wbfim.VALUE : value_tylcv}
+            observation["CCR"] = {wbfim.X : x, wbfim.Y : y, wbfim.VALUE : value_ccr}
+            observation["Soil"] = {wbfim.X : x, wbfim.Y : y, wbfim.VALUE : value_soil}
+            observations.append(observation)
+        for observation in observations:
+            wbfim.add_observation(observation)
+        wbfim.proceed(1)
+        score = waterberry_score(wbfe, wbfim)
+        print(f"Waterberry information model score: {score}")
+        # now visualize the environment and the information model
+        fig, axes = plt.subplots(2,4)        
+        wbfe.visualize(fig, axes[0,0], axes[0,1], axes[0,2], axes[0,3])
+
+        image_im_tylcv = axes[1,0].imshow(wbfim.im_tylcv.value.T, vmin=0, vmax=1, origin="lower")
+        axes[1,0].set_title("TYLCV im")
+        plt.show()
+
+    if False:
         unittest.main()
     if False:
         a = np.array([1, 2, 3, 4, 5, 6])
@@ -288,20 +369,7 @@ if __name__ == "__main__":
     if False:
         logging.basicConfig(level=logging.DEBUG)
         # logging.setLevel(logging.INFO)
-        wbf = WaterberryFarm()
-        # wbf = MiniberryFarm(scale=400)
-        wbf.create_type_map()
-        wbfe = WaterberryFarmEnvironment(wbf, seed = 10)
-
-        # place some infections
-        for i in range(1000):
-            locationx = int( wbfe.tylcv.random.random(1) * wbfe.tylcv.width )
-            locationy = int ( wbfe.tylcv.random.random(1) * wbfe.tylcv.height )
-            wbfe.tylcv.status[locationx, locationy] = 5
-            # wbfe.ccr.status[1050,1050] = 5
-
-        for i in range(1):
-            wbfe.proceed()
+        wbf, wbfe = create_wbf()
         wbfe.visualize()
         logging.info("Visualize done, proceed to animate")
         # This is working at approximately 2 sec per frame for the environment progress. Not very fast, but it should be roughly ok. 

@@ -68,9 +68,7 @@ class StoredObservationIM(InformationModel):
 
 
 class AbstractScalarFieldIM(StoredObservationIM):
-    """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. 
-
-    FIXME: This implementation tries to do everything in one shot, so it has Gaussian Process, point based, disk based etc. Probably this needs to be improved and polished and extended.
+    """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. The uncertainty metric is an estimate of the error at any given location. 
     """
     
     def __init__(self, name, width, height, estimation_type = "point", \
@@ -81,18 +79,14 @@ class AbstractScalarFieldIM(StoredObservationIM):
         self.value = np.zeros((self.width, self.height))
         self.uncertainty = np.ones((self.width, self.height))
 
-    def score(self, env):
-        """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. FIXME: other ways to define the score might be used later."""
-        return np.mean(np.abs(env.value - self.value))
-
-
     def proceed(self, delta_t):
         """Proceeds a step in time. At the current point, this basically performs an estimation, based on the observations. 
         None of the currently used estimators have the ability to make predictions, but this might be the case later on"""
-        self.value, self.uncertainty = self.estimate(self.observations)
+        self.value, self.uncertainty = self.estimate(self.observations, None, None)
 
-    def estimate(self, observations):
-        """Performs the estimate for every point in the environment. Returns a pair of the values and uncertainty as matrices for every point in the environment."""
+    def estimate(self, observations, prior_value: None, prior_uncertainty: None):
+        """Performs the estimate for every point in the environment. Returns a the posterior values and uncertainty as arrays for every point in the environment. 
+        The observations are the ones that have not been integrated into the prior"""
         raise Exception(f"Trying to call estimate in the abstract class.")
 
     def estimate_voi(self, observation):
@@ -104,6 +98,18 @@ class AbstractScalarFieldIM(StoredObservationIM):
         _, uncertainty_new = self.estimate(observations_new)        
         return np.sum(np.abs(uncertainty - uncertainty_new))
 
+def im_score(im, env):
+    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
+    return np.mean(np.abs(env.value - im.value))
+
+def im_score_weighted(im, env, weightmap):
+    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
+    wm = weightmap / np.mean(weightmap)
+    abserror = np.abs(env.value - im.value)
+    weightederror = np.multiply(wm, abserror)
+    return np.mean(weightederror)
+
+
 class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
     """An information model for scalar fields where the estimation is happening
     using a GaussianProcess
@@ -113,8 +119,10 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
         super().__init__(name, width, height)
         self.gp_kernel = gp_kernel
 
-    def estimate(self, observations):
+    def estimate(self, observations, prior_value, prior_uncertainty):
         # calculate the estimate for each gaussian process
+        if prior_value != None or prior_uncertainty != None:
+            Exception("GaussianProcessScalarFieldIM cannot handle priors")
         est = np.zeros([self.width,self.height])
         stdmap = np.zeros([self.width,self.height])
         if len(observations) == 0:
@@ -147,14 +155,20 @@ class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
     def __init__(self, name, width, height):
         super().__init__(name, width, height)
 
-    def estimate(self, observations):
+    def estimate(self, observations, prior_value, prior_uncertainty):
         """Takes all the observations and estimates the value and the 
         uncertainty. This one processes all the observations, ignores the 
         timestamp, and assumes that each observation refers only to the current 
         point."""
         # value = np.ones((self.width, self.height)) * 0.5
-        value = np.zeros((self.width, self.height)) 
-        uncertainty = np.ones((self.width, self.height))
+        if prior_value != None:
+            value = np.clone(prior_value)
+        else:
+            value = np.zeros((self.width, self.height)) 
+        if prior_uncertainty != None:
+            uncertainty = np.clone(prior_uncertainty)
+        else:
+            uncertainty = np.ones((self.width, self.height))
         for obs in observations:
             value[obs[self.X], obs[self.Y]] = obs[self.VALUE]
             uncertainty[obs[self.X], obs[self.Y]] = 0
@@ -168,7 +182,7 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         super().__init__(name, width, height)
         self.disk_radius = disk_radius
 
-    def estimate(self, observations, radius=None):
+    def estimate(self, observations, prior_value, prior_uncertainty, radius=None):
         """Consider that we are estimating them with a disk of a certain radius 
         r. The radius r can be dynamically calculated such that the total disks achieve 2x the coverage of the area. sqrt((height * width * 2) / pi). 
         Later disks overwrite earlier disks.
