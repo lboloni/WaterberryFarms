@@ -181,6 +181,7 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
     def __init__(self, name, width, height, disk_radius=5):
         super().__init__(name, width, height)
         self.disk_radius = disk_radius
+        self.mask = None
 
     def estimate(self, observations, prior_value, prior_uncertainty, radius=None):
         """Consider that we are estimating them with a disk of a certain radius 
@@ -190,21 +191,50 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         value = np.zeros((self.width, self.height)) 
         uncertainty = np.ones((self.width, self.height))
         if self.disk_radius == None:
-            radius = 1+math.sqrt((self.height * self.width * 2) / (math.pi * len(observations)))
+            radius = int(1+math.sqrt((self.height * self.width * 2) / (math.pi * len(observations))))
         else:
             radius = self.disk_radius
         # FIXME: this is not very efficient, it can be made more efficient by iterating just one corner
         # and finding values.
+        # FIXME: this could be made more efficient by creating a circular mask and then moving it... 
+
+        # create a mask array
+        maskdim = 2 * radius + 1
+        self.mask = np.full((maskdim, maskdim), False, dtype=bool)
+        for i in range(-radius, radius):
+            for j in range(-radius, radius):
+                if (math.sqrt((i*i + j*j)) <= radius):
+                    self.mask[i + radius, j + radius] = True
+
         for obs in observations:
-            x = obs[self.X]
-            y = obs[self.Y]
-            for i in range(round(max(0, x-radius)), round(min(x+radius, self.width))):
-                for j in range(round(max(0, y-radius)), round(min(y+radius, self.height))):
-                    if (math.sqrt((i-x)*(i-x) + (j-y)*(j-y)) <= radius):
-                        # FIXME: could do better... with averaging taking into consideration the i and j
-                        value[i, j] = obs[self.VALUE]
-                        uncertainty[i, j] = 0
+            #self.apply_value_iterate(value, obs[self.X], obs[self.Y], obs[self.VALUE], radius)
+            self.apply_value_mask(value, obs[self.X], obs[self.Y], obs[self.VALUE], radius)            
         return value, uncertainty
+
+
+    def apply_value_iterate(self, value, x, y, new_value, radius):
+        """Applies the value in a radius by iteration"""
+        for i in range(round(max(0, x-radius)), round(min(x+radius, self.width))):
+            for j in range(round(max(0, y-radius)), round(min(y+radius, self.height))):
+                if (math.sqrt((i-x)*(i-x) + (j-y)*(j-y)) <= radius):
+                    # FIXME: could do better... with averaging taking into consideration the i and j
+                    value[i, j] = new_value
+                    # uncertainty[i, j] = 0
+
+    def apply_value_mask(self, value, x, y, new_value, radius):
+        """Applies the value using a mask based approach"""
+        # logging.info("apply_value_mask started")
+        maskdim = 2 * radius + 1
+        # create the mask for the application of the values
+        dimx = int(self.width)
+        dimy = int(self.height)
+        mask2 = np.full((dimx, dimy), False, dtype=bool)
+        maskp = self.mask[max(0, -x):min(maskdim, dimx-x), max(0, -y):min(maskdim,dimy-y)]
+        # print(f"maskp = {maskp}")
+        mask2[max(0, x):min(dimx, x+maskdim), max(0, y):min(dimy,y+maskdim)] = maskp
+        value[mask2] = new_value
+        # logging.info("apply_value_mask done")
+
 
 ## Functions used for the visualization
 

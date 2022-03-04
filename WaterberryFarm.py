@@ -1,5 +1,5 @@
-import Environment
-from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, im_score, im_score_weighted
+from Environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
+from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Polygon
@@ -50,6 +50,7 @@ class FarmGeometry:
         """Visualizes the farm geometry in an axis"""
         ax.set_xlim(0, self.width)
         ax.set_ylim(0, self.height)
+        ax.set_aspect('equal')
         for p in self.patches:
             polygon = p["polygon"]
             center = np.mean(polygon.get_xy(),0)
@@ -70,7 +71,7 @@ class FarmGeometry:
     def create_type_map(self):
         """Implementation with reshaping..."""
         self.type_map = np.zeros(self.width * self.height, dtype=np.int16)
-        print(self.type_map.shape)
+        logging.info(f"create_type_map shape={self.type_map.shape}")
         Xpts = np.arange(0, self.width, 1, dtype=np.int16)
         Ypts = np.arange(0, self.height, 1, dtype=np.int16)
         X2D,Y2D = np.meshgrid(Xpts,Ypts, indexing="ij")
@@ -128,42 +129,63 @@ class MiniberryFarm(FarmGeometry):
 
     def __init__(self, scale = 1):
         super().__init__()
-        print(6*scale)        
         ## the owner's patches
         # strawberry patch
         self.add_patch(name="strawberries", type="strawberry", area = [[3*scale,3*scale], [6* scale, 3*scale], [6*scale, 6*scale],[3*scale,6*scale] ], color="lightblue")
         # tomato patch
         self.add_patch(name="tomatoes", type="tomato", area=[[8*scale,8*scale], [10*scale, 8*scale], [10*scale, 10*scale],[8*scale, 10*scale] ], color="lightcoral")
 
-class WaterberryFarmEnvironment(Environment.Environment):
+class WaterberryFarmEnvironment(Environment):
     """An environment that describes the status of the soil and plant diseases on the Waterberry Farm"""
 
-    def __init__(self, geometry, seed):
+    def __init__(self, geometry, saved: bool,  seed):
         super().__init__(geometry.width, geometry.height, seed)
         self.geometry = geometry
+        self.saved = saved        
         #
         # Tomato yellow leaf curl virus: epidemic spreading disease which spreads only on tomatoes
         #
-        self.tylcv = Environment.EpidemicSpreadEnvironment("TYLCV", geometry.width, geometry.height, seed, p_transmission = 0.2, infection_duration = 5)
-        # initialize the map for the ones which have tomatoes
-        typecode = self.geometry.types["tomato"]
-        # what I want here is to enumerate the indexes for which this is the value...
-        mask = self.geometry.type_map == typecode
-        self.tylcv.status[mask] = -2
-        #self.tylcv.status[self.geometry.type_map[self.geometry.type_map == typecode]] = -2 
+        if self.saved:
+            self.tylcv = PrecalculatedEnvironment(geometry.width, geometry.height, None, "precalc_tylcv")
+        else:
+            # these are the parameters found in the ScenarioDesignWaterberryFarm
+            parameters = {"infection_count": 3, "infection_value": 5, "proceed_count": 25, "p_transmission": 0.5, "infection_duration": 7}
+
+            tylcv = EpidemicSpreadEnvironment("TYLCV", geometry.width, geometry.height, seed, p_transmission = parameters["p_transmission"], infection_duration = parameters["infection_duration"])
+            # initialize the map for the ones which have tomatoes
+            typecode = self.geometry.types["tomato"]
+            # what I want here is to enumerate the indexes for which this is the value...
+            mask = self.geometry.type_map == typecode
+            tylcv.status[mask] = -2
+            #self.tylcv.status[self.geometry.type_map[self.geometry.type_map == typecode]] = -2 
+
+            for i in range(int(parameters["infection_count"])):
+                locationx = int( tylcv.random.random(1) * tylcv.width )
+                locationy = int ( tylcv.random.random(1) * tylcv.height )
+                tylcv.status[locationx, locationy] = int(parameters["infection_value"])
+
+            self.tylcv = PrecalculatedEnvironment(geometry.width, geometry.height, tylcv, "precalc_tylcv")
         #
         # Charcoal Rot: epidemic spreading disease that spreads only on 
         #    strawberries
         #
-        self.ccr = Environment.EpidemicSpreadEnvironment("CCR", geometry.width, geometry.height, seed, p_transmission = 0.1, infection_duration = 10)
-        typecode = self.geometry.types["strawberry"]
-        self.ccr.status[self.geometry.type_map == typecode] = -2 
+        if self.saved:
+            self.ccr = PrecalculatedEnvironment(geometry.width, geometry.height, None, "precalc_ccr")
+        else:
+            ccr = EpidemicSpreadEnvironment("CCR", geometry.width, geometry.height, seed, p_transmission = 0.1, infection_duration = 10)
+            typecode = self.geometry.types["strawberry"]
+            ccr.status[self.geometry.type_map == typecode] = -2 
+            self.ccr = PrecalculatedEnvironment(geometry.width, geometry.height, ccr, "precalc_ccr")
         #
         # Soil humidity: modeled with a dissipation model
         # 
-        self.soil = Environment.DissipationModelEnvironment("Soil humidity", geometry.width, geometry.height, seed, p_pollution = 0.1, pollution_max_strength= 1000, evolve_speed = 1)
+        if self.saved:
+            self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, None, "precalc_soil")
+        else:
+            soil = DissipationModelEnvironment("Soil humidity", geometry.width, geometry.height, seed, p_pollution = 0.1, pollution_max_strength= 1000, evolve_speed = 1)
+            self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, soil, "precalc_soil")
 
-    def proceed(self, delta_t = 1.0):        
+    def inner_proceed(self, delta_t = 1.0):        
         self.tylcv.proceed(delta_t)
         self.ccr.proceed(delta_t)
         self.soil.proceed(delta_t)
@@ -215,9 +237,15 @@ class WaterberryFarmInformationModel(StoredObservationIM):
     def __init__(self, name, width, height):
         """Creating the stuff"""
         super().__init__(name, width, height)
-        self.im_tylcv = GaussianProcessScalarFieldIM("TYLCV", width, height)
-        self.im_ccr = GaussianProcessScalarFieldIM("CCR", width, height)
-        self.im_soil = GaussianProcessScalarFieldIM("Soil",width, height)
+        self.gp = False
+        if self.gp:
+            self.im_tylcv = GaussianProcessScalarFieldIM("TYLCV", width, height)
+            self.im_ccr = GaussianProcessScalarFieldIM("CCR", width, height)
+            self.im_soil = GaussianProcessScalarFieldIM("Soil",width, height)
+        else:
+            self.im_tylcv = DiskEstimateScalarFieldIM("TYLCV", width, height, disk_radius=None)
+            self.im_ccr = DiskEstimateScalarFieldIM("CCR", width, height, disk_radius=None)
+            self.im_soil = DiskEstimateScalarFieldIM("Soil",width, height, disk_radius=None)
 
     def add_observation(self, observation: dict):
         """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity. 
@@ -286,32 +314,38 @@ class TestWaterberryGeometry(unittest.TestCase):
             time = timeit.timeit(f"wbfe.proceed()", number=1,  globals=globals())
             print(f"Environment proceed: {time:0.2} seconds")
 
-def create_wbf():
-    """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulation."""
-    savedir = pathlib.Path("saved")
+def create_wbfe(saved: bool):
+    """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulations."""
+    p = pathlib.Path.cwd()
+    savedir = pathlib.Path(p.parent, "__Temporary", p.name, "saved")
+    savedir.mkdir(parents=True, exist_ok = True)
     path_geometry = pathlib.Path(savedir,"farm_geometry")
     path_environment = pathlib.Path(savedir,"farm_environment")
     if path_geometry.exists():
         logging.info("loading the geometry and environment from saved data")
         with open(path_geometry, "rb") as f:
             wbf = pickle.load(f)
-        with open(path_environment, "rb") as f:
-            wbfe = pickle.load(f)
+        #with open(path_environment, "rb") as f:
+        #    wbfe = pickle.load(f)
+        #    wbfe.saved = saved
+        logging.info("loading done")
+        wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10)
         return wbf, wbfe
-    # wbf = WaterberryFarm()
-    wbf = MiniberryFarm(scale=10)
+    wbf = WaterberryFarm()
+    # wbf = MiniberryFarm(scale=10)
     wbf.create_type_map()
-    wbfe = WaterberryFarmEnvironment(wbf, seed = 10)
+    wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10)
 
+    # these are now set in the constructor
     # place some infections
-    for i in range(1000):
-        locationx = int( wbfe.tylcv.random.random(1) * wbfe.tylcv.width )
-        locationy = int ( wbfe.tylcv.random.random(1) * wbfe.tylcv.height )
-        wbfe.tylcv.status[locationx, locationy] = 5
+    #for i in range(1000):
+    #    locationx = int( wbfe.tylcv.random.random(1) * wbfe.tylcv.width )
+    #    locationy = int ( wbfe.tylcv.random.random(1) * wbfe.tylcv.height )
+    #    wbfe.tylcv.status[locationx, locationy] = 5
         # wbfe.ccr.status[1050,1050] = 5
 
-    for i in range(1):
-        wbfe.proceed()
+    #for i in range(1):
+    #    wbfe.proceed()
     # ************ save the geometry and environment
     savedir.mkdir(parents=True, exist_ok=True)
     with open(path_geometry, "wb+") as f:
@@ -320,10 +354,32 @@ def create_wbf():
         pickle.dump(wbfe, f)
     return wbf, wbfe
 
+
+def create_precalculated_wbfe(time):
+    """Helper function for the creation of a precalculated wbf"""
+    wbf, wbfe = create_wbfe(False)
+    for i in range(time):
+        logging.info(f"precalculation proceed {i}")
+        wbfe.proceed()
+
+def load_precalculated_wbfe():
+    """Helper function for loading a precalculated wbf"""
+    wbf, wbfe = create_wbfe(True)
+    return wbf, wbfe
+
 if __name__ == "__main__":
     if True:
+    # Create the environment, and then load and replay it visually.
+        create_precalculated_wbfe(100)
+        wbf, wbfe = load_precalculated_wbfe()
+        wbfe.visualize()
+        logging.info("Visualize done, proceed to animate")
+        # This is working at approximately 2 sec per frame for the environment progress. Not very fast, but it should be roughly ok. 
+        anim = wbfe.animate_environment()
+        plt.show()
+    if False:
     # Put everything together, measure the score for a set of observations
-        wbf, wbfe = create_wbf()
+        wbf, wbfe = create_wbfe()
         # observation locations
         # for waterberry
         # locations = [[10, 10], [500, 500], [1500, 1500]]
@@ -344,15 +400,23 @@ if __name__ == "__main__":
             observations.append(observation)
         for observation in observations:
             wbfim.add_observation(observation)
+        logging.info("waterberry information model: proceed(1)")
         wbfim.proceed(1)
+        logging.info("done waterberry information model: proceed(1)")
+        logging.info("starting to calculate score for waterberry information model")
         score = waterberry_score(wbfe, wbfim)
-        print(f"Waterberry information model score: {score}")
+        logging.info(f"Waterberry information model score: {score}")
         # now visualize the environment and the information model
         fig, axes = plt.subplots(2,4)        
         wbfe.visualize(fig, axes[0,0], axes[0,1], axes[0,2], axes[0,3])
 
-        image_im_tylcv = axes[1,0].imshow(wbfim.im_tylcv.value.T, vmin=0, vmax=1, origin="lower")
-        axes[1,0].set_title("TYLCV im")
+        image_im_tylcv = axes[1,1].imshow(wbfim.im_tylcv.value.T, vmin=0, vmax=1, origin="lower")
+        axes[1,1].set_title("TYLCV im")
+        image_im_ccr = axes[1,2].imshow(wbfim.im_ccr.value.T, vmin=0, vmax=1, origin="lower")
+        axes[1,2].set_title("CCR im")
+        image_im_ccr = axes[1,3].imshow(wbfim.im_soil.value.T, vmin=0, vmax=1, origin="lower")
+        axes[1,3].set_title("SOIL im")
+
         plt.show()
 
     if False:
@@ -367,17 +431,8 @@ if __name__ == "__main__":
         #a[[1, 2, 4]] = 0
         #print(a)
     if False:
-        logging.basicConfig(level=logging.DEBUG)
-        # logging.setLevel(logging.INFO)
-        wbf, wbfe = create_wbf()
-        wbfe.visualize()
-        logging.info("Visualize done, proceed to animate")
-        # This is working at approximately 2 sec per frame for the environment progress. Not very fast, but it should be roughly ok. 
-        anim = wbfe.animate_environment()
-        plt.show()
-    if False:
         Ypts = np.arange(1, 4000, 1)
         Xpts = np.arange(1, 3000, 1)
         X2D,Y2D = np.meshgrid(Ypts,Xpts)
         points = np.column_stack((Y2D.ravel(),X2D.ravel()))
-        print(points)
+        print(points)   
