@@ -9,6 +9,7 @@ from matplotlib import animation
 from functools import partial
 import numpy as np
 import math
+import bz2
 import unittest
 import timeit
 import pathlib 
@@ -125,7 +126,7 @@ class WaterberryFarm(FarmGeometry):
         self.add_patch(name="N4-tomatoes", type="tomato", area = [[0,4000], [1000, 4000], [1000, 1000],[0, 1000] ], color="mistyrose")
 
 class MiniberryFarm(FarmGeometry):
-    """Implements the geometry of a small farm, for testing. Scalable size for testing performance"""
+    """Implements the geometry of a small farm, for testing. Scalable size for testing performance. At scale 1, the size is 10x10"""
 
     def __init__(self, scale = 1):
         super().__init__()
@@ -138,7 +139,7 @@ class MiniberryFarm(FarmGeometry):
 class WaterberryFarmEnvironment(Environment):
     """An environment that describes the status of the soil and plant diseases on the Waterberry Farm"""
 
-    def __init__(self, geometry, saved: bool,  seed):
+    def __init__(self, geometry, saved: bool,  seed, savedir):
         super().__init__(geometry.width, geometry.height, seed)
         self.geometry = geometry
         self.saved = saved        
@@ -146,7 +147,7 @@ class WaterberryFarmEnvironment(Environment):
         # Tomato yellow leaf curl virus: epidemic spreading disease which spreads only on tomatoes
         #
         if self.saved:
-            self.tylcv = PrecalculatedEnvironment(geometry.width, geometry.height, None, "precalc_tylcv")
+            self.tylcv = PrecalculatedEnvironment(geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_tylcv"))
         else:
             # these are the parameters found in the ScenarioDesignWaterberryFarm
             parameters = {"infection_count": 3, "infection_value": 5, "proceed_count": 25, "p_transmission": 0.5, "infection_duration": 7}
@@ -164,31 +165,48 @@ class WaterberryFarmEnvironment(Environment):
                 locationy = int ( tylcv.random.random(1) * tylcv.height )
                 tylcv.status[locationx, locationy] = int(parameters["infection_value"])
 
-            self.tylcv = PrecalculatedEnvironment(geometry.width, geometry.height, tylcv, "precalc_tylcv")
+            self.tylcv = PrecalculatedEnvironment(geometry.width, geometry.height, tylcv, pathlib.Path(savedir, "precalc_tylcv"))
         #
         # Charcoal Rot: epidemic spreading disease that spreads only on 
         #    strawberries
         #
         if self.saved:
-            self.ccr = PrecalculatedEnvironment(geometry.width, geometry.height, None, "precalc_ccr")
+            self.ccr = PrecalculatedEnvironment(geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_ccr"))
         else:
             ccr = EpidemicSpreadEnvironment("CCR", geometry.width, geometry.height, seed, p_transmission = 0.1, infection_duration = 10)
             typecode = self.geometry.types["strawberry"]
             ccr.status[self.geometry.type_map == typecode] = -2 
-            self.ccr = PrecalculatedEnvironment(geometry.width, geometry.height, ccr, "precalc_ccr")
-        #
+            self.ccr = PrecalculatedEnvironment(geometry.width, geometry.height, ccr, pathlib.Path(savedir, "precalc_ccr"))        #
         # Soil humidity: modeled with a dissipation model
         # 
         if self.saved:
-            self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, None, "precalc_soil")
+            self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_soil"))
         else:
             soil = DissipationModelEnvironment("Soil humidity", geometry.width, geometry.height, seed, p_pollution = 0.1, pollution_max_strength= 1000, evolve_speed = 1)
-            self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, soil, "precalc_soil")
+            self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, soil, pathlib.Path(savedir, "precalc_soil"))
 
     def inner_proceed(self, delta_t = 1.0):        
         self.tylcv.proceed(delta_t)
         self.ccr.proceed(delta_t)
         self.soil.proceed(delta_t)
+
+    def get_observation(self, pos):
+        """For a given position and time creates a composite observation. The format for pos is [x,y,time]"""
+        obs = {StoredObservationIM.X: pos[0], StoredObservationIM.Y: pos[1], StoredObservationIM.TIME: pos[2]}
+
+        tylcv = {StoredObservationIM.X: pos[0], StoredObservationIM.Y: pos[1],StoredObservationIM.TIME: pos[2]}
+        tylcv[StoredObservationIM.VALUE] = self.tylcv.get(pos[0], pos[1])
+        obs["TYLCV"] = tylcv
+
+        ccr = {StoredObservationIM.X: pos[0], StoredObservationIM.Y: pos[1], StoredObservationIM.TIME: pos[2]}
+        ccr[StoredObservationIM.VALUE] = self.ccr.get(pos[0], pos[1])
+        obs["CCR"] = ccr
+
+        soil = {StoredObservationIM.X: pos[0], StoredObservationIM.Y: pos[1], StoredObservationIM.TIME: pos[2]}
+        soil[StoredObservationIM.VALUE] = self.soil.get(pos[0], pos[1])
+        obs["Soil"] = soil
+
+        return obs
 
     def visualize(self, fig = None, ax_geom = None, ax_tylcv= None, ax_ccr = None, ax_soil = None):
         """Plot the components into a four panel figure. """
@@ -314,61 +332,48 @@ class TestWaterberryGeometry(unittest.TestCase):
             time = timeit.timeit(f"wbfe.proceed()", number=1,  globals=globals())
             print(f"Environment proceed: {time:0.2} seconds")
 
-def create_wbfe(saved: bool):
+def create_wbfe(saved: bool, wbf_prec = None, typename = "Miniberry-10"):
     """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulations."""
     p = pathlib.Path.cwd()
-    savedir = pathlib.Path(p.parent, "__Temporary", p.name, "saved")
+    savedir = pathlib.Path(p.parent, "__Temporary", p.name + "_data", typename)
     savedir.mkdir(parents=True, exist_ok = True)
     path_geometry = pathlib.Path(savedir,"farm_geometry")
     path_environment = pathlib.Path(savedir,"farm_environment")
     if path_geometry.exists():
         logging.info("loading the geometry and environment from saved data")
-        with open(path_geometry, "rb") as f:
+        with bz2.open(path_geometry, "rb") as f:
             wbf = pickle.load(f)
         #with open(path_environment, "rb") as f:
         #    wbfe = pickle.load(f)
         #    wbfe.saved = saved
         logging.info("loading done")
-        wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10)
+        wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10, savedir = savedir)
         return wbf, wbfe
-    wbf = WaterberryFarm()
-    # wbf = MiniberryFarm(scale=10)
+    if wbf_prec == None:
+        if typename == "Miniberry-10":
+            wbf = MiniberryFarm(scale=1)
+        elif typename == "Miniberry-30":
+            wbf = MiniberryFarm(scale=3)
+        elif typename == "Miniberry-100":
+            wbf = MiniberryFarm(scale=10)
+        elif typename == "Waterberry":            
+            wbf = WaterberryFarm()
+        else:
+            raise Exception(f"Unknown type {typename}")
+        # wbf = MiniberryFarm(scale=10)
+    else:
+        wbf = wbf_prec
     wbf.create_type_map()
-    wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10)
-
-    # these are now set in the constructor
-    # place some infections
-    #for i in range(1000):
-    #    locationx = int( wbfe.tylcv.random.random(1) * wbfe.tylcv.width )
-    #    locationy = int ( wbfe.tylcv.random.random(1) * wbfe.tylcv.height )
-    #    wbfe.tylcv.status[locationx, locationy] = 5
-        # wbfe.ccr.status[1050,1050] = 5
-
-    #for i in range(1):
-    #    wbfe.proceed()
-    # ************ save the geometry and environment
+    wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10, savedir = savedir)
     savedir.mkdir(parents=True, exist_ok=True)
-    with open(path_geometry, "wb+") as f:
+    with bz2.open(path_geometry, "wb") as f:
         pickle.dump(wbf, f)
-    with open(path_environment, "wb+") as f:
+    with bz2.open(path_environment, "wb") as f:
         pickle.dump(wbfe, f)
     return wbf, wbfe
 
-
-def create_precalculated_wbfe(time):
-    """Helper function for the creation of a precalculated wbf"""
-    wbf, wbfe = create_wbfe(False)
-    for i in range(time):
-        logging.info(f"precalculation proceed {i}")
-        wbfe.proceed()
-
-def load_precalculated_wbfe():
-    """Helper function for loading a precalculated wbf"""
-    wbf, wbfe = create_wbfe(True)
-    return wbf, wbfe
-
 if __name__ == "__main__":
-    if True:
+    if False:
     # Create the environment, and then load and replay it visually.
         create_precalculated_wbfe(100)
         wbf, wbfe = load_precalculated_wbfe()
@@ -421,18 +426,3 @@ if __name__ == "__main__":
 
     if False:
         unittest.main()
-    if False:
-        a = np.array([1, 2, 3, 4, 5, 6])
-        index = np.array([1, 2, 4])
-        mask = np.array([False, True, True])
-        # index[mask] = 0
-        print(index[mask])
-        print(a[index[mask]])
-        #a[[1, 2, 4]] = 0
-        #print(a)
-    if False:
-        Ypts = np.arange(1, 4000, 1)
-        Xpts = np.arange(1, 3000, 1)
-        X2D,Y2D = np.meshgrid(Ypts,Xpts)
-        points = np.column_stack((Y2D.ravel(),X2D.ravel()))
-        print(points)   

@@ -32,7 +32,7 @@ logging.getLogger().setLevel(logging.INFO)
 def create_wbf():
     """Creates an empty farm and environment"""
     p = pathlib.Path.cwd()
-    savedir = pathlib.Path(p.parent, "__Temporary", p.name, "saved")
+    savedir = pathlib.Path(p.parent, "__Temporary", p.name + "_data", "saved")
     path_geometry = pathlib.Path(savedir,"farm_geometry")
     path_environment = pathlib.Path(savedir,"farm_environment")
     if path_geometry.exists():
@@ -117,7 +117,7 @@ def search_for_tylcv():
 if __name__ == "__main__":
     # search_for_tylcv()
     p = pathlib.Path.cwd()
-    savedir = pathlib.Path(p.parent, "__Temporary", p.name)
+    savedir = pathlib.Path(p.parent, "__Temporary", p.name + "_data")
     print(p.name)
     print(p.parent)
     print(savedir)

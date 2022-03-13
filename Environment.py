@@ -23,11 +23,12 @@ class Environment:
     def proceed(self, delta_t = 1.0):
         nexttime = int(self.time / self.time_expansion) * self.time_expansion
         if nexttime - self.time <= delta_t:
+            self.time = self.time + delta_t
             logging.info("Environment.proceed - calling the inner_proceed")
             self.inner_proceed(delta_t)
         else:
+            self.time = self.time + delta_t
             logging.info("Environment.proceed - skipping the inner_proceed")
-        self.time = self.time + delta_t
 
     def inner_proceed(self, delta_t = 1.0):
         pass
@@ -190,26 +191,40 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
         If the environment not None, we run that environment and save it into the save dir."""
         super().__init__("precalculated", width, height, seed=0)
         self.environment = environment
-        p = pathlib.Path.cwd()
-        self.savedir = pathlib.Path(p.parent, "__Temporary", p.name, savedir)
+        # p = pathlib.Path.cwd()
+        self.savedir = savedir
         self.savedir.mkdir(parents=True, exist_ok = True)
+        self.previous_loaded = -1 # timestamp of previously loaded env if any
         
+    def get_filenames(self, timestamp):
+        """"""
+        file_value = pathlib.Path(self.savedir, f"env_value_{timestamp:05d}.bz2")
+        jpg_value = pathlib.Path(self.savedir, f"env_visual_{timestamp:05d}.jpg")
+        return file_value, jpg_value
+
     def inner_proceed(self, delta_t):
         timestamp = int(self.time)
         logging.info(f"PrecalculatedEnvironment at timestamp {timestamp}")
-        file_value = pathlib.Path(self.savedir, f"env_value_{timestamp:05d}.bz2")
-        jpg_value = pathlib.Path(self.savedir, f"env_visual_{timestamp:05d}.jpg")
-        if self.environment == None:
+        file_value, jpg_value = self.get_filenames(timestamp)
+        if self.environment == None: # loading
+            # search for the previous existing
+            while not file_value.exists() and timestamp > self.previous_loaded:
+                timestamp = timestamp - 1
+                file_value, _ = self.get_filenames(timestamp)                
             if not file_value.exists():
                 # raise Exception(f"Saved value {file_value} does not exist")
                 logging.info(f"Saved value {file_value} does not exist - assuming no change.")
                 return
             # with open(file_value, "rb") as f:
-            logging.info("Loading from bz2")
+            logging.info(f"Loading from bz2 {file_value}")
             with bz2.open(file_value, "rb") as f:
                  self.value = pickle.load(f)
-            logging.info("Loading from bz2 done")                 
+            self.previous_loaded = timestamp
+            logging.info(f"Loading from bz2 {file_value} done")                 
             return
+        else:
+            if file_value.exists():
+                raise Exception(f"PrecalculatedEnvironment: file {file_value} already exists, skipping!")
         # assume that the environment is passed:
         self.environment.proceed(delta_t)
 
@@ -279,7 +294,7 @@ if __name__ == "__main__":
         for t in range(0, 100):
             precenv.proceed(1.0)
     if True:
-        ## reloading
+        ## reloading FIXME: the savedir needs to be a full path
         pe = PrecalculatedEnvironment(2000, 2000, None,"precalc")
         anim = animate_environment(pe)
         plt.show()
