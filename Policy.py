@@ -108,7 +108,7 @@ class RandomWaypointPolicy(AbstractWaypointPolicy):
         self.nextwaypoint = None
                 
     def act(self, delta_t):
-        """Moves towards the chosen waypoint. If the waypoint is """
+        """Moves towards the chosen waypoint. If the waypoint is reached, it picks the next waypoint"""
         if self.nextwaypoint == None:
             x = self.random.uniform(self.low_point[0], self.high_point[0])
             y = self.random.uniform(self.low_point[1], self.high_point[1])
