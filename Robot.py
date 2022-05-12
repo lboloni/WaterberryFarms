@@ -2,7 +2,17 @@ import ast
 from collections import deque
 
 class Robot:
-    """The representation of a robot / drone."""    
+    """The representation of a robot / drone.
+    
+    A class to gather the various functionalities of a robot (or drone) performing informative path planning. 
+
+    The robot has a current location including a height. It proceeds through a series of actions. Some actions (in the list ```everystep_actions```) are executed always, while the ```pending_actions``` list is the one which is added by the policy. Actions include movement action, actions that directly set the location, velocity and acceleration, as well as actions for observation. There are some simplified actions like ```north''', ```west``` etc.
+
+    The execution of the robot proceeds through timesteps, which are at a time delta_t from the previous timestep. At each timestep there are two phases:
+
+    * ```enact_policy```: the policies associated with the robot are called and have the ability to schedule actions for execution 
+    * ```proceed```: actions are executed. The actions (in the list ```everystep_actions```) are executed always, while the ```pending_actions``` list is the one which is added by the policy, and are cleared at this step.
+    """    
     
     def __init__(self, name, init_x, init_y, init_altitude, grid_resolution=1, env=None, im=None):
         self.name = name

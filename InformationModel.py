@@ -71,8 +71,7 @@ class AbstractScalarFieldIM(StoredObservationIM):
     """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. The uncertainty metric is an estimate of the error at any given location. 
     """
     
-    def __init__(self, name, width, height, estimation_type = "point", \
-                 estimation_radius = 5, gp_kernel = None):
+    def __init__(self, name, width, height):
         """Initializes the value to zero, the uncertainty to one. 
         FIXME: what exactly the uncertainty measures??? """
         super().__init__(name, width, height)
@@ -97,17 +96,6 @@ class AbstractScalarFieldIM(StoredObservationIM):
         observations_new.append(observation)
         _, uncertainty_new = self.estimate(observations_new)        
         return np.sum(np.abs(uncertainty - uncertainty_new))
-
-def im_score(im, env):
-    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
-    return np.mean(np.abs(env.value - im.value))
-
-def im_score_weighted(im, env, weightmap):
-    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
-    wm = weightmap / np.mean(weightmap)
-    abserror = np.abs(env.value - im.value)
-    weightederror = np.multiply(wm, abserror)
-    return np.mean(weightederror)
 
 
 class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
@@ -236,6 +224,29 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         # logging.info("apply_value_mask done")
 
 
+
+def im_score(im, env):
+    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
+    return -np.mean(np.abs(env.value - im.value))
+
+def im_score_weighted(im, env, weightmap):
+    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
+    The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested)"""
+    wm = weightmap / np.mean(weightmap)
+    abserror = np.abs(env.value - im.value)
+    weightederror = np.multiply(wm, abserror)
+    return -np.mean(weightederror)
+
+def im_score_weighted_asymmetric(im, env, weight_positive, weight_negative, weightmap):
+    """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
+    The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested)
+    Weights differently positive errors (when the im is larger than env) and negative errors (when env is larger than im)"""
+    wm = weightmap / np.mean(weightmap)
+    error_positive = np.multiply(wm * weight_positive, np.max(im.value - env.value, 0))
+    error_negative = np.multiply(wm * weight_negative, np.max(env.value - im.value, 0))    
+    return -np.mean(np.add(error_positive, error_negative))
+
+
 ## Functions used for the visualization
 
 def visualizeEnvAndIM(ax_env, ax_im_value, ax_im_uncertainty, env, im):
@@ -251,6 +262,15 @@ def visualizeEnvAndIM(ax_env, ax_im_value, ax_im_uncertainty, env, im):
 
 if __name__ == "__main__":
     if True:
+        ## Trying out the different types of scores, to see if they work correctly - this probably has to be made into a unit test
+        env = Environment("foo", 2, 2)
+        env.value = np.array([[2, 2], [1, 1]])
+        im = InformationModel("bar", 2, 2)
+        im.value = np.array([[1, 1], [2, 2]])
+        score = im_score(im, env)
+        print(score)
+
+    if False:
         # create an environment to observe
         env = DissipationModelEnvironment("water", 100, 100, seed=1)
         env.evolve_speed = 1

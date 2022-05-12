@@ -232,7 +232,8 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
         logging.info("Saving to bz2")
         with bz2.open(file_value, "wb") as f:
             pickle.dump(self.environment.value, f)
-        logging.info("Saving to bz2 done")        
+        logging.info("Saving to bz2 done")
+        plt.ioff()
         fig, ax = plt.subplots()
         axesimage  = ax.imshow(self.environment.value, vmin=0, vmax=1)
         plt.savefig(jpg_value, bbox_inches='tight')
@@ -256,57 +257,3 @@ def animate_environment(env):
                                        blit=True)
     return anim
 
-if __name__ == "__main__":
-    if False:
-        # visualizing the environment
-        env = EpidemicSpreadEnvironment("crop", 100, 100, seed=40, infection_duration = 5, p_transmission = 0.1)
-        env.status[6,10] = 2
-        env.status[60,80] = 5
-        # make a filtered area which won't be susceptible 
-        env.status[10:50, 10:50] = -2
-        anim = animate_environment(env)
-        plt.show()
-    if False:
-        # trying out different sizes of EpidemicSpreadEnvironment
-        print("EpidemicSpreadEnvironment")
-        for i in [10, 50, 100, 200, 400, 1000, 2000, 4000]:
-            env = EpidemicSpreadEnvironment("crop", i, i, seed=40, infection_duration = 5, p_transmission = 0.1)
-            env.status[i // 2, i // 2] = 2
-            env.status[(3*i) // 4, (3*i) // 4] = 5
-            time = timeit.timeit("env.proceed(1.0)", number=1, globals=globals())
-            print(f"map of size {i}x{i} a proceed took {time:0.2} seconds")
-        # trying out different sizes of DissipationModelEnvironment
-        print("DissipationModelEnvironment")
-        for i in [10, 50, 100, 200, 400, 1000, 2000, 4000]:
-            env = DissipationModelEnvironment("pollution", i, i, seed=40)
-            # env.status[i // 2, i // 2] = 2
-            # env.status[(3*i) // 4, (3*i) // 4] = 5
-            time = timeit.timeit("env.proceed(1.0)", number=1, globals=globals())
-            print(f"map of size {i}x{i} a proceed took {time:0.2} seconds")
-    if False:
-        ## saving
-        height = 2000
-        width = 2000
-        env = EpidemicSpreadEnvironment("crop", width, height, seed=40, infection_duration = 5, p_transmission = 0.1)
-        env.status[width // 2, height // 2] = 2
-        env.status[(3*width) // 4, (3*height) // 4] = 5
-        precenv = PrecalculatedEnvironment(env, "precalc")
-        for t in range(0, 100):
-            precenv.proceed(1.0)
-    if True:
-        ## reloading FIXME: the savedir needs to be a full path
-        pe = PrecalculatedEnvironment(2000, 2000, None,"precalc")
-        anim = animate_environment(pe)
-        plt.show()
-
-    if False:
-        # creating a spread area
-        dimension = 7
-        center = dimension // 2 + 1
-        neighborcounting_kernel = np.zeros((dimension, dimension))
-        for i in range(dimension):
-            for j in range(dimension):
-                dist2 = (i - center)*(i - center) + (j - center)*(j - center)
-                if dist2 != 0.0:
-                    neighborcounting_kernel[i,j] = 1 / dist2
-        print(neighborcounting_kernel)

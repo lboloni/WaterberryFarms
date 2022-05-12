@@ -1,7 +1,6 @@
 from Environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
-from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
+from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from matplotlib.path import Path
@@ -10,10 +9,9 @@ from functools import partial
 import numpy as np
 import math
 import bz2
-import unittest
-import timeit
 import pathlib 
 import pickle
+import copy
 
 import logging
 # logging.basicConfig(level=logging.WARNING)
@@ -40,11 +38,8 @@ class FarmGeometry:
         patch["color"] = color
         patch["polygon"] = Polygon(area, color=color)
         self.patches.append(patch)
-        # determine the sizes xmin and ymin should be zero        
-        # FIXME: we don't need to iterate here, just min with the current one
-        #xmin = np.min([np.min(p["polygon"].get_xy()[:,0]) for p in self.patches])
+        # update the width and height
         self.width = int(np.max([np.max(p["polygon"].get_xy()[:,0]) for p in self.patches])) + 1
-        #ymin = np.min([np.min(p["polygon"].get_xy()[:,1]) for p in self.patches])
         self.height = int(np.max([np.max(p["polygon"].get_xy()[:,1]) for p in self.patches])) + 1
 
     def visualize(self, ax):
@@ -53,7 +48,8 @@ class FarmGeometry:
         ax.set_ylim(0, self.height)
         ax.set_aspect('equal')
         for p in self.patches:
-            polygon = p["polygon"]
+            # to allow visualization in multiple images...
+            polygon = copy.deepcopy(p["polygon"])
             center = np.mean(polygon.get_xy(),0)
             patch = ax.add_patch(polygon)
             ax.text(center[0],center[1],p["name"])
@@ -70,7 +66,7 @@ class FarmGeometry:
         return False
 
     def create_type_map(self):
-        """Implementation with reshaping..."""
+        """Calculates a map where each point shows what type of land is there."""
         self.type_map = np.zeros(self.width * self.height, dtype=np.int16)
         logging.info(f"create_type_map shape={self.type_map.shape}")
         Xpts = np.arange(0, self.width, 1, dtype=np.int16)
@@ -80,17 +76,14 @@ class FarmGeometry:
         for p in self.patches:  
             path = p["polygon"].get_path()
             type_value = self.types[p["type"]]
-            # print(type_value)
             # this radius thing apparently is necessary to deal with the uncertainty at the border
             marked = np.array(path.contains_points(points, radius=+0.5))
-            # print(marked)
             self.type_map[marked] = type_value
         self.type_map = np.reshape(self.type_map, (self.width, self.height))
 
     def path_in_component(self, path, name):
         """Checks whether the specified path is in a given component. It assumes that components obscure each other, so if it is in a component that is above it, it will say no."""
         for p in reversed(self.patches):
-            # path = p["area"].get_path()
             if p["polygon"].get_path().contains_path(path):
                 if p["name"] == name:
                     return True
@@ -103,10 +96,10 @@ class FarmGeometry:
 
 class WaterberryFarm(FarmGeometry):
     """Implements the geometry of WaterberryFarm"""
-
     def __init__(self):
         super().__init__()
-
+        ## the owner's land (xmin, ymin, xmax, ymax)
+        self.owner_area = [1000, 1000, 5000, 4000]
         ## the owner's patches
         # strawberry patch
         self.add_patch(name="strawberries", type="strawberry", area = [[1000,1000], [4000, 1000], [3000, 4000],[1000, 4000] ], color="lightblue")
@@ -130,6 +123,8 @@ class MiniberryFarm(FarmGeometry):
 
     def __init__(self, scale = 1):
         super().__init__()
+        ## the owner's land (xmin, ymin, xmax, ymax)
+        self.owner_area = [0, 0, 10 * scale, 10 * scale]
         ## the owner's patches
         # strawberry patch
         self.add_patch(name="strawberries", type="strawberry", area = [[3*scale,3*scale], [6* scale, 3*scale], [6*scale, 6*scale],[3*scale,6*scale] ], color="lightblue")
@@ -184,6 +179,18 @@ class WaterberryFarmEnvironment(Environment):
         else:
             soil = DissipationModelEnvironment("Soil humidity", geometry.width, geometry.height, seed, p_pollution = 0.1, pollution_max_strength= 1000, evolve_speed = 1)
             self.soil = PrecalculatedEnvironment(geometry.width, geometry.height, soil, pathlib.Path(savedir, "precalc_soil"))
+
+        self.my_owner_mask = np.full((self.width, self.height), False)
+        self.my_owner_mask[self.geometry.owner_area[0]:self.geometry.owner_area[2], self.geometry.owner_area[1]:self.geometry.owner_area[3]] = True
+
+        self.my_strawberry_mask = np.equal(self.geometry.type_map, self.geometry.types["strawberry"])
+        self.my_strawberry_mask = np.logical_and(self.my_strawberry_mask, self.my_owner_mask)
+        self.my_tomato_mask = np.equal(self.geometry.type_map, self.geometry.types["tomato"])
+        self.my_tomato_mask = np.logical_and(self.my_tomato_mask, self.my_owner_mask)
+        self.my_soil_mask = np.ones((self.width, self.height))
+        self.my_soil_mask = np.logical_and(self.my_soil_mask, self.my_owner_mask)
+
+
 
     def inner_proceed(self, delta_t = 1.0):        
         self.tylcv.proceed(delta_t)
@@ -285,56 +292,27 @@ class WaterberryFarmInformationModel(StoredObservationIM):
 
 def waterberry_score(env: WaterberryFarmEnvironment, im: WaterberryFarmInformationModel):
     """A specialized score function for the waterberry farm environment, which is individually weights the values of the different components
-    # FIXME: we need to mask with "my land" 
     """
-    score = 0
-    my_strawberry_mask = np.equal(env.geometry.type_map, env.geometry.types["strawberry"])
-    strawberry_importance = 0.2 # not lead to full crop loss
-    score +=  strawberry_importance * im_score_weighted(env.ccr, im.im_ccr, my_strawberry_mask)
-
-    my_tomato_mask = np.equal(env.geometry.type_map, env.geometry.types["tomato"])
-    tomato_importance = 1.0 # leads to full crop loss
-    score += tomato_importance * im_score_weighted(env.tylcv, im.im_tylcv, my_tomato_mask)
-
-    my_land_mask = np.ones((env.width, env.height))
+    params = {}
+    params["strawberry_importance"] = 0.2 # not lead to full crop loss
+    params["strawberry_negative_importance"] = 10 # false negatives are more important
+    params["tomato_importance"] = 1.0 # leads to full crop loss
+    params["tomato_negative_symmetry"] = 5 # false negatives are more important
     soil_importance = 0.1 # the exact value is of lower importance on revenue
-    score += soil_importance * im_score_weighted(env.soil, im.im_soil, my_land_mask)
+
+    score = 0
+    score +=  params["strawberry_importance"] * im_score_weighted_asymmetric(env.ccr, im.im_ccr, 1.0, params["strawberry_negative_importance"], env.my_strawberry_mask)
+
+    score += params["tomato_importance"] * im_score_weighted_asymmetric(env.tylcv, im.im_tylcv, 1.0, params["strawberry_negative_importance"], env.my_tomato_mask)
+
+    score += soil_importance * im_score_weighted(env.soil, im.im_soil, env.my_soil_mask)
     return score
 
-class TestWaterberryGeometry(unittest.TestCase):
-    """Tests for the FarmGeometry model, for specifically the WaterberryFarm setup."""
-
-    def setUp(self):
-        pass
-
-    def test_positions(self):
-        self.wbf = WaterberryFarm()
-        self.assertFalse(self.wbf.point_in_component(3050, 50, "tomatoes"))
-        self.assertTrue(self.wbf.point_in_component(1050, 2050, "strawberries"))
-        self.assertTrue(self.wbf.point_in_component(2050, 2050, "pond"))
-        self.assertTrue(self.wbf.point_in_component(1050, 1050, "strawberries"))
-        self.assertTrue(self.wbf.point_in_component(3950, 3950, "wetland buffer"))
-        self.assertFalse(self.wbf.point_in_component(2950, 2950, "tomatoes"))        
-
-    def test_environment_scale(self):
-        for scale in [1, 5,10, 20, 40, 100, 200, 400]:
-            print(scale)
-            global wbf
-            time = timeit.timeit(f"global wbf; wbf = MiniberryFarm(scale={scale})", number=1,  globals=globals())
-            print(f"MiniberryFarm scaled up {scale} times. Height: {wbf.height}, width: {wbf.width}")
-            print(f"Creation: {time:0.2} seconds")
-            time = timeit.timeit(f"wbf.create_type_map()", number=1,  globals=globals())
-            print(f"Creation of the type map: {time:0.2} seconds")
-            # creation of the environment
-            wbfe = None
-            time = timeit.timeit("global wbfe; wbfe = WaterberryFarmEnvironment(wbf, seed = 10)", number=1,  globals=globals())
-            print(f"Create WaterberryFarmEnvironment for it: {time:0.2} seconds")
-            time = timeit.timeit(f"wbfe.proceed()", number=1,  globals=globals())
-            print(f"Environment proceed: {time:0.2} seconds")
 
 def create_wbfe(saved: bool, wbf_prec = None, typename = "Miniberry-10"):
     """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulations."""
-    p = pathlib.Path.cwd()
+    # p = pathlib.Path.cwd()
+    p = pathlib.Path(__file__).parent.resolve().parent.parent
     savedir = pathlib.Path(p.parent, "__Temporary", p.name + "_data", typename)
     savedir.mkdir(parents=True, exist_ok = True)
     path_geometry = pathlib.Path(savedir,"farm_geometry")
@@ -348,7 +326,7 @@ def create_wbfe(saved: bool, wbf_prec = None, typename = "Miniberry-10"):
         #    wbfe.saved = saved
         logging.info("loading done")
         wbfe = WaterberryFarmEnvironment(wbf, saved, seed = 10, savedir = savedir)
-        return wbf, wbfe
+        return wbf, wbfe, savedir
     if wbf_prec == None:
         if typename == "Miniberry-10":
             wbf = MiniberryFarm(scale=1)
@@ -370,59 +348,4 @@ def create_wbfe(saved: bool, wbf_prec = None, typename = "Miniberry-10"):
         pickle.dump(wbf, f)
     with bz2.open(path_environment, "wb") as f:
         pickle.dump(wbfe, f)
-    return wbf, wbfe
-
-if __name__ == "__main__":
-    if False:
-    # Create the environment, and then load and replay it visually.
-        create_precalculated_wbfe(100)
-        wbf, wbfe = load_precalculated_wbfe()
-        wbfe.visualize()
-        logging.info("Visualize done, proceed to animate")
-        # This is working at approximately 2 sec per frame for the environment progress. Not very fast, but it should be roughly ok. 
-        anim = wbfe.animate_environment()
-        plt.show()
-    if False:
-    # Put everything together, measure the score for a set of observations
-        wbf, wbfe = create_wbfe()
-        # observation locations
-        # for waterberry
-        # locations = [[10, 10], [500, 500], [1500, 1500]]
-        # for miniberry
-        locations = [[10, 10], [30, 30], [50, 50]]
-        observations = []
-        wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height)
-        for location in locations:
-            x = location[0]
-            y = location[1]
-            value_tylcv = wbfe.tylcv.value[x, y]
-            value_ccr = wbfe.ccr.value[x, y]
-            value_soil = wbfe.soil.value[x, y]
-            observation = {}
-            observation["TYLCV"] = {wbfim.X : x, wbfim.Y : y, wbfim.VALUE : value_tylcv}
-            observation["CCR"] = {wbfim.X : x, wbfim.Y : y, wbfim.VALUE : value_ccr}
-            observation["Soil"] = {wbfim.X : x, wbfim.Y : y, wbfim.VALUE : value_soil}
-            observations.append(observation)
-        for observation in observations:
-            wbfim.add_observation(observation)
-        logging.info("waterberry information model: proceed(1)")
-        wbfim.proceed(1)
-        logging.info("done waterberry information model: proceed(1)")
-        logging.info("starting to calculate score for waterberry information model")
-        score = waterberry_score(wbfe, wbfim)
-        logging.info(f"Waterberry information model score: {score}")
-        # now visualize the environment and the information model
-        fig, axes = plt.subplots(2,4)        
-        wbfe.visualize(fig, axes[0,0], axes[0,1], axes[0,2], axes[0,3])
-
-        image_im_tylcv = axes[1,1].imshow(wbfim.im_tylcv.value.T, vmin=0, vmax=1, origin="lower")
-        axes[1,1].set_title("TYLCV im")
-        image_im_ccr = axes[1,2].imshow(wbfim.im_ccr.value.T, vmin=0, vmax=1, origin="lower")
-        axes[1,2].set_title("CCR im")
-        image_im_ccr = axes[1,3].imshow(wbfim.im_soil.value.T, vmin=0, vmax=1, origin="lower")
-        axes[1,3].set_title("SOIL im")
-
-        plt.show()
-
-    if False:
-        unittest.main()
+    return wbf, wbfe, savedir
