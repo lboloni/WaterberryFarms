@@ -164,6 +164,3 @@ def generate_spiral_path(x_max, y_max, x_min, y_min):
         path.append([x_min+j, y_min+i])
         j+=1
     return path
-
-
-

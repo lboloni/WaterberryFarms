@@ -309,11 +309,20 @@ def waterberry_score(env: WaterberryFarmEnvironment, im: WaterberryFarmInformati
     return score
 
 
+def get_datadir():
+    """Returns the data directory associated with this project"""
+    p = pathlib.Path(__file__).parent.resolve().parent.parent
+    datadir = pathlib.Path(p.parent, "__Temporary", p.name + "_data")
+    datadir.mkdir(parents=True, exist_ok = True)
+    return datadir
+
 def create_wbfe(saved: bool, wbf_prec = None, typename = "Miniberry-10"):
     """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulations."""
     # p = pathlib.Path.cwd()
-    p = pathlib.Path(__file__).parent.resolve().parent.parent
-    savedir = pathlib.Path(p.parent, "__Temporary", p.name + "_data", typename)
+    # p = pathlib.Path(__file__).parent.resolve().parent.parent
+    # datadir = pathlib.Path(p.parent, "__Temporary", p.name + "_data", typename)
+    datadir = get_datadir()
+    savedir = pathlib.Path(datadir, typename)
     savedir.mkdir(parents=True, exist_ok = True)
     path_geometry = pathlib.Path(savedir,"farm_geometry")
     path_environment = pathlib.Path(savedir,"farm_environment")

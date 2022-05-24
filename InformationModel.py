@@ -8,6 +8,7 @@ import numpy as np
 from scipy import signal
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from sklearn.metrics import mean_squared_error
 
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
@@ -228,6 +229,27 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
 def im_score(im, env):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
     return -np.mean(np.abs(env.value - im.value))
+
+
+def im_score_rmse_scikit(im, env):
+    """Scores the information model by finding the RMSE between the information model values and the real values in the environment
+    FIXME: I think that this is not working very well for 2D areas. On the other hand, it has built-in weights
+    """
+    return -mean_squared_error(env.value, im.value, squared=False)
+
+
+
+def im_score_rmse(im, env):
+    """Scores the information model by finding the RMSE between the information model values and the real values in the environment"""
+    se = (env.value - im.value) ** 2
+    return -np.sqrt(np.mean(se))
+
+def im_score_rmse_weighted(im, env, weightmap):
+    se = (env.value - im.value) ** 2
+    weightedse = np.multiply(weightmap, se)
+    weightedval= np.sqrt(np.sum(weightedse) / np.sum(weightmap)) 
+    return -weightedval
+
 
 def im_score_weighted(im, env, weightmap):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
