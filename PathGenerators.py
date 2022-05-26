@@ -113,10 +113,10 @@ def generate_lawnmower_path_v2(x_min, x_max, x_step, y_min, y_max, y_step):
 def add_control_points_v2(lawnmower_path, control_points):
     control_point_mapping={}
     control_points = sorted(control_points, key=lambda x: (x[1], x[0]), reverse=False)
-    direction=1
     for control_point in control_points:
         minDistance= [lawnmower_path[0], float('inf')]
         prevLawnmowerPoint=[-1,-1]
+        direction=1
         for lawnmowerPoint in lawnmower_path:
             if (prevLawnmowerPoint!=[-1,-1] and lawnmowerPoint[1]!=prevLawnmowerPoint[1]):
                 direction= direction*-1
@@ -135,8 +135,12 @@ def add_control_points_v2(lawnmower_path, control_points):
     for lawnmowerPoint in lawnmower_path:
         finalPath.append(lawnmowerPoint)
         if str(lawnmowerPoint) in control_point_mapping:
+            # I initially thought I will need to sort the list of points here closest to farthest from the lawnmower point
+            # But, I think sorting is not needed since I'm already sorting the control points above.
+            #sorted(control_point_mapping[str(lawnmowerPoint)], key= lambda x: euclidean_distance((float(str(lawnmowerPoint).split('[')[1].split(',')[0]), float(str(lawnmowerPoint).split(',')[1].split(']')[0])), x))
+
             for epidemicPointMapping in control_point_mapping[str(lawnmowerPoint)]:
-                finalPath.append(epidemicPointMapping)
+                finalPath.append(list(epidemicPointMapping))
     return finalPath
 
 # ***************************************************
