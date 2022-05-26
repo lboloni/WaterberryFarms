@@ -98,9 +98,15 @@ def generate_lawnmower_path_v2(x_min, x_max, x_step, y_min, y_max, y_step):
     Sam Matloob's lawnmower implementation. The returned path will be modified for the control points
     author Sam Matloob (February 2022?)"""
     path = []
+
+    #if direction=1 then the path is going from left to right, if direction=-1 then the path is going from right to left
     direction=1
+
+    # looping through y-axis
     for y in np.arange(y_min, y_max+y_step, y_step):
         if (direction==1):
+
+            # looping through x-axis
             for x in np.arange(x_min, x_max + x_step, x_step):
                 path.append([x, y])
             direction=-1
@@ -111,12 +117,23 @@ def generate_lawnmower_path_v2(x_min, x_max, x_step, y_min, y_max, y_step):
     return path
 
 def add_control_points_v2(lawnmower_path, control_points):
+    """
+        Sam Matloob's lawnmower implementation. The returned path will be modified for the control points
+        author Sam Matloob (February 2022?)"""
+    # this method will add the control points to the lawnmower_path
+
+    # control_point_mapping is a dictionary variable that stores the lawnmower_path point as a key, while the value
+    # is a list of the closest control_points to the lawnmower_path point.
     control_point_mapping={}
     control_points = sorted(control_points, key=lambda x: (x[1], x[0]), reverse=False)
+
+    # looping through the control_points
     for control_point in control_points:
         minDistance= [lawnmower_path[0], float('inf')]
         prevLawnmowerPoint=[-1,-1]
         direction=1
+
+        # looping through the lawnmower_path and check which point in that path is the closest to the control point
         for lawnmowerPoint in lawnmower_path:
             if (prevLawnmowerPoint!=[-1,-1] and lawnmowerPoint[1]!=prevLawnmowerPoint[1]):
                 direction= direction*-1
@@ -132,6 +149,9 @@ def add_control_points_v2(lawnmower_path, control_points):
         else:
             control_point_mapping[str(minDistance[0])] = [control_point]
     finalPath=[]
+
+    # the following loop will insert all control points to the lawnmower_point using the dictionary variable "control_point_mapping"
+    # that was built above
     for lawnmowerPoint in lawnmower_path:
         finalPath.append(lawnmowerPoint)
         if str(lawnmowerPoint) in control_point_mapping:

@@ -523,32 +523,47 @@ def planning_animation(ox, oy, resolution):  # pragma: no cover
 def add_control_points_using_Sam_concept (px, py, new_control_points):
     # Injecting Sam's concept to add control points
     pathPoints = []
+
+    # looping through px and py to convert them to [x,y] points (which is the form that add_control_points_v2
+    # expecting to receive
     for i in range(len(px)):
         pathPoints.append([px[i], py[i]])
     # print (pathPoints)
+
+    # calling add_control_points_v2 from PathGenerators.py to add control points to the path points.
     newPathPoints = pg.add_control_points_v2(pathPoints, new_control_points)
 
     newPx = []
     newPy = []
+
+    # looping through the newPathPoints to convert the points into two variables, one holds the x-axis of the
+    # points and the other holds the y-axis of the points, which is needed for calling convert_global_coordinate function.
     for i in range(len(newPathPoints)):
         newPx.append(newPathPoints[i][0])
         newPy.append(newPathPoints[i][1])
     return newPx, newPy,
 
 def rotating_control_points(sweep_vec, sweep_start_position, control_points):
-
     # rotating control points
     control_points_x = []
     control_points_y = []
+
+    # looping through all control_points and separating the points into two variables, one holds the x-axis of points
+    # and the other holds the y-axis of points.
     for i in range(len(control_points)):
         control_points_x.append(control_points[i][0])
         control_points_y.append(control_points[i][1])
+
+    # Folloing code will do the same calculations that convert_grid_coordinate function does.
+    # notice that th variable is the angle (in radians) of point/coordinate rotation
     tx = [ix - sweep_start_position[0] for ix in control_points_x]
     ty = [iy - sweep_start_position[1] for iy in control_points_y]
     th = math.atan2(sweep_vec[1], sweep_vec[0])
     rot = Rot.from_euler('z', th).as_matrix()[0:2, 0:2]
     rotated_control_points = np.stack([tx, ty]).T @ rot
     x,y= rotated_control_points[:, 0], rotated_control_points[:, 1]
+
+    #The following code will convert back the control points (after being rotated) to a list of [x,y] pionts
     new_control_points=[]
     for i in range (len(x)):
         new_control_points.append([rotated_control_points[i][0], rotated_control_points[i][1]])
