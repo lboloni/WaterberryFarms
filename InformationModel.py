@@ -167,9 +167,10 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
     """An information model which performs a disk based estimation.
     """
 
-    def __init__(self, name, width, height, disk_radius=5):
+    def __init__(self, name, width, height, disk_radius=5, default_value=0):
         super().__init__(name, width, height)
         self.disk_radius = disk_radius
+        self.default_value = default_value
         self.mask = None
 
     def estimate(self, observations, prior_value, prior_uncertainty, radius=None):
@@ -177,19 +178,16 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         r. The radius r can be dynamically calculated such that the total disks achieve 2x the coverage of the area. sqrt((height * width * 2) / pi). 
         Later disks overwrite earlier disks.
         FIXME: Areas that have no coverage have uncertainty 1, while areas that fit into a disk have an uncertainty 0."""
-        value = np.zeros((self.width, self.height)) 
-        uncertainty = np.ones((self.width, self.height))
+        value = np.full((self.width, self.height), self.default_value, dtype=np.float64) 
+        uncertainty = np.ones((self.width, self.height), dtype=np.float64)
         if self.disk_radius == None:
             radius = int(1+math.sqrt((self.height * self.width * 2) / (math.pi * len(observations))))
         else:
             radius = self.disk_radius
-        # FIXME: this is not very efficient, it can be made more efficient by iterating just one corner
-        # and finding values.
-        # FIXME: this could be made more efficient by creating a circular mask and then moving it... 
 
         # create a mask array
-        maskdim = 2 * radius + 1
-        self.mask = np.full((maskdim, maskdim), False, dtype=bool)
+        self.maskdim = 2 * radius + 1
+        self.mask = np.full((self.maskdim, self.maskdim), False, dtype=bool)
         for i in range(-radius, radius):
             for j in range(-radius, radius):
                 if (math.sqrt((i*i + j*j)) <= radius):
@@ -197,31 +195,21 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
 
         for obs in observations:
             #self.apply_value_iterate(value, obs[self.X], obs[self.Y], obs[self.VALUE], radius)
-            self.apply_value_mask(value, obs[self.X], obs[self.Y], obs[self.VALUE], radius)            
+            self.apply_value_mask(value, uncertainty, obs[self.X], obs[self.Y], obs[self.VALUE])            
         return value, uncertainty
 
-
-    def apply_value_iterate(self, value, x, y, new_value, radius):
-        """Applies the value in a radius by iteration"""
-        for i in range(round(max(0, x-radius)), round(min(x+radius, self.width))):
-            for j in range(round(max(0, y-radius)), round(min(y+radius, self.height))):
-                if (math.sqrt((i-x)*(i-x) + (j-y)*(j-y)) <= radius):
-                    # FIXME: could do better... with averaging taking into consideration the i and j
-                    value[i, j] = new_value
-                    # uncertainty[i, j] = 0
-
-    def apply_value_mask(self, value, x, y, new_value, radius):
+    def apply_value_mask(self, value, uncertainty, x, y, new_value):
         """Applies the value using a mask based approach"""
         # logging.info("apply_value_mask started")
-        maskdim = 2 * radius + 1
-        # create the mask for the application of the values
+        # create a true/false mask of the size of the environment for the application of the values. This is based on shifting the circular mask to the right location and resolving the situations where it overhangs the margins
         dimx = int(self.width)
-        dimy = int(self.height)
+        dimy = int(self.height)        
         mask2 = np.full((dimx, dimy), False, dtype=bool)
-        maskp = self.mask[max(0, -x):min(maskdim, dimx-x), max(0, -y):min(maskdim,dimy-y)]
-        # print(f"maskp = {maskp}")
-        mask2[max(0, x):min(dimx, x+maskdim), max(0, y):min(dimy,y+maskdim)] = maskp
+        maskp = self.mask[max(0, -x):min(self.maskdim, dimx-x), max(0, -y):min(self.maskdim,dimy-y)]
+        mask2[max(0, x):min(dimx, x+self.maskdim), max(0, y):min(dimy,y+self.maskdim)] = maskp
+        # and now we are assigning the new value for the part covered by the mask
         value[mask2] = new_value
+        uncertainty[mask2] = 0.0
         # logging.info("apply_value_mask done")
 
 

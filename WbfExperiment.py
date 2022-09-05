@@ -1,9 +1,10 @@
+from secrets import choice
 from Environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
 from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
 from Robot import Robot
 from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
     AbstractWaypointPolicy, InformationGreedyPolicy
-from PathGenerators import generate_lawnmower
+from PathGenerators import generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path
 from WaterberryFarm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, waterberry_score
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -16,7 +17,8 @@ import pathlib
 import logging
 import pickle
 
-import bz2 as compress
+#import bz2 as compress
+import gzip as compress
 
 # logging.basicConfig(level=logging.WARNING)
 logging.basicConfig(level=logging.INFO)
@@ -66,13 +68,13 @@ def _visualize_1S(ax_env_tylcv, ax_im_tylcv, ax_obs, results):
 
 
 def simulate_1day(results):
-    """Runs the simulation for one day. All the parameters and output is in the results dictionary"""
+    """Runs the simulation for one day. All the parameters and output is in the results dictionary. It uses the WaterberryFarmInformationModel for modeling and the waterberry_score() for scoring"""
     wbfe, wbf = results["wbfe"], results["wbf"]
     results["wbfim"] = wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height)
     positions = []
     observations = []
     scores = []
-    for time in range(int(results["timespan"])):
+    for time in range(int(results["timesteps_per_day"])):
         results["robot"].enact_policy()
         results["robot"].proceed(1)
         position = [int(results["robot"].x), int(results["robot"].y), time]
@@ -102,7 +104,7 @@ def simulate_15day(results):
     observations = []
     scores = []
     for days in range(15):
-        for time in range(int(results["timespan"])):
+        for time in range(int(results["timesteps_per_day"])):
             results["robot"].enact_policy()
             results["robot"].proceed(1)
             position = [int(results["robot"].x), int(results["robot"].y), time]
@@ -124,13 +126,9 @@ def simulate_15day(results):
     results["observations"] = observations
     results["positions"] = positions
 
-def menu(choices):
-    """Running the simulator in an interactive mode. The choices dictionary 
-    can contain some predefined choices, which allow the bypassing of the menus, including the fully automated run. 
-    Returns the results in the form of dictionary, which is also saved."""
-    results = {}
-    results["choices"] = choices
 
+def menuGeometry(choices, results):
+    """Asks about the geometry and sets it in results"""
     if "geometry" not in choices:
         print("Choose the geometry:")
         print("\t1. Miniberry-10:")
@@ -138,16 +136,25 @@ def menu(choices):
         print("\t3. Miniberry-100:")
         print("\t4. Waterberry")
         choices["geometry"] = int(input("Choose desired geometry: "))
-    if choices["geometry"] == 1:
+    if choices["geometry"] == 1 or choices["geometry"] == "Miniberry-10":
         results["typename"] = "Miniberry-10"
-    elif choices["geometry"] == 2:
+    elif choices["geometry"] == 2 or choices["geometry"] == "Miniberry-30":
         results["typename"] = "Miniberry-30"
-    elif choices["geometry"] == 3:
+    elif choices["geometry"] == 3 or choices["geometry"] == "Miniberry-100":
         results["typename"] = "Miniberry-100"
-    elif choices["geometry"] == 4:
+    elif choices["geometry"] == 4 or choices["geometry"] == "Waterberry":
         results["typename"] = "Waterberry"
     else:
         raise Exception(f"Unknown choice of geometry {choices['geometry']}")
+
+
+def menu(choices):
+    """Running the simulator in an interactive mode. The choices dictionary 
+    can contain some predefined choices, which allow the bypassing of the menus, including the fully automated run. 
+    Returns the results in the form of dictionary, which is also saved."""
+    results = {}
+    results["choices"] = choices
+    menuGeometry(choices, results)
 
     if "action" not in choices:
         print("Choose the action:")
@@ -155,15 +162,18 @@ def menu(choices):
         print("\t2. Visualize the environment at a given time")
         print("\t3. Show an animation of the environment evolution")
         print("\t4. Run an experiment with a given robot policy")
-        print("\t5. Generate graphs from previously run experiments")
         choices["action"] = int(input("Choose desired action: "))
-    if choices["action"] == 1:
+    if choices["action"] == 1 or choices["action"] == "precompute-environment":
         wbf, wbfe, savedir = create_wbfe(False, wbf_prec = None, typename = results["typename"])
-        for i in range(200):
+        if "precompute-time" in choices:
+            results["precompute-time"] = choices["precompute-time"]
+        else:
+            results["precompute-time"] = int(input("Choose precompute time:"))
+        for i in range(results["precompute-time"]):
             logging.info(f"precalculation proceed {i}")
             wbfe.proceed()
         return results        
-    elif choices["action"] == 2:
+    elif choices["action"] == 2 or choices["action"] == "visualize":
         wbf, wbfe, savedir = create_wbfe(True, wbf_prec = None, typename = results["typename"])
         results["wbf"] = wbf
         results["wbfe"] = wbfe
@@ -173,24 +183,22 @@ def menu(choices):
         wbfe.visualize()
         plt.show()
         return results
-    elif choices["action"] == 3:
+    elif choices["action"] == 3 or choices["action"] == "animate":
         wbf, wbfe, savedir = create_wbfe(True, wbf_prec = None, typename = results["typename"])
         wbfe.visualize()
         anim = wbfe.animate_environment()
         plt.show()
         return results
-    elif choices["action"] == 4:
+    elif choices["action"] == 4 or choices["action"] == "run":
         if "time_start_environment" not in choices:
             choices["time_start_environment"] = int(input("Time in the environment when the robot starts: "))
         results["time_start_environment"] = choices["time_start_environment"] # FIXME: dependent...
         wbf, wbfe, savedir = create_wbfe(saved=True, wbf_prec=None, typename = results["typename"])
         wbfe.proceed(results["time_start_environment"])
-        wbfe.visualize()
+        # wbfe.visualize()
         results["wbf"] = wbf
         results["wbfe"] = wbfe
         results["savedir"] = savedir
-    elif choices["action"] == 5:
-        print("NOT IMPLEMENTED YET: generate graphs from previously run experiments")
     else:
         raise Exception(f"Unknown choice of action {choices['action']}")
 
@@ -205,19 +213,19 @@ def menu(choices):
         choices["scenario"] = int(input("Choose desired experiment scenario: "))
     
     results["scenario"] = choices["scenario"]
-    if choices["scenario"] == 1:
+    if choices["scenario"] == 1 or choices["scenario"] == "one-day-single-value":
         results["days"] = 1
         results["values"] = "single"
         exp_name = exp_name + "1S_"
-    elif choices["scenario"] == 2:
+    elif choices["scenario"] == 2 or choices["scenario"] == "one-day-multi-value":
         results["days"] = 1
         results["values"] = "multi"
         exp_name = exp_name + "1M_"
-    elif choices["scenario"] == 3:
+    elif choices["scenario"] == 3 or choices["scenario"] == "15-day-single-value":
         results["days"] = 15
         results["values"] = "single"
         exp_name = exp_name + "15S_"
-    elif choices["scenario"] == 4:
+    elif choices["scenario"] == 4 or choices["scenario"] == "15-day-multi-value":
         results["days"] = 15
         results["values"] = "multi"
         exp_name = exp_name + "15M_"
@@ -230,9 +238,22 @@ def menu(choices):
         print("\t2. Lawnmower - restart")
         print("\t3. Random waypoint", flush = True)
         choices["policy"] = int(input("Choose desired policy: "))
-    # setting up the run
 
-    results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
+    # determining the path of the file into which the results will be saved.
+    
+    results_filename = f"res-pol_{choices['policy']}"
+    if "result-basedir" in choices:
+        results_path = pathlib.Path(choices["result-basedir"], results_filename)
+    else:
+        results_path = pathlib.Path(results["savedir"], results_filename)    
+    results["results_path"] = results_path
+    # if dryrun is specified, we return the results without running anything
+    if "dryrun" in choices and choices["dryrun"] == True:
+        return results
+
+    ### ROBOT AND POLICY SPECIFICATION
+    
+    results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)        
     if results["typename"] == "Miniberry-10":
         xmin, xmax, ymin, ymax = 0, 10, 0, 10
         timespan = 0.4 * 100 
@@ -246,24 +267,58 @@ def menu(choices):
         xmin, xmax, ymin, ymax = 1000, 5000, 1000, 4000
         timespan = 0.4 * 12000000
     results["velocity"] = 1
-    results["timespan"] = timespan
+    results["timesteps_per_day"] = timespan
+    # override the velocity and the timesteps per day, if specified
+    if "timesteps_per_day" in choices:
+        results["timesteps_per_day"] = choices["timesteps_per_day"]
+    if "velocity" in choices:
+        results["velocity"] = choices["velocity"]
 
-    if choices["policy"] == 1: # lawnmower that covers the area in one day
+    if choices["policy"] == 1 or choices["policy"] == "lawnmower-lowres": # lawnmower that covers the area in one day
         # FIXME: carefully check the parameters here
         results["policy"] = "lawnmower-lowres"
         exp_name = exp_name + results["policy"]
         path = generate_lawnmower(xmin, xmax, ymin, ymax, winds = 5)
         results["robot"].policy = FollowPathPolicy(None, results["robot"], vel = results["velocity"], waypoints = path, repeat = True)        
-    elif choices["policy"] == 2: # lawnmower that restarts... 
+    elif choices["policy"] == 2 or choices["policy"] == "lawnmower-restart": # lawnmower that restarts... 
         # FIXME: carefully check the parameters here
         results["policy"] = "lawnmower-restart"
         exp_name = exp_name + results["policy"]
         path = generate_lawnmower(xmin, xmax, ymin, ymax, winds = 50)
         results["robot"].policy = FollowPathPolicy(None, results["robot"], vel = results["velocity"], waypoints = path, repeat = True)        
-    elif choices["policy"] == 3: # random waypoint
+    elif choices["policy"] == 3 or choices["policy"] == "random-waypoint": # random waypoint
         results["policy"] = "random-waypoint"
         exp_name = exp_name + results["policy"]
         results["robot"].policy = RandomWaypointPolicy(results["wbfe"], results["robot"], vel = results["velocity"], low_point = [xmin, ymin], high_point = [xmax, ymax], seed = 0)        
+    # From here, these are the choices used for the Summer 2022 paper about the 
+    # wbf benchmark
+    elif choices["policy"].startswith("benchmarkpaper"):
+        results["policy"] = choices["policy"]
+        exp_name = exp_name + results["policy"]
+        if choices["policy"] == "benchmarkpaper-randomwaypoint":
+            # a random waypoint policy
+            results["robot"].policy = RandomWaypointPolicy(results["wbfe"], results["robot"], vel = results["velocity"], low_point = [xmin, ymin], high_point = [xmax, ymax], seed = 0)        
+        elif choices["policy"] == "benchmarkpaper-lawnmower":
+            # a lawnmower policy that covers the target area in one day uniformly
+            # FIXME: determine the right number of winds here
+            # path = generate_lawnmower(xmin, xmax, ymin, ymax, winds = 50)
+            time = results["timesteps_per_day"]
+            path = find_fixed_budget_lawnmower([0,0], xmin, xmax, ymin, ymax, results["velocity"], time)
+            results["robot"].policy = FollowPathPolicy(None, results["robot"], vel = results["velocity"], waypoints = path, repeat = True)        
+        elif choices["policy"] == "benchmarkpaper-adaptive-lawnmower":
+            # a lawnmower policy that covers the tomatoes more densely than the strawberries
+            # FIXME: determine the right number of winds and the ratio
+            height = ymax - ymin
+            time = results["timesteps_per_day"]
+            path1 = find_fixed_budget_lawnmower([0, 0], xmin, xmax, ymin, ymin + height // 2, results["velocity"], time // 2)
+            # second path is supposed to start from the last of first
+            path2 = find_fixed_budget_lawnmower(path1[-1], xmin, xmax, ymin + height//2, ymin + height, results["velocity"], time // 2)
+            path = np.append(path1, path2, axis=0)            
+            results["robot"].policy = FollowPathPolicy(None, results["robot"], vel = results["velocity"], waypoints = path, repeat = True)            
+        elif choices["policy"] == "benchmarkpaper-spiral":
+            # a spiral policy 
+            path = generate_spiral_path(x_min = xmin, x_max = xmax, y_min = ymin, y_max = ymax)
+            results["robot"].policy = FollowPathPolicy(None, results["robot"], vel = results["velocity"], waypoints = path, repeat = True)           
     else: 
         raise Exception(f"Unknown policy choice {choices['policy']}")
 
@@ -282,16 +337,8 @@ def menu(choices):
     else:
         raise Exception(f"Unsupported combination of values {results['values']}and days results['days'] in the scenario")
 
-
-
-
-    # FIXME: The savedir is not the right one for this!!!! especially if
-    # this is being run from BenchmarkPaper-experiments.ipnb
-    # Encode the choices
-    resultsFileName = f"res-pol_{choices['policy']}"
-    resultsPath = pathlib.Path(results["savedir"], resultsFileName)
-    logging.info(f"Saving results to: {resultsPath}")
-    with compress.open(resultsPath, "wb") as f:
+    logging.info(f"Saving results to: {results_path}")
+    with compress.open(results_path, "wb") as f:
         pickle.dump(results, f)
 
     if "visualize" not in choices:

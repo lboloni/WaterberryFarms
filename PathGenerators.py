@@ -1,6 +1,22 @@
 import math
 import numpy as np
 
+
+def euclidean_distance(point1, point2):
+    """Return the euclidian distance between two points"""
+    return math.sqrt(math.pow(point2[0]-point1[0],2) + math.pow(point2[1]-point1[1],2))
+
+def get_path_length(starting_point, path):
+    """Returns the length of the generated path, assuming that it starts at the starting point"""
+    current = starting_point
+    length = 0
+    for a in path:
+        length += euclidean_distance(current, a)
+        current = a
+    return length
+
+
+
 # These functions generate static paths in the form of a series of waypoints.
 # A robot with the FollowPathPolicy will then follow these paths.
 
@@ -82,10 +98,6 @@ def control_points_need_to_be_inserted(path_point, control_point, coverage_dista
     return False
 
 
-def euclidean_distance(point1, point2):
-    """Return the euclidian distance between two points"""
-    return math.sqrt(math.pow(point2[0]-point1[0],2) + math.pow(point2[1]-point1[1],2))
-
 # ***************************************************
 #
 #   Sam Matloob's lawnmower implementation with control
@@ -163,4 +175,26 @@ def generate_spiral_path(x_max, y_max, x_min, y_min):
         path.append([x_max-i,y_min+i])
         path.append([x_min+j, y_min+i])
         j+=1
+    return path
+
+# ***************************************************
+#
+#   Fixed budget implementation
+#
+# ***************************************************
+
+def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+    """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
+    windsmax = 1000
+    windsmin = 1
+    distancebudget = velocity * time
+    while windsmax > windsmin + 1:
+        windstest = (windsmin + windsmax) // 2
+        # print(windstest)
+        path = generate_lawnmower(x_min, x_max, y_min, y_max, winds = windstest)
+        length = get_path_length(starting_point, path)
+        if length > distancebudget:
+            windsmax = windstest
+        else:
+            windsmin = windstest
     return path
