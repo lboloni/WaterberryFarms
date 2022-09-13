@@ -338,22 +338,23 @@ class WaterberryFarmEnvironment(Environment):
 class WaterberryFarmInformationModel(StoredObservationIM):
     """The information model for the waterberry farm. It is basically a collection of three information models, one for each environmental model."""
 
-    def __init__(self, name, width, height):
+    def __init__(self, name, width, height, estimator = "AD"):
         """Creating the stuff"""
         super().__init__(name, width, height)
-        self.gp = False
-        if self.gp:
+        if estimator == "GP":
             self.im_tylcv = GaussianProcessScalarFieldIM(
                 "TYLCV", width, height)
             self.im_ccr = GaussianProcessScalarFieldIM("CCR", width, height)
             self.im_soil = GaussianProcessScalarFieldIM("Soil", width, height)
-        else:
+        elif estimator == "AD":
             self.im_tylcv = DiskEstimateScalarFieldIM(
                 "TYLCV", width, height, disk_radius=None)
             self.im_ccr = DiskEstimateScalarFieldIM(
                 "CCR", width, height, disk_radius=None)
             self.im_soil = DiskEstimateScalarFieldIM(
                 "Soil", width, height, disk_radius=None)
+        else:
+            raise Exception(f"Unknown estimator at the creation of WBFIM: {estimator}")
 
     def add_observation(self, observation: dict):
         """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity. 

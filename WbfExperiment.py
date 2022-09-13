@@ -70,7 +70,8 @@ def _visualize_1S(ax_env_tylcv, ax_im_tylcv, ax_obs, results):
 def simulate_1day(results):
     """Runs the simulation for one day. All the parameters and output is in the results dictionary. It uses the WaterberryFarmInformationModel for modeling and the waterberry_score() for scoring"""
     wbfe, wbf = results["wbfe"], results["wbf"]
-    results["wbfim"] = wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height)
+
+    results["wbfim"] = wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height, estimator=results["estimator"])
     positions = []
     observations = []
     scores = []
@@ -99,7 +100,7 @@ def simulate_1day(results):
 def simulate_15day(results):
     """Runs the simulation for 15 days. All the parameters and output is in the results dictionary"""
     wbfe, wbf = results["wbfe"], results["wbf"]
-    results["wbfim"] = wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height)
+    results["wbfim"] = wbfim = WaterberryFarmInformationModel("wbfi", wbf.width, wbf.height, estimator=results["estimator"])
     positions = []
     observations = []
     scores = []
@@ -239,9 +240,17 @@ def menu(choices):
         print("\t3. Random waypoint", flush = True)
         choices["policy"] = int(input("Choose desired policy: "))
 
+    # set the estimator
+    if "estimator" in choices:
+        results["estimator"] = choices["estimator"]
+    else: 
+        results["estimator"] = "AD"
+
     # determining the path of the file into which the results will be saved.
-    
-    results_filename = f"res-pol_{choices['policy']}"
+    if "results-filename" in choices:
+        results_filename = choices["results-filename"]
+    else:
+        results_filename = f"res-pol_{choices['policy']}_{results['estimator']}"
     if "result-basedir" in choices:
         results_path = pathlib.Path(choices["result-basedir"], results_filename)
     else:
@@ -273,6 +282,8 @@ def menu(choices):
         results["timesteps_per_day"] = choices["timesteps_per_day"]
     if "velocity" in choices:
         results["velocity"] = choices["velocity"]
+
+
 
     if choices["policy"] == 1 or choices["policy"] == "lawnmower-lowres": # lawnmower that covers the area in one day
         # FIXME: carefully check the parameters here
