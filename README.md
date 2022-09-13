@@ -1,6 +1,6 @@
-# MREM - Multi-robot environment monitoring
+# Waterberry Farms
 
-MREM is an experimental framework for developing and testing algorithms that control mobile robots that investigate and monitor an environment.
+Waterberry Farms is an experimental framework for developing and testing algorithms that control mobile robots that investigate and monitor an environment.
 
 It contains the following major components:
 
