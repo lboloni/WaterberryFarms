@@ -41,6 +41,24 @@ def generate_lawnmower(x_min, x_max, y_min, y_max, winds):
     path.append([x_max, current[1]])
     return np.array(path)
 
+
+def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+    """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
+    windsmax = 1000
+    windsmin = 1
+    distancebudget = velocity * time
+    while windsmax > windsmin + 1:
+        windstest = (windsmin + windsmax) // 2
+        # print(windstest)
+        path = generate_lawnmower(x_min, x_max, y_min, y_max, winds = windstest)
+        length = get_path_length(starting_point, path)
+        if length > distancebudget:
+            windsmax = windstest
+        else:
+            windsmin = windstest
+    return path
+
+
 # ***************************************************
 #
 #   Sam Matloob's lawnmower implementation with control
@@ -116,14 +134,20 @@ def generate_lawnmower_path_v2(x_min, x_max, x_step, y_min, y_max, y_step):
 
     # looping through y-axis
     for y in np.arange(y_min, y_max+y_step, y_step):
+        if y>y_max: 
+            continue
         if (direction==1):
 
             # looping through x-axis
             for x in np.arange(x_min, x_max + x_step, x_step):
+                if x>x_max:
+                    continue
                 path.append([x, y])
             direction=-1
         else:
             for x in np.arange(path[-1][0], x_min-x_step, -x_step):
+                if x<x_min:
+                    continue
                 path.append([x, y])
             direction = 1
     return path
@@ -175,13 +199,31 @@ def add_control_points_v2(lawnmower_path, control_points):
                 finalPath.append(list(epidemicPointMapping))
     return finalPath
 
+def find_fixed_budget_lawnmower_v2(control_points, starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+    """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
+    step_max = float(y_max-y_min)
+    step_min = 0.1
+    distancebudget = velocity * time
+    while step_max > step_min + 0.05: # 0.05 is the minimum vertical step
+        step_test = (step_min + step_max) / 2
+        pathWithNoControlPoints= generate_lawnmower_path_v2(x_min, x_max, 1, y_min, y_max, step_test)
+        pathWithControlPoints= add_control_points_v2(pathWithNoControlPoints, control_points)
+        path = np.array(pathWithControlPoints)
+        length = get_path_length(starting_point, path)
+        if length > distancebudget:
+            step_min = step_test  
+        else:
+            step_max = step_test
+                
+    return path
+
 # ***************************************************
 #
 #   Partha Datta spiral implementation
 #
 # ***************************************************
 
-def generate_spiral_path(x_max, y_max, x_min, y_min):
+def generate_spiral_path_ParthaDatta(x_max, y_max, x_min, y_min):
     """Partha Datta's code April 25"""
     y_max = abs(y_max)
     y_min = abs(y_min)
@@ -203,22 +245,64 @@ def generate_spiral_path(x_max, y_max, x_min, y_min):
 
 # ***************************************************
 #
-#   Fixed budget implementation
+#   Lotzi's implementation for a square spiral path
 #
 # ***************************************************
+def generate_spiral_path(x_min, x_max, y_min, y_max, step = 1):
+    """A square spiral coverage of a rectangular area with a specific step size"""
+    center_x = (x_min + x_max) // 2
+    center_y = (y_min + y_max) // 2
+    cur_x_min = x_min 
+    cur_x_max = x_max
+    cur_y_min = y_min
+    cur_y_max = y_max
+    cur_x = x_min
+    cur_y = y_min
+    phase = 0
+    path = []
+    done = False
+    while not done:
+        if phase == 0:
+            cur_x = cur_x_min
+            cur_y = cur_y_min
+            cur_x_min = cur_x_min + step
+            if cur_x_min > center_x:
+                done = True
+        if phase == 1:
+            cur_x = cur_x_max
+            cur_y = cur_y_min
+            cur_y_min = cur_y_min + step
+            if cur_y_min > center_y:
+                done = True
+        if phase == 2:
+            cur_x = cur_x_max
+            cur_y = cur_y_max
+            cur_x_max = cur_x_max - step
+            if cur_x_max < center_x:
+                done = True
+        if phase == 3:
+            cur_x = cur_x_min
+            cur_y = cur_y_max
+            # only here??
+            cur_y_max = cur_y_max - step
+            if cur_y_max < center_y:
+                done = True
+        phase = (phase + 1) % 4
+        path.append([cur_x, cur_y])
+    return np.array(path)
 
-def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
-    """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
-    windsmax = 1000
-    windsmin = 1
+def find_fixed_budget_spiral(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+    """Finds a spiral pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
+    step_max = 1000.0
+    step_min = 1.0
     distancebudget = velocity * time
-    while windsmax > windsmin + 1:
-        windstest = (windsmin + windsmax) // 2
-        # print(windstest)
-        path = generate_lawnmower(x_min, x_max, y_min, y_max, winds = windstest)
+    while step_max > step_min + 1:
+        step_test = (step_min + step_max) / 2
+        path = generate_spiral_path(x_min, x_max, y_min, y_max, step = step_test)
         length = get_path_length(starting_point, path)
         if length > distancebudget:
-            windsmax = windstest
+            step_min = step_test
         else:
-            windsmin = windstest
+            step_max = step_test        
     return path
+

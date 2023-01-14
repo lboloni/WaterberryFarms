@@ -338,23 +338,12 @@ class WaterberryFarmEnvironment(Environment):
 class WaterberryFarmInformationModel(StoredObservationIM):
     """The information model for the waterberry farm. It is basically a collection of three information models, one for each environmental model."""
 
-    def __init__(self, name, width, height, estimator = "AD"):
+    def __init__(self, width, height):
         """Creating the stuff"""
-        super().__init__(name, width, height)
-        if estimator == "GP":
-            self.im_tylcv = GaussianProcessScalarFieldIM(
-                "TYLCV", width, height)
-            self.im_ccr = GaussianProcessScalarFieldIM("CCR", width, height)
-            self.im_soil = GaussianProcessScalarFieldIM("Soil", width, height)
-        elif estimator == "AD":
-            self.im_tylcv = DiskEstimateScalarFieldIM(
-                "TYLCV", width, height, disk_radius=None)
-            self.im_ccr = DiskEstimateScalarFieldIM(
-                "CCR", width, height, disk_radius=None)
-            self.im_soil = DiskEstimateScalarFieldIM(
-                "Soil", width, height, disk_radius=None)
-        else:
-            raise Exception(f"Unknown estimator at the creation of WBFIM: {estimator}")
+        super().__init__(width, height)
+        self.im_tylcv = None
+        self.im_ccr = None
+        self.im_soil = None
 
     def add_observation(self, observation: dict):
         """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity. 
@@ -373,30 +362,61 @@ class WaterberryFarmInformationModel(StoredObservationIM):
         """Visualize the estimates and the uncertainty models for the three components"""
         pass
 
+class WBF_IM_DiskEstimator(WaterberryFarmInformationModel):
+    """WBF information model using a disk estimator with the specified disk radius for all three measures."""
+    def __init__(self, width, height, disk_radius = None, default_value=0):
+        super().__init__(width, height)
+        self.im_tylcv = DiskEstimateScalarFieldIM(
+            width, height, disk_radius=disk_radius, default_value=default_value)
+        self.im_ccr = DiskEstimateScalarFieldIM(
+            width, height, disk_radius=disk_radius, default_value=default_value)
+        self.im_soil = DiskEstimateScalarFieldIM(
+            width, height, disk_radius=disk_radius, default_value=default_value)
 
-def waterberry_score(env: WaterberryFarmEnvironment,
-                     im: WaterberryFarmInformationModel):
-    """A specialized score function for the waterberry farm environment, which is individually weights the values of the different components
-    """
-    params = {}
-    params["strawberry_importance"] = 0.2  # not lead to full crop loss
-    # false negatives are more important
-    params["strawberry_negative_importance"] = 10
-    params["tomato_importance"] = 1.0  # leads to full crop loss
-    # false negatives are more important
-    params["tomato_negative_symmetry"] = 5
-    soil_importance = 0.1  # the exact value is of lower importance on revenue
+class WBF_IM_GaussianProcess(WaterberryFarmInformationModel):
+    """WBF information model using a gaussian process estimator for all three measures"""
+    def __init__(self, width, height):
+        super().__init__(width, height)
+        self.im_tylcv = GaussianProcessScalarFieldIM(width, height)
+        self.im_ccr = GaussianProcessScalarFieldIM(width, height)
+        self.im_soil = GaussianProcessScalarFieldIM(width, height)
 
-    score = 0
-    score += params["strawberry_importance"] * im_score_weighted_asymmetric(
-        env.ccr, im.im_ccr, 1.0, params["strawberry_negative_importance"], env.my_strawberry_mask)
+class WBF_Score:
+    """The ancestor of all the classes"""
+    def score(self, env, im):
+        return 0.0
 
-    score += params["tomato_importance"] * im_score_weighted_asymmetric(
-        env.tylcv, im.im_tylcv, 1.0, params["strawberry_negative_importance"], env.my_tomato_mask)
+    def __str__(self):
+        return "WBF_Score: a scoring function that returns zero no matter what is being passed"
 
-    score += soil_importance * \
-        im_score_weighted(env.soil, im.im_soil, env.my_soil_mask)
-    return score
+class WBF_Score_WeightedAsymmetric(WBF_Score):
+    """An implementation of a score model which is using a weighted importance for each metric. For strawberry and tomato it is using an assymmetric metric which weights negative values differently compared to the positive ones"""
+    def __init__(self, strawberry_importance = 0.2, # not lead to full crop loss
+                strawberry_negative_importance = 10.0, # false negs 
+                tomato_importance = 1.0, # leads to full crop loss
+                tomato_negative_importance = 10.0, # false negs
+                soil_importance = 0.1 # exact value less important
+                ):
+        self.strawberry_importance = strawberry_importance
+        self.strawberry_negative_importance = strawberry_negative_importance
+        self.tomato_importance = tomato_importance
+        self.tomato_negative_importance = tomato_negative_importance
+        self.soil_importance = soil_importance
+    
+    def __str__(self):
+        return f"Importances: strawberry +{self.strawberry_importance}/-{self.strawberry_negative_importance} tomato +{self.tomato_importance}/-{self.tomato_negative_importance} soil {self.soil_importance}"
+
+    def score(self, env, im):
+        score = 0
+        score += self.strawberry_importance * im_score_weighted_asymmetric(
+            env.ccr, im.im_ccr, 1.0, self.strawberry_negative_importance, env.my_strawberry_mask)
+
+        score += self.tomato_importance * im_score_weighted_asymmetric(
+            env.tylcv, im.im_tylcv, 1.0, self.tomato_negative_importance, env.my_tomato_mask)
+
+        score += self.soil_importance * \
+            im_score_weighted(env.soil, im.im_soil, env.my_soil_mask)
+        return score
 
 
 def get_datadir():

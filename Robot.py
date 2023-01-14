@@ -33,7 +33,11 @@ class Robot:
         self.env = env
         self.im = im
     
-        
+    def assign_policy(self, policy):
+        """Assign a policy to the robot and set up the links from both directions"""
+        self.policy = policy
+        policy.robot = self
+
     def add_action(self, action):
         """Sets a pending action: normally this means to move. """
         self.pending_actions.append(action)

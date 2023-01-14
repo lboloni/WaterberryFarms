@@ -25,8 +25,8 @@ class InformationModel:
     """The ancestor of all information models. This defines the functions we can 
     call on these. They will need to be specialized to the different information models"""
 
-    def __init__(self, name, width, height):
-        self.name, self.width, self.height = name, width, height
+    def __init__(self, width, height):
+        self.width, self.height = width, height
     
     def score(self, env: Environment):
         """Calculates a score that estimates the quality of this information 
@@ -59,8 +59,8 @@ class StoredObservationIM(InformationModel):
     CONFIDENCE = "confidence"
     RANGE = "range"
 
-    def __init__(self, name, width, height):
-        super().__init__(name, width, height)
+    def __init__(self, width, height):
+        super().__init__(width, height)
         self.observations = []
 
     def add_observation(self, observation):
@@ -72,10 +72,10 @@ class AbstractScalarFieldIM(StoredObservationIM):
     """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. The uncertainty metric is an estimate of the error at any given location. 
     """
     
-    def __init__(self, name, width, height):
+    def __init__(self, width, height):
         """Initializes the value to zero, the uncertainty to one. 
         FIXME: what exactly the uncertainty measures??? """
-        super().__init__(name, width, height)
+        super().__init__(width, height)
         self.value = np.zeros((self.width, self.height))
         self.uncertainty = np.ones((self.width, self.height))
 
@@ -104,8 +104,8 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
     using a GaussianProcess
     """
 
-    def __init__(self, name, width, height, gp_kernel = None):
-        super().__init__(name, width, height)
+    def __init__(self, width, height, gp_kernel = None):
+        super().__init__(width, height)
         self.gp_kernel = gp_kernel
 
     def estimate(self, observations, prior_value, prior_uncertainty):
@@ -141,8 +141,8 @@ class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
     """An information model which performs a point based estimation. In the precise point where we have an estimate, out uncertainty is zero, while everywhere else the uncertainty is 1.00
     """
 
-    def __init__(self, name, width, height):
-        super().__init__(name, width, height)
+    def __init__(self, width, height):
+        super().__init__(width, height)
 
     def estimate(self, observations, prior_value, prior_uncertainty):
         """Takes all the observations and estimates the value and the 
@@ -167,8 +167,8 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
     """An information model which performs a disk based estimation.
     """
 
-    def __init__(self, name, width, height, disk_radius=5, default_value=0):
-        super().__init__(name, width, height)
+    def __init__(self, width, height, disk_radius=5, default_value=0):
+        super().__init__(width, height)
         self.disk_radius = disk_radius
         self.default_value = default_value
         self.mask = None

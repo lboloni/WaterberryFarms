@@ -11,9 +11,12 @@ import matplotlib.patches as patches
 from Robot import Robot
 
 class Policy:
-    def __init__(self, name, env, robot):
-        self.name = name
-        self.env = env
+    def __init__(self):
+        """Create a policy that is not yet assigned to the robot"""
+        self.env = None
+
+    def assign(self, robot):
+        """Assign the policy to a specific robot"""
         self.robot = robot
         
     def act(self, delta_t):
@@ -22,15 +25,12 @@ class Policy:
         pass
     
     def __str__(self):
-        return self.name
+        return self.__class__.__name__
     
     
 class AbstractWaypointPolicy(Policy):
     """The ancestor of all the policies that are based on choosing waypoints"""
-    
-    ##def __init__(self, name, env, robot):
-    ##    super().__init__("AbstractWaypointPolicy", env, robot)
-    
+        
     def move_towards_location(self, targetx, targety, vel, delta_t):
         """Schedule the actions to move the robot towards a target location. Returns true 
         if the robot will reach that location as the result of this step and false otherwise"""
@@ -59,21 +59,21 @@ class AbstractWaypointPolicy(Policy):
     
 class GoToLocationPolicy(AbstractWaypointPolicy):
     """This is a simple policy that make the robot go to a certain location."""
-    def __init__(self, env, robot, locx, locy, vel):
-        super().__init__("GoToPolicy", env, robot)
+    def __init__(self, locx, locy, vel):
+        super().__init__()
         self.locx, self.locy, self.vel = locx, locy, vel
         
     def act(self, delta_t):
         """ Head towards locx, locy with a velocity vel"""
-        ##logging.debug("HERE")
         self.move_towards_location(self.locx, self.locy, self.vel, delta_t)
         
         
 class FollowPathPolicy(AbstractWaypointPolicy):
-    """A policy that makes a robot follow a certain path specified as a series of waypoints. 
-    If repeat is true, it repeats the path indefinitely."""
-    def __init__(self, env, robot, vel, waypoints, repeat = False):
-        super().__init__("FollowPathPolicy", env, robot)
+    """A policy that makes a robot follow a certain path specified as a series 
+    of waypoints. If repeat is true, it repeats the path indefinitely.
+    """
+    def __init__(self, vel, waypoints, repeat = False):
+        super().__init__()
         self.waypoints = waypoints.copy()
         self.vel = vel
         self.currentwaypoint = 0
@@ -96,11 +96,11 @@ class FollowPathPolicy(AbstractWaypointPolicy):
                     
                     
 class RandomWaypointPolicy(AbstractWaypointPolicy):
-    """A policy that makes the robot follow a random waypoint behavior within a specified region
-    using a constant velocity.
-    The region is specied with the low_point and high_point each of them having (x,y) formats """
-    def __init__(self, env, robot, vel, low_point, high_point, seed):
-        super().__init__("RandomWaypointPolicy", env, robot)
+    """A policy that makes the robot follow a random waypoint behavior within a 
+    specified region using a constant velocity. The region is specied with the 
+    low_point and high_point each of them having (x,y) formats """
+    def __init__(self, vel, low_point, high_point, seed):
+        super().__init__()
         self.random = np.random.default_rng(seed)
         self.vel = vel
         self.low_point = low_point
@@ -108,7 +108,8 @@ class RandomWaypointPolicy(AbstractWaypointPolicy):
         self.nextwaypoint = None
                 
     def act(self, delta_t):
-        """Moves towards the chosen waypoint. If the waypoint is reached, it picks the next waypoint"""
+        """Moves towards the chosen waypoint. If the waypoint is reached, it
+        picks the next waypoint"""
         if self.nextwaypoint == None:
             x = self.random.uniform(self.low_point[0], self.high_point[0])
             y = self.random.uniform(self.low_point[1], self.high_point[1])
@@ -119,10 +120,11 @@ class RandomWaypointPolicy(AbstractWaypointPolicy):
             
             
 class InformationGreedyPolicy(AbstractWaypointPolicy):
-    """A policy which makes the robot choose its next waypoint to be the one with the 
-    largest information value from an square area of radius span around the current location"""
-    def __init__(self, robot, vel, span = 5):
-        super().__init__("InformationGreedyPolicy", robot.env, robot)
+    """A policy which makes the robot choose its next waypoint to be the one 
+    with the largest information value from an square area of radius span 
+    around the current location"""
+    def __init__(self, vel, span = 5):
+        super().__init__()
         self.vel = vel
         self.nextwaypoint = None
         self.span = span
@@ -132,10 +134,7 @@ class InformationGreedyPolicy(AbstractWaypointPolicy):
         which is the one with the highest uncertainty value"""
         if self.nextwaypoint == None:
             feasible_waypoints = self.generate_feasible_waypoints()
-            # waypoint_values = [self.robot.im.estimate_voi(x) for x in feasible_waypoints]            
-            # tcurrent = time.perf_counter()
             waypoint_values = [self.robot.im.uncertainty[x[0],x[1]] for x in feasible_waypoints]       
-            # print(f"time spent here {time.perf_counter() - tcurrent}")
             bestindex = np.argmax(waypoint_values)            
             self.nextwaypoint = feasible_waypoints[bestindex]
         done = self.move_towards_location(self.nextwaypoint[0], self.nextwaypoint[1], self.vel, delta_t)
@@ -143,8 +142,8 @@ class InformationGreedyPolicy(AbstractWaypointPolicy):
             self.nextwaypoint = None
             
     def generate_feasible_waypoints(self):
-        # generate all the feasible waypoints: the points in a rectangular area of extent span from 
-        # the current points
+        # generate all the feasible waypoints: the points in a rectangular area 
+        # of extent span from the current points
         currentx = int(self.robot.x)
         currenty = int(self.robot.y)
         rangex = range(max(0, currentx - self.span), min(currentx+self.span, self.robot.env.width))
