@@ -156,6 +156,9 @@ def simulate_1day(results):
     positions = []
     observations = []
     scores = []
+    results["scores"] = scores
+    results["observations"] = observations
+    results["positions"] = positions
     for time in range(int(results["timesteps-per-day"])):
         # print(f"Simulate_1day I am at time = {time}")
         results["robot"].enact_policy()
@@ -170,13 +173,12 @@ def simulate_1day(results):
             wbfim.proceed(1)
             score = results["score-code"].score(wbfe, wbfim)
             scores.append(score)
+        if "hook-after-day" in results:
+            results["hook-after-day"](results)
     if results["oneshot"]:
         wbfim.proceed(1)
         score = results["score-code"].score(wbfe, wbfim)
     results["score"] = score
-    results["scores"] = scores
-    results["observations"] = observations
-    results["positions"] = positions
 
 
 def action_run_oneday(choices):
