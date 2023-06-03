@@ -1,5 +1,5 @@
-from Environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment, SoilMoistureEnvironment
-from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric
+from Environment import Environment, EpidemicSpreadEnvironment, PrecalculatedEnvironment, SoilMoistureEnvironment
+from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric, im_score, im_score_rmse
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
@@ -284,7 +284,7 @@ class WaterberryFarmEnvironment(Environment):
 
         return obs
 
-    def visualize(self, fig=None, ax_geom=None, ax_tylcv=None, ax_ccr=None, ax_soil=None):
+    def visualizeXXX(self, fig=None, ax_geom=None, ax_tylcv=None, ax_ccr=None, ax_soil=None):
         """Plot the components into a four panel figure. """
         # I don't understand why is this being called
         import traceback
@@ -417,6 +417,64 @@ class WBF_Score_WeightedAsymmetric(WBF_Score):
         score += self.soil_importance * \
             im_score_weighted(env.soil, im.im_soil, env.my_soil_mask)
         return score
+
+
+class WBF_MultiScore(WBF_Score):
+    """An implementation of a score model calculating a number of score components and recording them in a dictionary. Finally, it also calculates a custom score - which makes it equivalent to the 
+    WBF_Score_WeightedAssymmetric, which it will replace
+    """
+
+    def __init__(self, strawberry_importance = 0.2, # not lead to full crop loss
+                strawberry_negative_importance = 10.0, # false negs 
+                tomato_importance = 1.0, # leads to full crop loss
+                tomato_negative_importance = 10.0, # false negs
+                soil_importance = 0.1, # exact value less important
+                soil_negative_importance = 1
+                ):
+        self.strawberry_importance = strawberry_importance
+        self.strawberry_negative_importance = strawberry_negative_importance
+        self.tomato_importance = tomato_importance
+        self.tomato_negative_importance = tomato_negative_importance
+        self.soil_importance = soil_importance    
+        self.soil_negative_importance = soil_negative_importance
+
+    @staticmethod
+    def score_components():
+        """Returns the score components (eg for graphs)"""
+        return ["strawberry-L1", "tomato-L1", "soil-L1", "strawberry-symmetric-L1", "tomato-symmetric-L1", "soil-symmetric-L1",
+              "strawberry-asymmetric-L1", "tomato-asymmetric-L1", "soil-asymmetric-L1", "custom"]
+
+    def score(self, env, im):
+        """A more easily debuggable version of the score. Returns a dictionary with a number of components"""
+        retval = {}
+        retval["strawberry-L1"] = im_score(env.ccr, im.im_ccr)
+        retval["tomato-L1"] = im_score(env.tylcv, im.im_tylcv)
+        retval["soil-L1"] = im_score(env.soil, im.im_soil)
+
+        retval["strawberry-symmetric-L1"] = im_score_weighted(env.ccr, im.im_ccr, env.my_strawberry_mask)
+        retval["tomato-symmetric-L1"] = im_score_weighted(env.tylcv, im.im_tylcv, env.my_tomato_mask)
+        retval["soil-symmetric-L1"] = im_score_weighted(env.soil, im.im_soil, env.my_soil_mask)
+
+        # FIXME: maybe add here the assymmetry weights 
+        retval["strawberry-asymmetric-L1"] =        im_score_weighted_asymmetric(
+            env.ccr, im.im_ccr, 1.0, self.strawberry_negative_importance, env.my_strawberry_mask)
+        retval["strawberry-asymmetric-L1-negimport"] = self.strawberry_negative_importance       
+        
+        retval["tomato-asymmetric-L1"] = im_score_weighted_asymmetric(env.tylcv, im.im_tylcv, 1.0, self.strawberry_negative_importance, env.my_tomato_mask)
+        retval["tomato-asymmetric-L1-negimport"] = self.tomato_negative_importance
+
+        retval["soil-asymmetric-L1"] = im_score_weighted_asymmetric(env.soil, im.im_soil, 1.0, self.soil_negative_importance, env.my_soil_mask)
+        retval["soil-assymmetric-L1-negimport"] = self.soil_negative_importance
+
+        retval["custom"] = self.strawberry_importance * retval["strawberry-asymmetric-L1"] + self.tomato_importance * retval["tomato-asymmetric-L1"] + self.soil_importance * retval["soil-asymmetric-L1"]
+        retval["custom-strawberry-importance"] = self.strawberry_importance
+        retval["custom-tomato-importance"] = self.tomato_importance
+        retval["custom-soil-importance"] = self.soil_importance
+
+        # all weighted symmetric
+        # all weighted assymmetric
+        return retval
+
 
 
 def get_datadir():

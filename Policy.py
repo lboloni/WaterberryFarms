@@ -24,6 +24,10 @@ class Policy:
         the robot's action queue - it is not supposed to execute it here"""        
         pass
     
+    def add_observation(self, obs):
+        """A way for the policy to be notified of the observations made by the robot. The default action here is to ignore it."""
+        pass
+
     def __str__(self):
         return self.__class__.__name__
     
@@ -118,36 +122,4 @@ class RandomWaypointPolicy(AbstractWaypointPolicy):
         if done:
             self.nextwaypoint = None
             
-            
-class InformationGreedyPolicy(AbstractWaypointPolicy):
-    """A policy which makes the robot choose its next waypoint to be the one 
-    with the largest information value from an square area of radius span 
-    around the current location"""
-    def __init__(self, vel, span = 5):
-        super().__init__()
-        self.vel = vel
-        self.nextwaypoint = None
-        self.span = span
-                
-    def act(self, delta_t):
-        """Moves towards the chosen waypoint. If the waypoint had been reached, chooses the next waypoint
-        which is the one with the highest uncertainty value"""
-        if self.nextwaypoint == None:
-            feasible_waypoints = self.generate_feasible_waypoints()
-            waypoint_values = [self.robot.im.uncertainty[x[0],x[1]] for x in feasible_waypoints]       
-            bestindex = np.argmax(waypoint_values)            
-            self.nextwaypoint = feasible_waypoints[bestindex]
-        done = self.move_towards_location(self.nextwaypoint[0], self.nextwaypoint[1], self.vel, delta_t)
-        if done:
-            self.nextwaypoint = None
-            
-    def generate_feasible_waypoints(self):
-        # generate all the feasible waypoints: the points in a rectangular area 
-        # of extent span from the current points
-        currentx = int(self.robot.x)
-        currenty = int(self.robot.y)
-        rangex = range(max(0, currentx - self.span), min(currentx+self.span, self.robot.env.width))
-        rangey = range(max(0, currenty - self.span), min(currenty+self.span, self.robot.env.height))
-        val = itertools.product(rangex, rangey)
-        return list(val)            
-            
+        

@@ -58,6 +58,10 @@ class Robot:
         for action in self.everystep_actions:
                 self.enact_action(action, delta_t)
 
+    def add_observation(self, obs):
+        """This allows the robot to also take into account the observation it makes. We are going to pass it to the policy. Most, but not all policies will ignore it."""
+        self.policy.add_observation(obs)
+
         
     def enact_action(self, action, delta_t = 1.0):
         """Enacts one pending action. We are allowing here for a couple of shorthand

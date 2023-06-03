@@ -28,10 +28,10 @@ class InformationModel:
     def __init__(self, width, height):
         self.width, self.height = width, height
     
-    def score(self, env: Environment):
-        """Calculates a score that estimates the quality of this information 
-        model in modeling the specified environment"""
-        return 0
+#    def score(self, env: Environment):
+#        """Calculates a score that estimates the quality of this information 
+#        model in modeling the specified environment"""
+#        return 0
     
     def add_observation(self, observation: dict):
         """Adds an observation as a dictionary with the fields value, x, y, 
@@ -212,20 +212,15 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         uncertainty[mask2] = 0.0
         # logging.info("apply_value_mask done")
 
-
-
 def im_score(im, env):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
     return -np.mean(np.abs(env.value - im.value))
-
 
 def im_score_rmse_scikit(im, env):
     """Scores the information model by finding the RMSE between the information model values and the real values in the environment
     FIXME: I think that this is not working very well for 2D areas. On the other hand, it has built-in weights
     """
     return -mean_squared_error(env.value, im.value, squared=False)
-
-
 
 def im_score_rmse(im, env):
     """Scores the information model by finding the RMSE between the information model values and the real values in the environment"""
@@ -237,7 +232,6 @@ def im_score_rmse_weighted(im, env, weightmap):
     weightedse = np.multiply(weightmap, se)
     weightedval= np.sqrt(np.sum(weightedse) / np.sum(weightmap)) 
     return -weightedval
-
 
 def im_score_weighted(im, env, weightmap):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
