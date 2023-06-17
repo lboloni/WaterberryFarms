@@ -8,6 +8,8 @@ def euclidean_distance(point1, point2):
 
 def get_path_length(starting_point, path):
     """Returns the length of the generated path, assuming that it starts at the starting point"""
+    if starting_point is None:
+        starting_point = path[0]
     current = starting_point
     length = 0
     for a in path:
