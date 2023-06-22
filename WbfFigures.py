@@ -150,8 +150,8 @@ def graph_env_im(wbfe, wbfim, title_string = "{label}", ax_env_tylcv = None, ax_
         evalstring = f"f'{title_string}'"
         ax_unc_soil.set_title(eval(evalstring))
 
-def add_robot_path(results, ax, draw_it = True, pathcolor="blue", robotcolor = "green", draw_robot = True):
-    """Adds the path of the robot to the figure (or not if )"""
+def add_robot_path_old(results, ax, draw_it = True, pathcolor="blue", robotcolor = "green", draw_robot = True):
+    """Adds the path of the robot to the figure (or not if draw_it is not set)"""
     if not draw_it:
         return
     obsx = []
@@ -160,6 +160,24 @@ def add_robot_path(results, ax, draw_it = True, pathcolor="blue", robotcolor = "
         obsx.append(obs[StoredObservationIM.X])
         obsy.append(obs[StoredObservationIM.Y])
     ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor))
+    if draw_robot:
+        ax.add_patch(patches.Circle((results["robot"].x, results["robot"].y), radius=1, facecolor=robotcolor))
+
+def add_robot_path(results, ax, draw_it = True, pathcolor="blue", pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1):
+    """Adds the path of the robot to the figure (or not if )"""
+    if not draw_it:
+        return
+    obsx = []
+    obsy = []
+    if from_obs == -1:
+        from_obs = 0
+    if to_obs == -1:
+        to_obs = len(results["observations"])
+    obses = results["observations"][from_obs:to_obs]
+    for obs in obses:
+        obsx.append(obs[StoredObservationIM.X])
+        obsy.append(obs[StoredObservationIM.Y])
+    ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor, linewidth=pathwidth))
     if draw_robot:
         ax.add_patch(patches.Circle((results["robot"].x, results["robot"].y), radius=1, facecolor=robotcolor))
 
