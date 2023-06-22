@@ -284,7 +284,7 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
 
 class SoilMoistureEnvironment(ScalarFieldEnvironment):
     """
-    A simple model for the modeling of the soil moisture. It creates an environment that has an average value of 0.5, with higher and lower humidity areas with fuzzy borders. In its current version, this is a static environment. 
+    A simple model for the modeling of the soil moisture. It assumes a specific probabilities and quantities of rainfall, a specific multiplicative evaporation ratio, and the assumption that the rainfall is distributed in the form of a 2D gaussian. 
 
     For a more sophisticated model of soil humidity, a starting point might be
     https://www.cpc.ncep.noaa.gov/soilmst/paper.html
