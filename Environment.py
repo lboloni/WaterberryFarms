@@ -120,7 +120,11 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
        -1 - Recovered and thus immune (or destroyed and thus not spreading any more)
        -2 - Natural immunity - the epidemic cannot touch this location (eg. different plants). It can be used to set a filter.
 
-    The "value" field is created from the status field. 
+    The "value" field is created from the status field and it will have the values:
+        0.0 - Healthy
+        0.5 - Infected
+
+    The immunity mask must be a map of the same size as the environment, but the values that are immune need to be set to -2 
 
     """
     def __init__(self, name, width, height, seed, p_transmission = 0.2, infection_duration = 5, spread_dimension = 11, infection_seeds = -1, infection_seeds_initial = 5, immunity_mask = None):
@@ -141,6 +145,7 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
         self.initial_infection()
 
     def initial_infection(self):
+        """Creates a random initial infection"""
         for i in range(self.infection_seeds):
             x = self.random.integers(0, self.width-1)
             y = self.random.integers(0, self.height-1)
@@ -162,16 +167,10 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
     
     @staticmethod
     def countinfected_neighbor(statusmap, dimension):
-        """Given a matrix with the status values, returns a matrix with the counts of the infected neighbors. Uses a convolution kernel for speedup
-        FIXME: this kernel creates a square spread
-        FIXME: maybe instead of this use scipy.ndimage.filters.gaussian_filter"""
+        """Given a matrix with the status values, returns a matrix with the counts of the infected neighbors. Uses a convolution kernel for speedup """
+        # in the statusmap, everything that is larger than 0 is infected
         infected = np.zeros(statusmap.shape)
         infected[statusmap > 0] = 1
-        ## This was too square
-        # neighborcounting_kernel = np.array([[1,1,1], [1, 0, 1], [1, 1, 1]])
-        # neighborcounting_kernel = np.ones((dimension, dimension))
-        # neighborcounting_kernel[dimension//2 + 1, dimension//2 + 1] = 0
-
         center = dimension // 2 
         neighborcounting_kernel = np.zeros((dimension, dimension))
         for i in range(dimension):
@@ -186,7 +185,7 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
 
     def inner_proceed(self, delta_t):
         """Updates the status field with the evolution"""
-        # mark those that finished their sickness recovered...
+        # mark those that finished their sickness "recovered" aka destroyed...
         self.status[self.status==1] = -1
         # decrease the time remaining for infection
         self.status[self.status > 0] -= 1
@@ -207,8 +206,8 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
         self.value[self.status > 0] = 0.5
         # R means destroyed
         self.value[self.status == -1] = 0
-        # the filtered one is not valuable either
-        self.value[self.status == -2] = 0
+        # the masked ones are never infected
+        self.value[self.status == -2.0] = 1.0
         return self.value
 
 class PrecalculatedEnvironment(ScalarFieldEnvironment):
@@ -352,6 +351,9 @@ class SoilMoistureEnvironment(ScalarFieldEnvironment):
             shifted_add(value, hump, locx, locy)
         return value
 
+#
+# FIXME: remove them from here, this should just go into the Environment-experiments
+#
 
 def animate(env, axesimage, i):
     """Animates an environment by letting the environment proceed a timestep, then setting the values into image."""
