@@ -145,11 +145,12 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
         self.initial_infection()
 
     def initial_infection(self):
-        """Creates a random initial infection"""
+        """Creates a random initial infection but only in the areas that are not immune"""
         for i in range(self.infection_seeds):
             x = self.random.integers(0, self.width-1)
             y = self.random.integers(0, self.height-1)
-            self.status[x, y] = self.infection_seeds_initial
+            if self.status[x,y] != -2.0:
+                self.status[x, y] = self.infection_seeds_initial
 
     def change_p_transmission(self, p_transmission):
         self.p_transmission = p_transmission 
