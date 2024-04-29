@@ -24,7 +24,5 @@ It contains the following major components:
 
 ## How to use
 
-* MREM is implemented in Python 3.x. It relies on numpy, scipy, sklearn, ipywidgets and bokeh. 
-* In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment, InformationModel, Robot and Policy. These notebooks contain the respective classes as well as sample code for testing.
-* The corresponding Python files ```Environment.py``` etc. contain only the implementations. 
-* To see a visualized scenario that integrates all the components, use the ```Informative path planning.ipynb``` notebook. 
+* The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, ipywidgets and bokeh. 
+* In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy. 
