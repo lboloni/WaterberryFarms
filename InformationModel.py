@@ -12,10 +12,8 @@ from sklearn.metrics import mean_squared_error
 
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
-import unittest
+# import unittest
 import timeit
-
-# from IPython.display import display, HTML
 
 from Environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 
@@ -27,11 +25,6 @@ class InformationModel:
 
     def __init__(self, width, height):
         self.width, self.height = width, height
-    
-#    def score(self, env: Environment):
-#        """Calculates a score that estimates the quality of this information 
-#        model in modeling the specified environment"""
-#        return 0
     
     def add_observation(self, observation: dict):
         """Adds an observation as a dictionary with the fields value, x, y, 
@@ -69,14 +62,15 @@ class StoredObservationIM(InformationModel):
 
 
 class AbstractScalarFieldIM(StoredObservationIM):
-    """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. The uncertainty metric is an estimate of the error at any given location. 
+    """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. A default value can be specified. The uncertainty metric is an estimate of the error at any given location. 
     """
     
-    def __init__(self, width, height):
+    def __init__(self, width, height, default_value = 0):
         """Initializes the value to zero, the uncertainty to one. 
         FIXME: what exactly the uncertainty measures??? """
         super().__init__(width, height)
-        self.value = np.zeros((self.width, self.height))
+        self.default_value = default_value
+        self.value = np.full((self.width, self.height), default_value)
         self.uncertainty = np.ones((self.width, self.height))
 
     def proceed(self, delta_t):
@@ -104,15 +98,15 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
     using a GaussianProcess
     """
 
-    def __init__(self, width, height, gp_kernel = None):
-        super().__init__(width, height)
+    def __init__(self, width, height, gp_kernel = None, default_value = 0.0):
+        super().__init__(width, height, default_value)
         self.gp_kernel = gp_kernel
 
     def estimate(self, observations, prior_value, prior_uncertainty):
         # calculate the estimate for each gaussian process
         if prior_value != None or prior_uncertainty != None:
             Exception("GaussianProcessScalarFieldIM cannot handle priors")
-        est = np.zeros([self.width,self.height])
+        est = np.full([self.width,self.height], self.default_value)
         stdmap = np.zeros([self.width,self.height])
         if len(observations) == 0:
             return est, stdmap
@@ -141,8 +135,8 @@ class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
     """An information model which performs a point based estimation. In the precise point where we have an estimate, out uncertainty is zero, while everywhere else the uncertainty is 1.00
     """
 
-    def __init__(self, width, height):
-        super().__init__(width, height)
+    def __init__(self, width, height, default_value = 0.0):
+        super().__init__(width, height, default_value)
 
     def estimate(self, observations, prior_value, prior_uncertainty):
         """Takes all the observations and estimates the value and the 
@@ -168,9 +162,8 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
     """
 
     def __init__(self, width, height, disk_radius=5, default_value=0):
-        super().__init__(width, height)
+        super().__init__(width, height, default_value)
         self.disk_radius = disk_radius
-        self.default_value = default_value
         self.mask = None
 
     def estimate(self, observations, prior_value, prior_uncertainty, radius=None):
@@ -250,63 +243,3 @@ def im_score_weighted_asymmetric(im, env, weight_positive, weight_negative, weig
     error_negative = np.multiply(wm * weight_negative, np.max(env.value - im.value, 0))    
     return -np.mean(np.add(error_positive, error_negative))
 
-
-## Functions used for the visualization
-
-def visualizeEnvAndIM(ax_env, ax_im_value, ax_im_uncertainty, env, im):
-    score = im.score(env)
-    ax_env.set_title("Environment")
-    image_env = ax_env.imshow(env.value, vmin=0, vmax=5.0)
-    ax_im_value.set_title(f"IM.value sc={score:0.2}")
-    image_im_value = ax_im_value.imshow(im.value, vmin=0, vmax=5.0)
-    ax_im_uncertainty.set_title("IM - uncertainty")
-    image_im_uncertainty = ax_im_uncertainty.imshow(im.uncertainty, vmin=0)
-    # vmax=1.0 
-
-
-if __name__ == "__main__":
-    if True:
-        ## Trying out the different types of scores, to see if they work correctly - this probably has to be made into a unit test
-        env = Environment("foo", 2, 2)
-        env.value = np.array([[2, 2], [1, 1]])
-        im = InformationModel("bar", 2, 2)
-        im.value = np.array([[1, 1], [2, 2]])
-        score = im_score(im, env)
-        print(score)
-
-    if False:
-        # create an environment to observe
-        env = DissipationModelEnvironment("water", 100, 100, seed=1)
-        env.evolve_speed = 1
-        env.p_pollution = 0.1
-        for t in range(120):
-            env.proceed()
-        #plt.imshow(env.value, vmin=0, vmax=1.0)
-
-        im = DiskEstimateScalarFieldIM("sample", env.width, env.height)
-        # im = GaussianProcessScalarFieldIM("sample", env.width, env.height)
-
-
-        # generate a series random observations
-        scores = []
-        times = []
-        for i in range(150):
-            x = random.randint(0, env.width-1)
-            y = random.randint(0, env.height-1)
-            value = env.value[x,y]
-            obs = {"x": x, "y": y, "value": value}
-            im.add_observation(obs)
-            time = timeit.timeit("im.proceed(1)", number=1,  globals=globals())
-            times.append(time)
-            scores.append(im.score(env))
-
-        fig, ((ax_env, ax_im_value, ax_im_uncertainty, ax_score, ax_time)) = plt.subplots(1,5, figsize=(15,3))
-        visualizeEnvAndIM(ax_env, ax_im_value, ax_im_uncertainty, env, im)
-
-
-        ax_score.set_title("Score (avg)")
-        ax_score.plot(scores)
-        ax_time.set_title("Estimation time (sec)")
-        ax_time.plot(times)
-        plt.tight_layout()
-        plt.show()

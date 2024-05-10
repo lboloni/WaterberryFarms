@@ -363,23 +363,23 @@ class WaterberryFarmInformationModel(StoredObservationIM):
         pass
 
 class WBF_IM_DiskEstimator(WaterberryFarmInformationModel):
-    """WBF information model using a disk estimator with the specified disk radius for all three measures."""
-    def __init__(self, width, height, disk_radius = None, default_value=0):
+    """WBF information model using a disk estimator with the specified disk radius for all three measures. For default value, we assume healthy for strawberry and tomato, and zero water for the humidity"""
+    def __init__(self, width, height, disk_radius = None):
         super().__init__(width, height)
         self.im_tylcv = DiskEstimateScalarFieldIM(
-            width, height, disk_radius=disk_radius, default_value=default_value)
+            width, height, disk_radius=disk_radius, default_value=1.0)
         self.im_ccr = DiskEstimateScalarFieldIM(
-            width, height, disk_radius=disk_radius, default_value=default_value)
+            width, height, disk_radius=disk_radius, default_value=1.0)
         self.im_soil = DiskEstimateScalarFieldIM(
-            width, height, disk_radius=disk_radius, default_value=default_value)
+            width, height, disk_radius=disk_radius, default_value=0.0)
 
 class WBF_IM_GaussianProcess(WaterberryFarmInformationModel):
-    """WBF information model using a gaussian process estimator for all three measures"""
+    """WBF information model using a gaussian process estimator for all three measures. For default value, we assume healthy for strawberry and tomato, and zero water for the humidity"""
     def __init__(self, width, height):
         super().__init__(width, height)
-        self.im_tylcv = GaussianProcessScalarFieldIM(width, height)
-        self.im_ccr = GaussianProcessScalarFieldIM(width, height)
-        self.im_soil = GaussianProcessScalarFieldIM(width, height)
+        self.im_tylcv = GaussianProcessScalarFieldIM(width, height, default_value=1.0)
+        self.im_ccr = GaussianProcessScalarFieldIM(width, height, default_value=1.0)
+        self.im_soil = GaussianProcessScalarFieldIM(width, height, default_value=0.0)
 
 class WBF_Score:
     """The ancestor of all the classes"""

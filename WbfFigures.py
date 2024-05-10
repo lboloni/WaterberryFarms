@@ -437,3 +437,4 @@ def load_all_results(directory, prefix = "res_Miniberry-30_1M_"):
                 results = pickle.load(f)
             allresults[label] = results
     return allresults
+
