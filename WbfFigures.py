@@ -37,8 +37,11 @@ import matplotlib.lines as lines
 logging.basicConfig(level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
-def graph_robot_path_day(results, day, ax):
-    """visualize the observations, which gives us the path of the robot"""
+def graph_robot_path_day_old(results, day, ax):
+    """
+    Used to visualize the path of robot based on references? 
+    FIXME: It does not seem to be used 
+    """
     # FIXME: what about the positions?
     wbfe = results["wbfe"]
     empty = np.ones_like(wbfe.tylcv.value.T)
@@ -150,36 +153,36 @@ def graph_env_im(wbfe, wbfim, title_string = "{label}", ax_env_tylcv = None, ax_
         evalstring = f"f'{title_string}'"
         ax_unc_soil.set_title(eval(evalstring))
 
-def add_robot_path_old(results, ax, draw_it = True, pathcolor="blue", robotcolor = "green", draw_robot = True):
-    """Adds the path of the robot to the figure (or not if draw_it is not set)"""
-    if not draw_it:
-        return
-    obsx = []
-    obsy = []
-    for obs in results["observations"]:
-        obsx.append(obs[StoredObservationIM.X])
-        obsy.append(obs[StoredObservationIM.Y])
-    ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor))
-    if draw_robot:
-        ax.add_patch(patches.Circle((results["robot"].x, results["robot"].y), radius=1, facecolor=robotcolor))
 
-def add_robot_path(results, ax, draw_it = True, pathcolor="blue", pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1):
-    """Adds the path of the robot to the figure (or not if )"""
+def add_robot_path(results, ax, draw_it = True, pathcolor="blue", 
+                   pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1, robot_number = -1):
+    """
+    Adds the path of a robot to the figure, based on the observations
+    If robot_number == -1, it assumes there is a single robot
+    """
     if not draw_it:
         return
+    
+    if robot_number == -1: # we assume that there is just one robot
+        observations = results["observations"]
+        robot = results["robot"]
+    else: # there are multiple robots
+        observations = [o[robot_number] for o in results["observations"]]
+        robot = results["robots"][robot_number]
+
     obsx = []
     obsy = []
     if from_obs == -1:
         from_obs = 0
     if to_obs == -1:
-        to_obs = len(results["observations"])
-    obses = results["observations"][from_obs:to_obs]
+        to_obs = len(observations)
+    obses = observations[from_obs:to_obs]
     for obs in obses:
         obsx.append(obs[StoredObservationIM.X])
         obsy.append(obs[StoredObservationIM.Y])
     ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor, linewidth=pathwidth))
     if draw_robot:
-        ax.add_patch(patches.Circle((results["robot"].x, results["robot"].y), radius=1, facecolor=robotcolor))
+        ax.add_patch(patches.Circle((robot.x, robot.y), radius=1, facecolor=robotcolor))
 
 
 def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None, plot_uncertainty = True, ground_truth = "est+gt", score = None):
