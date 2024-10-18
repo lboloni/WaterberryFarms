@@ -142,9 +142,13 @@ def action_animate(choices):
     return results
 
 def simulate_1day(results):
-    """Runs the simulation for one day. All the parameters and output is in the results dictionary."""
+    """
+    Runs the simulation for one day. All the parameters and output is in the results dictionary.
+    As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
+    """
     wbfe, wbf = results["wbfe"], results["wbf"]
     wbfim = results["estimator-code"]
+    
     # we are assigning here to the robot the information model
     # FIXME: this might be more tricky later
     results["robot"].im = wbfim
@@ -176,7 +180,6 @@ def simulate_1day(results):
         observations.append(obs)
         wbfim.add_observation(obs)
         results["robot"].add_observation(obs)
-
         time_policy_finish = time.time_ns()
         results["computation-cost-policy"].append(time_policy_finish - time_policy_start)
 
@@ -195,12 +198,18 @@ def simulate_1day(results):
         if (time_track_current - time_track_last_start) > 10e9:
             print(f"At {timestep} / {int(results['timesteps-per-day'])} elapsed {int((time_track_current - time_track_start) / 1e9)} seconds")
             time_track_last_start = time_track_current
-
-
     results["score"] = score
 
 
 def action_run_oneday(choices):
+    """
+    Implements a single-day experiment with a single robot in the WBF simulator. This is the top level function which is called to run the experiment. 
+
+    choices: a dictionary into which the parameters of the experiments are being loaded. A copy of this will be internally created. 
+
+    results: the return value, which contains both all the input values in the choices, as well as the output data (or references to it.)
+
+    """
     results = copy.deepcopy(choices)
     results["action"] = "run-one-day"
     if "im_resolution" not in results:
@@ -249,7 +258,10 @@ def action_run_oneday(choices):
     return results
 
 def simulate_15day(results):
-    """Runs the simulation for 15 days. All the parameters and output is in the results dictionary"""
+    """
+    Runs the simulation for 15 days. All the parameters and output 
+    are in the results dictionary
+    """
     wbfe, wbf = results["wbfe"], results["wbf"]
     wbfim = results["estimator-code"]
     results["wbfim-days"] = {}
@@ -315,6 +327,14 @@ def simulate_15day(results):
 
 
 def action_run_multiday(choices):
+    """
+    Implements a multi-day (typically 15) experiment with a single robot in the WBF simulator. This is the top level function which is called to run the experiment. 
+
+    choices: a dictionary into which the parameters of the experiments are being loaded. A copy of this will be internally created. 
+
+    results: the return value, which contains both all the input values in the choices, as well as the output data (or references to it.)
+
+    """
     results = copy.deepcopy(choices)
     results["action"] = "run-15-day"
     menuGeometry(results)
@@ -338,7 +358,7 @@ def action_run_multiday(choices):
     if "timesteps-per-day-override" in results:
         results["timesteps-per-day"] = results["timesteps-per-day-override"]
     if "velocity-override" in results:
-        results["velocity"] = results["velocity-override"]
+        results["velocity"] = results["velocity-override"]        
     results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
     # Setting the policy
     results["exp-name"] = results["exp-name"] + results["policy-name"]
