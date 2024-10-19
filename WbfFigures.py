@@ -431,7 +431,6 @@ def plot_scores(allresults, labels, scores, directory, smoothing = 0.7):
             scores = [a[scorename] for a in results["scores"]]
             # scores = smooth(scores, 0.99)
             scores = smooth(scores, 0.7)
-            #ax_scores.plot(scores, label = f'{results["policy-name"]}+{results["estimator-name"]}')
             ax_scores.plot(scores, label = label)
         # ax_scores.set_ylim(top=2)
         ax_scores.set_xlabel("Time")

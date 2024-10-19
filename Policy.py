@@ -14,6 +14,7 @@ class Policy:
     def __init__(self):
         """Create a policy that is not yet assigned to the robot"""
         self.env = None
+        self.name = self.__class__.__name__
 
     def assign(self, robot):
         """Assign the policy to a specific robot"""
@@ -29,12 +30,12 @@ class Policy:
         pass
 
     def __str__(self):
-        return self.__class__.__name__
+        return self.name
     
     
 class AbstractWaypointPolicy(Policy):
     """The ancestor of all the policies that are based on choosing waypoints"""
-        
+
     def move_towards_location(self, targetx, targety, vel, delta_t):
         """Schedule the actions to move the robot towards a target location. Returns true 
         if the robot will reach that location as the result of this step and false otherwise"""

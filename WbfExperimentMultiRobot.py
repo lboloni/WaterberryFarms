@@ -125,14 +125,12 @@ def action_run_1day_multirobot(choices):
 
     # creating the number of robots. The number of robots is specified by the number of policies that we pass
 
-    print(results["policy-name"])
-
     robots = []
-    for p,n in zip(results["policy-code"], results["policy-name"]):
+    for p in results["policy-code"]:
         robot = Robot("Rob", 0, 0, 0, env=None, im=None)
         robot.assign_policy(p)
         robots.append(robot)
-        results["exp-name"] = results["exp-name"] + "_" + n
+        results["exp-name"] = results["exp-name"] + "_" + p.name
 
     results["robots"] = robots
  

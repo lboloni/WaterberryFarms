@@ -201,7 +201,7 @@ def simulate_1day(results):
     results["score"] = score
 
 
-def action_run_oneday(choices):
+def action_run_1day(choices):
     """
     Implements a single-day experiment with a single robot in the WBF simulator. This is the top level function which is called to run the experiment. 
 
@@ -233,7 +233,7 @@ def action_run_oneday(choices):
         results["velocity"] = results["velocity-override"]
     results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
     # Setting the policy
-    results["exp-name"] = results["exp-name"] + results["policy-name"]
+    results["exp-name"] = results["exp-name"] + results["policy-code"].name
     results["robot"].assign_policy(results["policy-code"])
 
     if "results-filename" in results:
@@ -257,9 +257,9 @@ def action_run_oneday(choices):
         pickle.dump(results, f)
     return results
 
-def simulate_15day(results):
+def simulate_multiday(results):
     """
-    Runs the simulation for 15 days. All the parameters and output 
+    Runs the simulation for multiple days. All the parameters and output 
     are in the results dictionary
     """
     wbfe, wbf = results["wbfe"], results["wbf"]
@@ -278,7 +278,7 @@ def simulate_15day(results):
     scores = []
     scores_size_last = len(scores)
     results["scores-days"] = {}
-    for day in range(1,16): # 1,2,...15 day zero is the beginning
+    for day in range(1,results["days"]): # 1,2,...15 day zero is the beginning
         print(f"day {day}")
         elapsedCount = 0 # how many steps elapsed since we updated im
         for time in range(int(results["timesteps-per-day"])):
@@ -351,7 +351,8 @@ def action_run_multiday(choices):
 
     results["savedir"] = savedir
     results["exp-name"] = results["typename"] + "_" # name of the exp., also dir to save data
-    results["days"] = 15
+    if "days" not in results:
+        results["days"] = 15
     results["exp-name"] = results["exp-name"] + "1M_"
     get_geometry(results["typename"], results)
     # override the velocity and the timesteps per day, if specified
@@ -361,7 +362,7 @@ def action_run_multiday(choices):
         results["velocity"] = results["velocity-override"]        
     results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
     # Setting the policy
-    results["exp-name"] = results["exp-name"] + results["policy-name"]
+    results["exp-name"] = results["exp-name"] + results["policy-code"].name
     results["robot"].assign_policy(results["policy-code"])
 
     if "results-filename" in results:
@@ -378,7 +379,7 @@ def action_run_multiday(choices):
         return results
     results["oneshot"] = False # calculate one observation score for all obs.
     # running the simulation
-    simulate_15day(results)
+    simulate_multiday(results)
     #
     logging.info(f"Saving results to: {results_path}")
     with compress.open(results_path, "wb") as f:
