@@ -1,0 +1,7 @@
+WBF:
+  # Directory for the checkout of the WaterBerryFarms
+  code_dir: '\a\b\c\WaterBerryFarms\'
+
+MRMD:
+  # Top level directory for the data, eg. the one with other WBF
+  data_dir: '\a\b\c\WBF'

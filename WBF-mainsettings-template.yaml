@@ -1,0 +1,5 @@
+# This is a sample of the main settings file. 
+# It should go into HOMEDIR/.config/VisionBasedRobotManipulator/mainsettings.yaml
+# Change the path here to run different configurations on different machines. 
+configpath: "G:\\My Drive\\LotziStudy\\Code\\PackageTracking\\WBF-MultiResolutionMultiDrone\\settings\\settings-LotziYoga.yaml"
+

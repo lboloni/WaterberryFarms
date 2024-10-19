@@ -1,3 +1,4 @@
+from config_wbf import WBFConfig
 from Environment import Environment, EpidemicSpreadEnvironment, PrecalculatedEnvironment, SoilMoistureEnvironment
 from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric, im_score, im_score_rmse
 import matplotlib.pyplot as plt
@@ -479,20 +480,9 @@ class WBF_MultiScore(WBF_Score):
 
 
 def get_datadir():
-    """Returns the data directory associated with this project. 
-    If a global temporary directory is specified in the variable TEMPORARY_DATA, it is using that one. 
-    
-    Otherwise it is creating a new directory two steps above the current one, under a directory "__Temporary" and from the current name with "_data" appended. So if you are in 
-    a/b/c/d/e the data dir will be
-    a/b/c/_Temporary/d_data
+    """Returns the data directory associated with this project, ensuring that it exists.
     """
-    if "TEMPORARY_DATA" in sys.modules['__main__'].__dict__:
-        # print("Data directory specified by TEMPORARY_DATA")
-        return sys.modules['__main__'].__dict__["TEMPORARY_DATA"]
-    #else:
-        # print("No TEMPORARY_DATA variable specified, creating a dir above current one.")
-    p = pathlib.Path(__file__).parent.resolve().parent.parent
-    datadir = pathlib.Path(p.parent, "__Temporary", p.name + "_data")
+    datadir = pathlib.Path(WBFConfig()["WBF"]["data_dir"])
     datadir.mkdir(parents=True, exist_ok=True)
     return datadir
 

@@ -157,19 +157,32 @@ def graph_env_im(wbfe, wbfim, title_string = "{label}", ax_env_tylcv = None, ax_
 def add_robot_path(results, ax, draw_it = True, pathcolor="blue", 
                    pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1, robot_number = -1):
     """
-    Adds the path of a robot to the figure, based on the observations
-    If robot_number == -1, it assumes there is a single robot
+    Adds the path of a robot or robots to the figure, based on the observations.
+    If robot_number is -1, means all the robots.
     """
     if not draw_it:
         return
     
-    if robot_number == -1: # we assume that there is just one robot
-        observations = results["observations"]
-        robot = results["robot"]
-    else: # there are multiple robots
+    if robot_number == -1: # all robots
+        if "robots" not in results: # single robot
+            observations = results["observations"]
+            robot = results["robot"]
+            add_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
+        else: # paint all robots
+            colors = ["red", "blue", "green", "orange", "pink"]
+            for i, robot in enumerate(results["robots"]):
+                color = colors[i % len(results["robots"])]
+                observations = [o[i] for o in results["observations"]]
+                add_individual_robot_path(results, ax, robot, observations, pathcolor = color, pathwidth = pathwidth, robotcolor = color, draw_robot=draw_robot, from_obs=from_obs, to_obs = to_obs)                             
+    else: # we assume there are multiple robots and we want one
         observations = [o[robot_number] for o in results["observations"]]
         robot = results["robots"][robot_number]
+        add_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
 
+def add_individual_robot_path(results, ax, robot, observations, 
+                              pathcolor="blue", pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1):
+    """Adds the path of an individual robot. Normally called from 
+    add_robot_path"""
     obsx = []
     obsy = []
     if from_obs == -1:
@@ -266,7 +279,7 @@ def end_of_day_scores(results, graphfilename = "EndOfDayGraph.pdf", title = None
 
 
 def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
-    """Hook for after day which generates the pictures of the graphs, for instance, for a movie"""
+    """Hook for after day which generates the pictures of the graphs, for instance, for a movie. This works for the single robot setting."""
 
     wbfe, wbf = results["wbfe"], results["wbf"]
     wbfim = results["estimator-code"]
