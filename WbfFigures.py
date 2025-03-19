@@ -233,7 +233,7 @@ def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None
         raise f"Ground truth value {ground_truth} not understood"
 
     if title is None:
-        fig.suptitle(f"{results['policy-name']}-{results['estimator-name']}", fontsize=16)
+        fig.suptitle(f"{results['policy-code'].name}-{results['estimator-name']}", fontsize=16)
     elif title != "":
         fig.suptitle(title, fontsize=16)
 
