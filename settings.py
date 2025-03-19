@@ -5,11 +5,11 @@ They should be accessed through Config().values["value"]
 
 A configuration system that allows porting between different machines and the use of multiple configuration files. 
 
-It starts by loading a file from ~/.config/WBF/mainsettings.yaml" 
+It starts by loading a file from ~/.config/WaterBerryFarms/mainsettings.yaml" 
 from where the "configpath" property points to the path of the 
 actual configuration file. 
 
-Template configuration files FIXME and mainsettings-sample.yaml are in top directory of the project. However, the actual configuration files should be on the local directory outside the github package, as these configuration files contain local information such as user directory names etc.
+Template configuration files and mainsettings-sample.yaml are in top directory of the project. However, the actual configuration files should be on the local directory outside the github package, as these configuration files contain local information such as user directory names etc.
 
 The configuration values are a hierarchical dictionary which can be 
 accessed  should be accessed through Config()["value"] or 
@@ -29,7 +29,7 @@ class Config:
         if not cls._instance:
             cls._instance = super(Config, cls).__new__(cls)
             home_directory = Path.home()
-            main_config = Path(home_directory, ".config", "WBF","mainsettings.yaml")
+            main_config = Path(home_directory, ".config", "WaterBerryFarms","mainsettings.yaml")
             print(f"Loading pointer config file: {main_config}")
             if not main_config.exists():
                 raise Exception(f"Missing pointer config file: {main_config}")
