@@ -1,4 +1,4 @@
-from config_wbf import WBFConfig
+from settings import Config
 from Environment import Environment, EpidemicSpreadEnvironment, PrecalculatedEnvironment, SoilMoistureEnvironment
 from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric, im_score, im_score_rmse
 import matplotlib.pyplot as plt
@@ -482,7 +482,7 @@ class WBF_MultiScore(WBF_Score):
 def get_datadir():
     """Returns the data directory associated with this project, ensuring that it exists.
     """
-    datadir = pathlib.Path(WBFConfig()["WBF"]["data_dir"])
+    datadir = pathlib.Path(Config()["WBF"]["data_dir"])
     datadir.mkdir(parents=True, exist_ok=True)
     return datadir
 
