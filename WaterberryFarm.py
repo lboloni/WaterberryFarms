@@ -156,14 +156,16 @@ class MiniberryFarm(FarmGeometry):
 class WaterberryFarmEnvironment(Environment):
     """An environment that describes the status of the soil and plant diseases on the Waterberry Farm"""
 
-    def __init__(self, geometry, saved: bool,  seed, savedir):
+    def __init__(self, geometry, use_saved: bool,  seed, savedir):
+        """Create the environment. 
+        saved: [I think that this] if this is false, we calculate and cache. If true, we should run the first. So it should be called use_saved"""
         super().__init__(geometry.width, geometry.height, seed)
         self.geometry = geometry
-        self.saved = saved
+        self.use_saved = use_saved
         #
         # Tomato yellow leaf curl virus: epidemic spreading disease which spreads only on tomatoes
         #
-        if self.saved:
+        if self.use_saved:
             self.tylcv = PrecalculatedEnvironment(
                 geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_tylcv"))
         else:
@@ -196,14 +198,14 @@ class WaterberryFarmEnvironment(Environment):
             #    if tylcv.status[locationx, locationy] == 0:
             #        tylcv.status[locationx, locationy] = int(parameters["infection_value"])
             #        cnt = cnt + 1
-
+            
             self.tylcv = PrecalculatedEnvironment(
                 geometry.width, geometry.height, tylcv, pathlib.Path(savedir, "precalc_tylcv"))
         #
         # Charcoal Rot: epidemic spreading disease that spreads only on
         #    strawberries
         #
-        if self.saved:
+        if self.use_saved:
             self.ccr = PrecalculatedEnvironment(
                 geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_ccr"))
         else:
@@ -233,7 +235,7 @@ class WaterberryFarmEnvironment(Environment):
         #
         # Soil moisture model
         #
-        if self.saved:
+        if self.use_saved:
             self.soil = PrecalculatedEnvironment(
                 geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_soil"))
         else:
@@ -286,32 +288,10 @@ class WaterberryFarmEnvironment(Environment):
 
         return obs
 
-    def visualizeXXX(self, fig=None, ax_geom=None, ax_tylcv=None, ax_ccr=None, ax_soil=None):
-        """Plot the components into a four panel figure. """
-        # I don't understand why is this being called
-        import traceback
-        traceback.print_stack()
 
-        if fig == None:
-            self.fig, ((self.ax_geom, self.ax_tylcv),
-                       (self.ax_ccr, self.ax_soil)) = plt.subplots(2, 2)
-        else:
-            self.fig, self.ax_geom, self.ax_tylcv, self.ax_ccr, self.ax_soil = fig, ax_geom,  ax_tylcv, ax_ccr, ax_soil
-        self.geometry.visualize(self.ax_geom)
-        self.ax_geom.set_title("Layout")
-        self.image_tylcv = self.ax_tylcv.imshow(
-            self.tylcv.value.T, vmin=0, vmax=1, origin="lower")
-        # ax_tylcv.imshow(self.tylcv.status.T, origin="lower")
-        self.ax_tylcv.set_title("TYLCV")
-        self.image_ccr = self.ax_ccr.imshow(
-            self.ccr.value.T, vmin=0, vmax=1, origin="lower")
-        self.ax_ccr.set_title("CCR")
-        self.image_soil = self.ax_soil.imshow(
-            self.soil.value.T, vmin=0, vmax=1, origin="lower")
-        self.ax_soil.set_title("Soil")
-
-    def animate(self, i):
-        """Animates an environment by letting the environment proceed a timestep, then setting the values into image."""
+    def animate_TO_DELETE(self, i):
+        """Animates an environment by letting the environment proceed a timestep, then setting the values into image.
+        FIXME: this does not belong here"""
         logging.info(f"animate {i} before proceed")
         self.proceed(1.0)
         logging.info(f"animate {i} after proceed")
@@ -328,7 +308,8 @@ class WaterberryFarmEnvironment(Environment):
 
         return [self.image_tylcv, self.image_ccr, self.image_soil]
 
-    def animate_environment(self):
+    def animate_environment_TO_DELETE(self):
+        """FIXME this does not belong here"""
         #fig, ax = plt.subplots()
         # im  = ax.imshow(env.value, cmap="gray", vmin=0, vmax=1.0)
         #axesimage  = ax.imshow(env.value, vmin=0, vmax=1)
