@@ -1,0 +1,4 @@
+# Describes an experiment where a random 
+# waypoint robot runs in a miniberry-30 environment
+exp_environment: "miniberry-30"
+exp_policy: "random-waypoint"

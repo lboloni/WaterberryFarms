@@ -1,2 +1,5 @@
-policyname: "RandomWaypoint-Seed0"
-experiment-run: "miniberry-30"
+velocity: 1
+timesteps-per-day-override: 500 # 1000
+time-start-environment: 6
+# uncomment or change this to a lower number to run the estimator more often
+im_resolution: 10

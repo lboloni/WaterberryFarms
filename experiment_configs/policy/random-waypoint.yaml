@@ -1,0 +1,4 @@
+# Specifies the parameters of a random waypoint policy
+policyname: "RandomWaypointPolicy"
+policycode: "RandomWaypointPolicy"
+seed: 0
