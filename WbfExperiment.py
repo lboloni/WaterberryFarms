@@ -1,5 +1,18 @@
-# Waterberry Farms Experiments: functions helping to run experiments
-# with the Waterberry Farms benchmark
+"""
+WbfExperiment.py
+
+Waterberry Farms Experiments: functions helping to run experiments
+with the Waterberry Farms benchmark.
+
+Many of the functions here were using a design pattern that was relying on interactive terminal interaction. This was not very practical, so it will be 
+gradually factored out. 
+
+As of 2025-03-21 this will be (gradually) refactored to use the Experiment/Run 
+configuration framework.
+
+"""
+
+
 
 from Environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
 from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
@@ -8,6 +21,7 @@ from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
     AbstractWaypointPolicy
 from PathGenerators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
 from WaterberryFarm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
+from wbf_helper import get_geometry
 
 import numpy as np
 import pathlib
@@ -23,53 +37,27 @@ import gzip as compress
 logging.basicConfig(level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
-def get_geometry(typename, geo = None):
-    """Returns an object with the geometry for the different types (or adds it into the passed dictionary"""
-    if geo == None:
-        geo = {}
-    geo["velocity"] = 1
 
-    if typename == "Miniberry-10":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 0, 10, 0, 10
-        geo["width"], geo["height"] = 11, 11
-        geo["timesteps-per-day"] = 0.4 * 100 
-    elif typename == "Miniberry-30":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 0, 30, 0, 30
-        geo["width"], geo["height"] = 31, 31
-        geo["timesteps-per-day"] = 0.4 * 900
-    elif typename == "Miniberry-100":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 0, 100, 0, 100
-        geo["width"], geo["height"] = 101, 101
-        geo["timesteps-per-day"] = 0.4 * 10000
-    elif typename == "Waterberry":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 1000, 5000, 1000, 4000
-        geo["width"], geo["height"] = 5001, 4001
-        geo["timesteps-per-day"] = 0.4 * 12000000
-    return geo
 
-def menuGeometry(results):
-    """Asks about the geometry and sets it in results"""
-    if "geometry" not in results:
-        print("Choose the geometry:")
-        print("\t1. Miniberry-10:")
-        print("\t2. Miniberry-30:")
-        print("\t3. Miniberry-100:")
-        print("\t4. Waterberry")
-        results["geometry"] = int(input("Choose desired geometry: "))
-    if results["geometry"] == 1 or results["geometry"] == "Miniberry-10":
-        results["typename"] = "Miniberry-10"
-    elif results["geometry"] == 2 or results["geometry"] == "Miniberry-30":
-        results["typename"] = "Miniberry-30"
-    elif results["geometry"] == 3 or results["geometry"] == "Miniberry-100":
-        results["typename"] = "Miniberry-100"
-    elif results["geometry"] == 4 or results["geometry"] == "Waterberry":
-        results["typename"] = "Waterberry"
-    else:
-        raise Exception(f"Unknown choice of geometry {results['geometry']}")
+# def menuGeometry(results):
+#     """Asks about the geometry and sets it in results"""
+#     if "geometry" not in results:
+#         print("Choose the geometry:")
+#         print("\t1. Miniberry-10:")
+#         print("\t2. Miniberry-30:")
+#         print("\t3. Miniberry-100:")
+#         print("\t4. Waterberry")
+#         results["geometry"] = int(input("Choose desired geometry: "))
+#     if results["geometry"] == 1 or results["geometry"] == "Miniberry-10":
+#         results["typename"] = "Miniberry-10"
+#     elif results["geometry"] == 2 or results["geometry"] == "Miniberry-30":
+#         results["typename"] = "Miniberry-30"
+#     elif results["geometry"] == 3 or results["geometry"] == "Miniberry-100":
+#         results["typename"] = "Miniberry-100"
+#     elif results["geometry"] == 4 or results["geometry"] == "Waterberry":
+#         results["typename"] = "Waterberry"
+#     else:
+#         raise Exception(f"Unknown choice of geometry {results['geometry']}")
 
 
 def menu_scenario(choices):
