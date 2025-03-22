@@ -117,11 +117,23 @@ def create_policy(exp_policy, exp_env):
 
 def create_estimator(exp_estimator, exp_env):
     """Create an estimator, based on the specification of the estimator and the environment. The name of the estimator will be set according to the exp/run""" 
+    #
+    #  Adaptive disk estimator
+    # 
     if exp_estimator["estimator-code"] == "WBF_IM_DiskEstimator":
         geo = get_geometry(exp_env["typename"])    
         estimator = WBF_IM_DiskEstimator(geo["width"], geo["height"])
         estimator.name = exp_estimator["estimator-name"]
         return estimator
+    #
+    #  Gaussian process estimator
+    #
+    if exp_estimator["estimator-code"] == "WBF_IM_GaussianProcess":
+        geo = get_geometry(exp_env["typename"])    
+        estimator = WBF_IM_GaussianProcess(geo["width"], geo["height"])
+        estimator.name = exp_estimator["estimator-name"]
+        return estimator
+
     raise Exception(f"Unsupported estimator type {exp_estimator['estimator-code']}")
 
 def create_score(exp_score, exp_env):

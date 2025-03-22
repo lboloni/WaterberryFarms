@@ -1,6 +1,6 @@
-# Describes an experiment where a FBLM 
+# Describes an experiment where a random 
 # waypoint robot runs in a miniberry-30 environment
 exp_environment: "miniberry-30"
-exp_policy: "fixed-budget-lawnmower"
-exp_estimator: "AdaptiveDisk"
+exp_policy: "random-waypoint"
+exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
