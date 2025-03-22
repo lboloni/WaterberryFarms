@@ -25,6 +25,7 @@ class InformationModel:
 
     def __init__(self, width, height):
         self.width, self.height = width, height
+        self.name = "GenericInformationModel"
     
     def add_observation(self, observation: dict):
         """Adds an observation as a dictionary with the fields value, x, y, 
