@@ -1,0 +1,5 @@
+policy-name: "FBLM"
+policy-code: "FixedBudgetLawnMower"
+# Budget in absolute values, in future work maybe I can put  
+# a percentage here
+budget: 300

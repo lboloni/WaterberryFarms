@@ -6,7 +6,10 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 """
 
 from WaterberryFarm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess, WBF_Score_WeightedAsymmetric
-from Policy import RandomWaypointPolicy
+from Policy import RandomWaypointPolicy, FollowPathPolicy
+
+from PathGenerators import find_fixed_budget_lawnmower
+
 
 import gzip as compress
 import pickle
@@ -54,7 +57,8 @@ def create_wbfe(exp):
     return wbf, wbfe
 
 def get_geometry(typename, geo = None):
-    """Returns an object with the geometry for the different types (or adds it into the passed dictionary"""
+    """Returns an object with the geometry for the different types (or adds it into the passed dictionary). 
+    FIXME: It calculates a specific timesteps per day for each size. I think that this was used to calculate the fixed budget lawnmower, but it is not appropriate to do it here!"""
     if geo == None:
         geo = {}
     geo["velocity"] = 1
@@ -63,36 +67,52 @@ def get_geometry(typename, geo = None):
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 0, 10, 0, 10
         geo["width"], geo["height"] = 11, 11
-        geo["timesteps-per-day"] = 0.4 * 100 
+        #geo["timesteps-per-day"] = 0.4 * 100 
     elif typename == "Miniberry-30":
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 0, 30, 0, 30
         geo["width"], geo["height"] = 31, 31
-        geo["timesteps-per-day"] = 0.4 * 900
+        #geo["timesteps-per-day"] = 0.4 * 900
     elif typename == "Miniberry-100":
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 0, 100, 0, 100
         geo["width"], geo["height"] = 101, 101
-        geo["timesteps-per-day"] = 0.4 * 10000
+        #geo["timesteps-per-day"] = 0.4 * 10000
     elif typename == "Waterberry":
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 1000, 5000, 1000, 4000
         geo["width"], geo["height"] = 5001, 4001
-        geo["timesteps-per-day"] = 0.4 * 12000000
+        # geo["timesteps-per-day"] = 0.4 * 12000000
     return geo
 
 
 def create_policy(exp_policy, exp_env):
     """Create a policy, based on the specification of the policy and the environment. The name of the policy will be set according to the exp/run"""
+
+    #
+    #  Random waypoint policy
+    #
     if exp_policy["policy-code"] == "RandomWaypointPolicy":
         geo = get_geometry(exp_env["typename"])
-        # a random waypoint policy
-        # geo = copy.copy(geom)
         policy = RandomWaypointPolicy(
             vel = 1, low_point = [geo["xmin"], 
             geo["ymin"]], high_point = [geo["xmax"], geo["ymax"]], seed = exp_policy["seed"])  
         policy.name = exp_policy["policy-name"]
         return policy
+    #
+    #  Fixed budget lawnmover: takes the budget from 
+    # 
+    if exp_policy["policy-code"] == "FixedBudgetLawnMower":
+        geo = get_geometry(exp_env["typename"])
+        # FIXME: maybe here I can specify a percentage budget....
+        budget = exp_policy["budget"]
+        path = find_fixed_budget_lawnmower([0,0], geo["xmin"], geo["xmax"], geo["ymin"], geo["ymax"], geo["velocity"], time = budget)
+        policy = FollowPathPolicy(vel = geo["velocity"], waypoints = path, repeat = True)
+        policy.name = exp_policy["policy-name"] 
+        # "FixedBudgetLawnmower"
+        return policy
+
+
     raise Exception(f"Unsupported policy type {exp_policy['policy-code']}")
 
 def create_estimator(exp_estimator, exp_env):
@@ -102,11 +122,11 @@ def create_estimator(exp_estimator, exp_env):
         estimator = WBF_IM_DiskEstimator(geo["width"], geo["height"])
         estimator.name = exp_estimator["estimator-name"]
         return estimator
-    raise Exception(f"Unsupported estimator type {exp_policy['estimator-code']}")
+    raise Exception(f"Unsupported estimator type {exp_estimator['estimator-code']}")
 
 def create_score(exp_score, exp_env):
     if exp_score["score-code"] == "WBF_Score_WeightedAsymmetric":
         score = WBF_Score_WeightedAsymmetric()
         score.name = exp_score["score-name"]
         return score
-    raise Exception(f"Unsupported score type {exp_policy['score-code']}")
+    raise Exception(f"Unsupported score type {exp_score['score-code']}")
