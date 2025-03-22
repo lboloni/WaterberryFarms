@@ -2,3 +2,5 @@
 # waypoint robot runs in a miniberry-30 environment
 exp_environment: "miniberry-30"
 exp_policy: "random-waypoint"
+exp_estimator: "AdaptiveDisk"
+exp_score: "weighted_asymmetric"

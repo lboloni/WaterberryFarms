@@ -5,7 +5,9 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 """
 
-from WaterberryFarm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment
+from WaterberryFarm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess, WBF_Score_WeightedAsymmetric
+from Policy import RandomWaypointPolicy
+
 import gzip as compress
 import pickle
 import pathlib
@@ -78,3 +80,33 @@ def get_geometry(typename, geo = None):
         geo["width"], geo["height"] = 5001, 4001
         geo["timesteps-per-day"] = 0.4 * 12000000
     return geo
+
+
+def create_policy(exp_policy, exp_env):
+    """Create a policy, based on the specification of the policy and the environment. The name of the policy will be set according to the exp/run"""
+    if exp_policy["policy-code"] == "RandomWaypointPolicy":
+        geo = get_geometry(exp_env["typename"])
+        # a random waypoint policy
+        # geo = copy.copy(geom)
+        policy = RandomWaypointPolicy(
+            vel = 1, low_point = [geo["xmin"], 
+            geo["ymin"]], high_point = [geo["xmax"], geo["ymax"]], seed = exp_policy["seed"])  
+        policy.name = exp_policy["policy-name"]
+        return policy
+    raise Exception(f"Unsupported policy type {exp_policy['policy-code']}")
+
+def create_estimator(exp_estimator, exp_env):
+    """Create an estimator, based on the specification of the estimator and the environment. The name of the estimator will be set according to the exp/run""" 
+    if exp_estimator["estimator-code"] == "WBF_IM_DiskEstimator":
+        geo = get_geometry(exp_env["typename"])    
+        estimator = WBF_IM_DiskEstimator(geo["width"], geo["height"])
+        estimator.name = exp_estimator["estimator-name"]
+        return estimator
+    raise Exception(f"Unsupported estimator type {exp_policy['estimator-code']}")
+
+def create_score(exp_score, exp_env):
+    if exp_score["score-code"] == "WBF_Score_WeightedAsymmetric":
+        score = WBF_Score_WeightedAsymmetric()
+        score.name = exp_score["score-name"]
+        return score
+    raise Exception(f"Unsupported score type {exp_policy['score-code']}")
