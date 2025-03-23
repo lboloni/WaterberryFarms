@@ -175,7 +175,10 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         value = np.full((self.width, self.height), self.default_value, dtype=np.float64) 
         uncertainty = np.ones((self.width, self.height), dtype=np.float64)
         if self.disk_radius == None:
-            radius = int(1+math.sqrt((self.height * self.width * 2) / (math.pi * len(observations))))
+            if len(observations) == 0:
+                radius = 1
+            else:
+                radius = int(1+math.sqrt((self.height * self.width * 2) / (math.pi * len(observations))))
         else:
             radius = self.disk_radius
 

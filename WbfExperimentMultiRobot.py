@@ -16,7 +16,7 @@ from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
     AbstractWaypointPolicy
 from PathGenerators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
 from WaterberryFarm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
-from WbfExperiment import get_geometry, menuGeometry
+#from WbfExperiment import get_geometry, menuGeometry
 from wbf_helper import get_geometry
 
 import numpy as np
