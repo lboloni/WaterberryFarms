@@ -174,3 +174,65 @@ def action_run_multiday(choices):
         pickle.dump(results, f)
     return results
 
+def action_run_1day_multirobot(choices):
+    """
+    Implements a single-day experiment with a multiple robots in the WBF simulator. This is the top level function which is called to run the experiment. 
+
+    choices: a dictionary into which the parameters of the experiments are being loaded. A copy of this will be internally created. 
+
+    results: the return value, which contains both all the input values in the choices, as well as the output data (or references to it.)
+
+    """
+    results = copy.deepcopy(choices)
+    results["action"] = "run-one-day-multirobot"
+    if "im_resolution" not in results:
+        results["im_resolution"] = 1
+    menuGeometry(results)
+    if "time-start-environment" not in results:
+        results["time-start-environment"] = int(input("Time in the environment when the robots start: "))
+    wbf, wbfe, savedir = create_wbfe(saved=True, wbf_prec=None, typename = results["typename"])
+    wbfe.proceed(results["time-start-environment"])
+    results["wbf"] = wbf
+    results["wbfe"] = wbfe
+    results["savedir"] = savedir
+    results["exp-name"] = results["typename"] + "_" # name of the exp., also dir to save data
+    results["days"] = 1
+    results["exp-name"] = results["exp-name"] + "1M_"
+    get_geometry(results["typename"], results)
+    # override the velocity and the timesteps per day, if specified
+    if "timesteps-per-day-override" in results:
+        results["timesteps-per-day"] = results["timesteps-per-day-override"]
+    if "velocity-override" in results:
+        results["velocity"] = results["velocity-override"]
+
+    # creating the number of robots. The number of robots is specified by the number of policies that we pass
+
+    robots = []
+    for p in results["policy-code"]:
+        robot = Robot("Rob", 0, 0, 0, env=None, im=None)
+        robot.assign_policy(p)
+        robots.append(robot)
+        results["exp-name"] = results["exp-name"] + "_" + p.name
+
+    results["robots"] = robots
+ 
+    if "results-filename" in results:
+        results_filename = results["results-filename"]
+    else:
+        results_filename = f"res_{results['exp-name']}"
+    if "results-basedir" in results:
+        results_path = pathlib.Path(results["results-basedir"], results_filename)
+    else:
+        results_path = pathlib.Path(results["savedir"], results_filename)    
+    results["results-path"] = results_path
+    # if dryrun is specified, we return the results without running anything
+    if "dryrun" in results and results["dryrun"] == True:
+        return results
+    # results["oneshot"] = False # calculate one observation score for all obs.
+    # running the simulation
+    simulate_1day_multirobot(results)
+    #
+    logging.info(f"Saving results to: {results_path}")
+    with compress.open(results_path, "wb") as f:
+        pickle.dump(results, f)
+    return results
