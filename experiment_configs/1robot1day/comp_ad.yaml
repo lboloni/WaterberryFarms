@@ -1,0 +1,6 @@
+# Compare the various models with the AD estimator
+name: "comp_ad"
+
+tocompare:
+  - "fblm-ad-30"
+  - "rwp-ad-30"

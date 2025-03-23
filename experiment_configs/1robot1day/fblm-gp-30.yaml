@@ -4,3 +4,5 @@ exp_environment: "miniberry-30"
 exp_policy: "fixed-budget-lawnmower"
 exp_estimator: "gaussian-process"
 exp_score: "weighted_asymmetric"
+# previous value 10, that makes it 10 minutes on Miniberry-30
+im_resolution: 50

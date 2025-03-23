@@ -9,7 +9,7 @@ As of 2025-03-21 this will be refactored to use the Experiment/Run
 configuration framework.
 
 """
-from Environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
+from environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
 from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
 from Robot import Robot
 from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \

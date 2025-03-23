@@ -15,7 +15,7 @@ from matplotlib import animation, rc
 # import unittest
 import timeit
 
-from Environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
+from environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 
 logging.basicConfig(level=logging.WARNING)
 

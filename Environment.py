@@ -1,7 +1,15 @@
+"""
+environment.py
+
+Classes that implement the general environment model and environment types with specific rules (epidemic spread etc. ). 
+
+"""
 import math
 from functools import partial
 import numpy as np
 from scipy import signal
+import scipy
+
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
 import timeit
@@ -12,7 +20,6 @@ import pathlib
 import logging
 logging.basicConfig(level=logging.WARNING)
 
-from Helper import shifted_add, create_gaussian_hump
 
 compress_ext = "gz"
 # compress_ext = "gz"
@@ -317,6 +324,43 @@ class SoilMoistureEnvironment(ScalarFieldEnvironment):
             self.value = self.value + rain_quantity
             self.value = np.minimum(self.value, 1.0)
 
+    def shifted_add(self, a, b, x, y):
+        """Add matrix b to matrix a shifted by positions x and y. 
+        Ignore overflow at the margins.
+        """
+        xA, yA = a.shape
+        xB, yB = b.shape
+
+        fromAX = max(0, x)
+        toAX = min(xB + x, xA)
+        fromAY = max(0, y)
+        toAY = min(yB + y, yA)
+
+        fromBX = 0 + max(0, -x)
+        toBX = xB + min(0, xA - x - xB)  
+        fromBY = 0 + max(0, -y)
+        toBY = yB + min(0, yA - y - yB)
+
+        if toBX <= 0 or toBY <= 0:
+            return
+        if fromBX >= xB or fromBY >= yB:
+            return
+
+        a[fromAX:toAX, fromAY:toAY] = a[fromAX:toAX, fromAY:toAY] + b[fromBX:toBX, fromBY:toBY]
+        return
+
+    def create_gaussian_hump(self, width, height, mean = [0,0], cov = [[1, 0], [0, 1]]):
+        """Fill an array of size width times height with an Gaussian 
+        function of the specified mean and covariance matrix."""
+        xv = np.linspace(0, width, width)
+        yv = np.linspace(0, height, height)
+        x, y = np.meshgrid(xv, yv)
+        positions = np.column_stack((x.ravel(),y.ravel()))
+        value = scipy.stats.multivariate_normal.pdf(positions, mean, cov)
+        vals = np.reshape(value, [height, width])
+        return vals
+
+
     def get_fuzzy_distribution(self):
         """Creates a fuzzy distribution for modeling the rain quantity. It starts by overlying a number of rectangular patches of random size and location with the value. Then it performs a series of convolutions. 
         """
@@ -341,7 +385,7 @@ class SoilMoistureEnvironment(ScalarFieldEnvironment):
         """Returns an array filled in with a matrix."""
         value = np.zeros([self.width, self.height])
         humph = humpw = humpwidth
-        hump = create_gaussian_hump(humpw, humph, mean = [humpw/2, humph/2], cov = [[(humpw / 8)**2,0], [0, (humph/8)**2]])
+        hump = self.create_gaussian_hump(humpw, humph, mean = [humpw/2, humph/2], cov = [[(humpw / 8)**2,0], [0, (humph/8)**2]])
         #plt.imshow(hump, cmap = "gray_r")
         for i in range(count):
             #locx = int(self.random.random() * self.width - humpw/2) 
@@ -349,7 +393,7 @@ class SoilMoistureEnvironment(ScalarFieldEnvironment):
             locx = self.random.integers(-humpw/2, self.width + humpw/2)
             locy = self.random.integers(-humph/2, self.height + humph/2)
             #print(f"Adding at {locx} and {locy}")    
-            shifted_add(value, hump, locx, locy)
+            self.shifted_add(value, hump, locx, locy)
         return value
 
 #

@@ -8,7 +8,7 @@ import unittest
 import numpy as np
 
 from InformationModel import AbstractScalarFieldIM, im_score, im_score_weighted, im_score_weighted_asymmetric
-from Environment import ScalarFieldEnvironment
+from environment import ScalarFieldEnvironment
 
 from sklearn.metrics import accuracy_score
 
