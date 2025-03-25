@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import matplotlib.patches as patches
 
-from Robot import Robot
+from robot import Robot
 
 class Policy:
     def __init__(self):

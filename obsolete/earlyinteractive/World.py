@@ -1,6 +1,6 @@
 from environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 from InformationModel import InformationModel, GaussianProcessScalarFieldIM
-from Robot import Robot
+from robot import Robot
 from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
 
 import logging

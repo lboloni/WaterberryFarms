@@ -1,3 +1,9 @@
+"""
+robot.py
+
+Implementation of the Robot class. Each robot takes actions, that are primarily about moving and observations. 
+"""
+
 import ast
 from collections import deque
 
@@ -13,7 +19,6 @@ class Robot:
     * ```enact_policy```: the policies associated with the robot are called and have the ability to schedule actions for execution 
     * ```proceed```: actions are executed. The actions (in the list ```everystep_actions```) are executed always, while the ```pending_actions``` list is the one which is added by the policy, and are cleared at this step.
     """    
-    
     def __init__(self, name, init_x, init_y, init_altitude, grid_resolution=1, env=None, im=None):
         self.name = name
         self.init_x, self.init_y, self.init_altitude = init_x, init_y, init_altitude        
@@ -43,10 +48,10 @@ class Robot:
         self.pending_actions.append(action)
 
         
-    def enact_policy(self, delta_t = 1.0):
-        """Call the policy, if any to schedule actions"""
-        if self.policy != None:
-            self.policy.act(delta_t)
+    # def enact_policy(self, delta_t = 1.0):
+    #     """Call the policy, if any to schedule actions"""
+    #     if self.policy != None:
+    #         self.policy.act(delta_t)
         
         
     def proceed(self, delta_t = 1.0):
@@ -123,7 +128,7 @@ class Robot:
         if action[0:4] == "acc ":
             params = ast.literal_eval(action[4:])
             self.vel_x = self.vel_x + delta_t * params[0]
-            self.vel_y = self_vel_y + delta_t * params[1]
+            self.vel_y = self.vel_y + delta_t * params[1]
             if len(params) > 2:
                 self.vel_altitude = self.vel_altitude + delta_t * params[2]
             return    

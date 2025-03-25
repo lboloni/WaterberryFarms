@@ -5,17 +5,6 @@ Functions helping to run experiments with the Waterberry Farms benchmark.
 
 """
 
-
-
-# from environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
-# from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
-# from Robot import Robot
-# from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
-#     AbstractWaypointPolicy
-# from PathGenerators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
-# from WaterberryFarm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
-# from wbf_helper import get_geometry
-
 import numpy as np
 import pathlib
 import logging

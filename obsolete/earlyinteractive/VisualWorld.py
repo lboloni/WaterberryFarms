@@ -21,7 +21,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import PIL.Image
 from ipywidgets import interact, Button, IntText, GridBox, Layout, VBox, HBox, Box, HTML, Output, Label, FloatSlider, IntText, Image, Checkbox
 from IPython.display import display
-from World import World, WorldFactory
+from obsolete.earlyinteractive.World import World, WorldFactory
 
 
 class VisualWorld:

@@ -7,7 +7,7 @@ import os
 import math
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from Robot import Robot
+from robot import Robot
 from environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
 from InformationModel import DiskEstimateScalarFieldIM
 from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
