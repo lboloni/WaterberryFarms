@@ -105,7 +105,27 @@ class FollowPathPolicy(AbstractWaypointPolicy):
                 else:
                     self.currentwaypoint = -1
                     
-                    
+class AbstractCommunicateAndFollowPath(FollowPathPolicy):
+    """A policy that performs n rounds of communication on the communication network. It is assumed that somewhere in those communication rounds we will also set the next path"""
+    def __init__(self, vel, waypoints, repeat, com_rounds = 5):
+        super().__init__(vel, waypoints, repeat)
+        self.com_rounds = com_rounds
+
+    def act(self, delta_t):
+        """FIXME: this is not that simple, because the message sending needs
+        to happen at the simulation level!!!"""
+        for round in range(com_rounds):            
+            self.robot.com.send()
+        
+
+    def act_send(self, round):
+        """Send messages - overwrite me in actual implementations"""
+        return []
+
+    def act_receive(self, round, messages):
+        """Receive messages""" 
+        pass
+
 class RandomWaypointPolicy(AbstractWaypointPolicy):
     """A policy that makes the robot follow a random waypoint behavior within a 
     specified region using a constant velocity. The region is specied with the 
