@@ -1,3 +1,9 @@
+"""
+policy.py
+
+Implementation of the basic policy framework, and some fundamental policies. 
+"""
+
 import numpy as np
 import ast
 import math

@@ -1,3 +1,9 @@
+"""
+information_model.py
+
+Implementation of the basic InformationModel class and several practical information models: Gaussian Process and Adaptive Disk
+"""
+
 import math
 import itertools
 import random

@@ -35,6 +35,7 @@ class CommunicationMedium:
         """Adds a robot to the system and creates the corresponding mailbox"""
         self.robots[robot.name] = robot
         self.mailboxes[robot.name] = []
+        robot.com = self
 
 
 class PerfectCommunicationMedium(CommunicationMedium):

@@ -9,8 +9,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from robot import Robot
 from environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
-from InformationModel import DiskEstimateScalarFieldIM
-from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
+from information_model import DiskEstimateScalarFieldIM
+from policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
 
 
 env = DissipationModelEnvironment("water", 100, 100, seed=1)

@@ -7,7 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import unittest
 import numpy as np
 
-from InformationModel import AbstractScalarFieldIM, im_score, im_score_weighted, im_score_weighted_asymmetric
+from information_model import AbstractScalarFieldIM, im_score, im_score_weighted, im_score_weighted_asymmetric
 from environment import ScalarFieldEnvironment
 
 from sklearn.metrics import accuracy_score

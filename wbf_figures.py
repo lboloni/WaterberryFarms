@@ -1,12 +1,15 @@
-# Waterberry Farm figures: functions helping to plot the results 
-# of experiments performed with the Waterberry Farms benchmark
+"""
+wbf_figures.py
+
+Functions helping to plot the results of experiments performed with the Waterberry Farms benchmark
+"""
 
 from environment import Environment, EpidemicSpreadEnvironment, DissipationModelEnvironment, PrecalculatedEnvironment
-from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
+from information_model import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
 from robot import Robot
-from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
+from policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
     AbstractWaypointPolicy
-from PathGenerators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
+from path_generators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
 from WaterberryFarm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
 
 import numpy as np

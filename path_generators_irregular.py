@@ -1,4 +1,6 @@
 """
+path_generators_irregular.py
+
 Code for a path generator that generates sweeps for irregularly shaped patches. 
 Adapted from a grid-based sweep planner by Atsushi Sakai. 
 
@@ -14,7 +16,7 @@ from enum import IntEnum
 import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 import matplotlib.pyplot as plt
-import PathGenerators as pg
+import path_generators as pg
 
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
 #                "/../../Mapping/")

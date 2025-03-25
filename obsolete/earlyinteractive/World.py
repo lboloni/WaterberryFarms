@@ -1,7 +1,7 @@
 from environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
-from InformationModel import InformationModel, GaussianProcessScalarFieldIM
+from information_model import InformationModel, GaussianProcessScalarFieldIM
 from robot import Robot
-from Policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
+from policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy
 
 import logging
 # logging.getLogger().setLevel(logging.DEBUG)

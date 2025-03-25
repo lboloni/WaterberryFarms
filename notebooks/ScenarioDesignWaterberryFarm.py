@@ -1,5 +1,5 @@
 import Environment
-from InformationModel import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
+from information_model import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score, im_score_weighted
 from WaterberryFarm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches

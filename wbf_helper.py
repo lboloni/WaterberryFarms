@@ -6,9 +6,9 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 """
 
 from WaterberryFarm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess, WBF_Score_WeightedAsymmetric
-from Policy import RandomWaypointPolicy, FollowPathPolicy
+from policy import RandomWaypointPolicy, FollowPathPolicy
 
-from PathGenerators import find_fixed_budget_lawnmower
+from path_generators import find_fixed_budget_lawnmower
 
 
 import gzip as compress

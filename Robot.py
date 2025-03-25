@@ -37,6 +37,7 @@ class Robot:
         self.policy = None
         self.env = env
         self.im = im
+        self.com = None # communication medium
     
     def assign_policy(self, policy):
         """Assign a policy to the robot and set up the links from both directions"""
@@ -48,10 +49,10 @@ class Robot:
         self.pending_actions.append(action)
 
         
-    # def enact_policy(self, delta_t = 1.0):
-    #     """Call the policy, if any to schedule actions"""
-    #     if self.policy != None:
-    #         self.policy.act(delta_t)
+    def enact_policy(self, delta_t = 1.0):
+        """Call the policy, if any to schedule actions"""
+        if self.policy != None:
+            self.policy.act(delta_t)
         
         
     def proceed(self, delta_t = 1.0):

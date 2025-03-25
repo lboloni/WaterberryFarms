@@ -1,3 +1,9 @@
+"""
+path_generators.py
+
+Collection of functions that generate paths.
+
+"""
 import math
 import numpy as np
 
