@@ -1,0 +1,5 @@
+# Specifies the parameters of a random waypoint policy
+policy-name: "LocalCommunicator"
+policy-code: "-"
+policy-code-generator: "generateLocalCommunicator"
+seed: 2

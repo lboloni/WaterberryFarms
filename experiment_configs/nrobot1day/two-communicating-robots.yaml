@@ -1,0 +1,15 @@
+# Initial experiment with a multi-robot setup, just two random robots
+# Describes an experiment where a random 
+# waypoint robot runs in a miniberry-30 environment
+exp_environment: "miniberry-30"
+exp_estimator: "adaptive-disk"
+exp_score: "weighted_asymmetric"
+
+timesteps-per-day: 50
+
+robots:
+  - name: "robot-1"
+    exp-policy: "communicator-1"
+  - name: "robot-2"
+    exp-policy: "communicator-2"
+  

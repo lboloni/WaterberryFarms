@@ -5,10 +5,10 @@ Implementation of the basic policy framework, and some fundamental policies.
 """
 
 import numpy as np
-import ast
-import math
-import random
-import itertools
+# import ast
+# import math
+# import random
+# import itertools
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
@@ -114,10 +114,7 @@ class AbstractCommunicateAndFollowPath(FollowPathPolicy):
     def act(self, delta_t):
         """FIXME: this is not that simple, because the message sending needs
         to happen at the simulation level!!!"""
-        for round in range(com_rounds):            
-            self.robot.com.send()
         
-
     def act_send(self, round):
         """Send messages - overwrite me in actual implementations"""
         return []
