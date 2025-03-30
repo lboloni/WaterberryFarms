@@ -19,67 +19,67 @@ import gzip as compress
 logging.basicConfig(level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
+class TimeTrack:
+    """Class for tracking time in the simulations"""
+    def __init__(self):
+        self.start_time = time.time_ns()
+        self.last_start_time = self.start_time
+
+    def policy_start(self):
+        self.policy_start_time = time.time_ns()
+
+    def policy_finish(self, results):
+        self.policy_finish_time = time.time_ns()
+        results["computation-cost-policy"].append(self.policy_finish_time - self.policy_start_time)
+
+    def current(self, timestep, results):
+        self.current_time = time.time_ns()
+        if self.current_time - self.last_start_time > 10e9:
+            print(f"At {timestep} / {int(results['timesteps-per-day'])} elapsed {int((self.current_time - self.start_time) / 1e9)} seconds")
+            self.last_start_time = self.current_time
+
 
 def simulate_1day(results):
     """
     Runs the simulation for one day. All the parameters and output is in the results dictionary.
     As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
     """
-    wbfe, wbf = results["wbfe"], results["wbf"]
-    wbfim = results["estimator-code"]
-    
     # we are assigning here to the robot the information model
     # FIXME: this might be more tricky later
-    results["robot"].im = wbfim
-    
-    positions = []
-    observations = []
-    scores = []
-    results["scores"] = scores
-    results["observations"] = observations
-    results["positions"] = positions
+    results["robot"].im = results["estimator-code"]
+    results["scores"] = []
+    results["observations"] = []
+    results["positions"] = []
     results["computation-cost-policy"] = []
 
-    time_track_start = time.time_ns()
-    time_track_last_start = time_track_start
+    tt = TimeTrack()
 
     im_resolution_count = 0
 
     for timestep in range(int(results["timesteps-per-day"])):
-        # print(f"Simulate_1day I am at time = {time}")
-
-        time_policy_start = time.time_ns()
-
+        tt.policy_start()
         results["robot"].enact_policy()
         results["robot"].proceed(1)
         position = [int(results["robot"].x), int(results["robot"].y), timestep]
         # print(results["robot"])
-        positions.append(position)
-        obs = wbfe.get_observation(position)
-        observations.append(obs)
-        wbfim.add_observation(obs)
+        results["positions"].append(position)
+        obs = results["wbfe"].get_observation(position)
+        results["observations"].append(obs)
+        results["estimator-code"].add_observation(obs)
         results["robot"].add_observation(obs)
-        time_policy_finish = time.time_ns()
-        results["computation-cost-policy"].append(time_policy_finish - time_policy_start)
-
+        tt.policy_finish(results)
         # update the im and the score at every im_resolution steps and at the last iteration
         im_resolution_count += 1
         if im_resolution_count == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-            wbfim.proceed(results["im_resolution"])
-            score = results["score-code"].score(wbfe, wbfim)
+            results["estimator-code"].proceed(results["im_resolution"])
+            score = results["score-code"].score(results["wbfe"], results["estimator-code"])
             for i in range(im_resolution_count):
-                scores.append(score)
+                results["scores"].append(score)
             im_resolution_count = 0
         if "hook-after-day" in results:
             results["hook-after-day"](results)
-        # every 10 seconds, write out where we are
-        time_track_current = time.time_ns()
-        if (time_track_current - time_track_last_start) > 10e9:
-            print(f"At {timestep} / {int(results['timesteps-per-day'])} elapsed {int((time_track_current - time_track_start) / 1e9)} seconds")
-            time_track_last_start = time_track_current
+        tt.current(timestep, results)
     results["score"] = score
-
-
 
 def simulate_multiday(results):
     """
@@ -149,19 +149,16 @@ def simulate_multiday(results):
     results["observations"] = observations
     results["positions"] = positions
 
-
 def simulate_1day_multirobot(results):
     """
     Runs the simulation for one day. All the parameters and output is in the results dictionary.
     As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
     """
-    wbfe, wbf = results["wbfe"], results["wbf"]
-    wbfim = results["estimator-code"]
     
     # we are assigning here to all the robots the information model
     # FIXME: this might be more tricky later
     for robot in results["robots"]:
-        robot.im = wbfim
+        robot.im = results["estimator-code"]
     
     # positions, observations and scores are all list of lists
     # first index: time, second index: robot
@@ -169,15 +166,12 @@ def simulate_1day_multirobot(results):
     results["observations"] = []
     results["positions"] = []
     results["computation-cost-policy"] = []
-
-    time_track = {}
-    time_track["start"] = time.time_ns()
-    time_track["last_start"] = time_track["start"]
+    tt = TimeTrack()
 
     im_resolution_count = 0 # counting the steps for the im update
 
     for timestep in range(int(results["timesteps-per-day"])):
-        time_track["policy_start"] = time.time_ns()
+        tt.policy_start()
 
         positions = []
         observations = []
@@ -186,8 +180,8 @@ def simulate_1day_multirobot(results):
             robot.enact_policy()
             robot.proceed(1)
             position = [int(robot.x), int(robot.y), timestep]
-            obs = wbfe.get_observation(position)
-            wbfim.add_observation(obs)
+            obs = results["wbfe"].get_observation(position)
+            results["estimator-code"].add_observation(obs)
             robot.add_observation(obs)
             positions.append(position)
             observations.append(obs)
@@ -195,24 +189,18 @@ def simulate_1day_multirobot(results):
         results["positions"].append(positions)
         results["observations"].append(observations)
 
-        time_track["policy_finish"] = time.time_ns()
-        results["computation-cost-policy"].append(time_track["policy_finish"] - time_track["policy_start"])
-
+        tt.policy_finish(results)
         # update the im and the score at every im_resolution steps and at the last iteration
         im_resolution_count += 1
         if im_resolution_count == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-            wbfim.proceed(results["im_resolution"])
-            score = results["score-code"].score(wbfe, wbfim)
+            results["estimator-code"].proceed(results["im_resolution"])
+            score = results["score-code"].score(results["wbfe"], results["estimator-code"])
             for i in range(im_resolution_count):
                 results["scores"].append(score)
             im_resolution_count = 0
         if "hook-after-day" in results:
             results["hook-after-day"](results)
-        # every 10 seconds, write out where we are
-        time_track["current"] = time.time_ns()
-        if (time_track["current"] - time_track["last_start"]) > 10e9:
-            print(f"At {timestep} / {int(results['timesteps-per-day'])} elapsed {int((time_track['current'] - time_track['start']) / 1e9)} seconds")
-            time_track["last_start"] = time_track["current"]
+        tt.current(timestep, results)
     # the final score
     results["score"] = score
 
