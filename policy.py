@@ -107,13 +107,12 @@ class FollowPathPolicy(AbstractWaypointPolicy):
                     
 class AbstractCommunicateAndFollowPath(FollowPathPolicy):
     """A policy that performs n rounds of communication on the communication network. It is assumed that somewhere in those communication rounds we will also set the next path"""
-    def __init__(self, vel, waypoints, repeat, com_rounds = 5):
+    def __init__(self, vel, waypoints, repeat):
         super().__init__(vel, waypoints, repeat)
-        self.com_rounds = com_rounds
 
     def act(self, delta_t):
-        """FIXME: this is not that simple, because the message sending needs
-        to happen at the simulation level!!!"""
+        """Call the following of the path"""
+        super().act(delta_t)
         
     def act_send(self, round):
         """Send messages - overwrite me in actual implementations"""

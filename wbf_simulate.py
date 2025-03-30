@@ -124,7 +124,8 @@ def simulate_timestep_multirobot(results, timestep):
                 robot.policy.act_send(round)
         for robot in results["robots"]:
             if isinstance(robot.policy, AbstractCommunicateAndFollowPath):
-                robot.policy.act_receive(round)
+                msgs = results["communication"].receive(robot)
+                robot.policy.act_receive(round, msgs)
 
     for robot in results["robots"]:
         robot.enact_policy()
