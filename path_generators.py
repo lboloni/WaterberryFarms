@@ -49,7 +49,6 @@ def generate_lawnmower(x_min, x_max, y_min, y_max, winds):
     path.append([x_max, current[1]])
     return np.array(path)
 
-
 def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
     """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
     windsmax = 1000
