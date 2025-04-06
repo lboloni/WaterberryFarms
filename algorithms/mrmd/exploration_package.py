@@ -7,6 +7,8 @@ that explore certain areas.
 """
 
 import numpy as np
+import itertools
+from path_generators import get_path_length
 
 class ExplorationPackage:
     """Implements an area that needs to be explored with a certain resolution"""
@@ -16,55 +18,112 @@ class ExplorationPackage:
         self.y_min = y_min
         self.y_max = y_max
         self.step = step
-
-    @staticmethod
-    def generate_lawnmower_step(x_min, x_max, y_min, y_max, step):
-        """Generates a horizontal lawnmower path"""
-        current = [x_min, y_min]
+        self.path = None
+        
+    def lawnmower_horizontal_bottom_left(self, shift=[0,0]):
+        """Generates a horizontal lawnmower path, that starts at the bottom left, which is at x_min, y_min, and proceeds in the direction of higher y"""
+        current = [self.x_min, self.y_min]
         path = []
         path.append(current)
         while True:
-            path.append([x_max, current[1]])
-            path.append([x_max, current[1]+step])
-            path.append([x_min, current[1]+step])
-            current = [x_min, current[1]+2 * step]
+            path.append([self.x_max, current[1]])
+            path.append([self.x_max, current[1]+self.step])
+            path.append([self.x_min, current[1]+self.step])
+            current = [self.x_min, current[1]+2 * self.step]
             path.append(current)
-            if current[1] + step > y_max:
+            if current[1] + self.step > self.y_max:
                 break
-        path.append([x_max, current[1]])
-        return np.array(path)
+        path.append([self.x_max, current[1]])
+        return np.array(path) + shift
 
+    def lawnmower_horizontal_bottom_right(self, shift=[0,0]):
+        """Generates a horizontal lawnmower path, that starts at the bottom right, which is at x_max, y_min, and proceeds in the direction of higher y"""
+        current = [self.x_max, self.y_min]
+        path = []
+        path.append(current)
+        while True:
+            path.append([self.x_min, current[1]])
+            path.append([self.x_min, current[1]+self.step])
+            path.append([self.x_max, current[1]+self.step])
+            current = [self.x_max, current[1]+2 * self.step]
+            path.append(current)
+            if current[1] + self.step > self.y_max:
+                break
+        path.append([self.x_min, current[1]])
+        return np.array(path) + shift
 
-    def get_path(self, type):
-        """Generates a lawnmower path of one of the four types"""
-        if type == "top-left":
-            self.path = ExplorationPackage.generate_lawnmower_step(self.x_min + self.step//2, 
-                                                self.x_max - self.step//2, 
-                                                self.y_min + self.step//2, 
-                                                self.y_max - self.step//2, self.step)
-            return self.path
-        if type == "top-right":
-            # obtained by flipping x with y and reversing them
-            path = ExplorationPackage.generate_lawnmower_step(self.y_min + self.step//2, 
-                                                self.y_max - self.step//2,
-                                                self.x_min + self.step//2, 
-                                                self.x_max - self.step//2, 
-                                                 self.step)
-            self.path = np.flip(path, axis=1)
-            return self.path
-        if type == "bottom-left":
-            raise Exception("path bottom-left not implemented yet")
-            path = ExplorationPackage.generate_lawnmower_step(self.x_min + self.step//2, 
-                                                self.x_max - self.step//2, 
-                                                self.y_min + self.step//2, 
-                                                self.y_max - self.step//2, self.step)        
-        if type == "bottom-right":
-            path = ExplorationPackage.generate_lawnmower_step(self.x_min + self.step//2, 
-                                                self.x_max - self.step//2, 
-                                                self.y_min + self.step//2, 
-                                                self.y_max - self.step//2, self.step)
-            self.path = np.flip(path, axis=0)
-            return self.path
-        
+    def lawnmower_horizontal_top_left(self, shift=[0,0]):
+        """Generates a horizontal lawnmower path, that starts at the top left, which is at x_min, y_max, and proceeds in the direction of lower y"""
+        current = [self.x_min, self.y_max]
+        path = []
+        path.append(current)
+        while True:
+            path.append([self.x_max, current[1]])
+            path.append([self.x_max, current[1]-self.step])
+            path.append([self.x_min, current[1]-self.step])
+            current = [self.x_min, current[1]-2 * self.step]
+            path.append(current)
+            if current[1] - self.step < self.y_min:
+                break
+        path.append([self.x_max, current[1]])
+        return np.array(path) + shift
+
+    def lawnmower_horizontal_top_right(self, shift=[0,0]):
+        """Generates a horizontal lawnmower path, that starts at the top left, which is at x_max, y_max, and proceeds in the direction of lower y"""
+        current = [self.x_max, self.y_max]
+        path = []
+        path.append(current)
+        while True:
+            path.append([self.x_min, current[1]])
+            path.append([self.x_min, current[1]-self.step])
+            path.append([self.x_max, current[1]-self.step])
+            current = [self.x_max, current[1]-2 * self.step]
+            path.append(current)
+            if current[1] - self.step < self.y_min:
+                break
+        path.append([self.x_min, current[1]])
+        return np.array(path) + shift
+
+class ExplorationPackageSet: 
+    """A class having a set of exploration packages. Code for creating optimal traversals"""    
     
-    
+    def __init__(self):        
+        self.ep_to_explore = []
+        self.ep_explored = []
+
+    def add_ep(self, ep: ExplorationPackage):
+        """Adds an exploration package to explore. Returns true if the addition was successful. Returns false if it is unsuccessful. Unsuccessful either means that it had already been explored, or it is already in the list.
+        FIXME: for the time being it always succeeds
+        """
+        self.ep_to_explore.append(ep)
+
+    def find_shortest_path(self, start, end):
+        """Tries every combination of traversal directions to find the optimal one"""
+        choices = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right, ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
+        min_len = float('inf')
+        best_path = None
+        count = 0
+        for perm in itertools.permutations(self.ep_to_explore):
+            print(f"Permutation: perm")
+            generator_choices = itertools.product(
+                choices, repeat=len(self.ep_to_explore))
+            for gens in generator_choices:
+                path = np.array([start])
+                intrinsic = 0
+                for generator, ep in zip(gens, perm):
+                    # print(generator.__name__)
+                    # path.append(generator(ep))
+                    newpath = generator(ep)
+                    print(f"path length: {generator} {get_path_length(newpath)}")
+                    #print(f"\tpath length: {get_path_length(newpath)}")
+                    intrinsic += get_path_length(newpath)
+                    path = np.concatenate((path, newpath), axis=0)
+                path = np.concatenate((path, np.array([end])), axis=0)                
+                length = get_path_length(path)
+                count += 1
+                print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
+                if length < min_len:
+                    min_len = length
+                    print(length)
+                    best_path = path
+        return best_path        

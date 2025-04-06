@@ -12,7 +12,9 @@ def euclidean_distance(point1, point2):
     """Return the euclidian distance between two points"""
     return math.sqrt(math.pow(point2[0]-point1[0],2) + math.pow(point2[1]-point1[1],2))
 
-def get_path_length(starting_point, path):
+
+
+def get_path_length(path, starting_point=None):
     """Returns the length of the generated path, assuming that it starts at the starting point"""
     if starting_point is None:
         starting_point = path[0]
@@ -58,7 +60,7 @@ def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velo
         windstest = (windsmin + windsmax) // 2
         # print(windstest)
         path = generate_lawnmower(x_min, x_max, y_min, y_max, winds = windstest)
-        length = get_path_length(starting_point, path)
+        length = get_path_length(path, starting_point)
         if length > distancebudget:
             windsmax = windstest
         else:
@@ -216,7 +218,7 @@ def find_fixed_budget_lawnmower_v2(control_points, starting_point, x_min, x_max,
         pathWithNoControlPoints= generate_lawnmower_path_v2(x_min, x_max, 1, y_min, y_max, step_test)
         pathWithControlPoints= add_control_points_v2(pathWithNoControlPoints, control_points)
         path = np.array(pathWithControlPoints)
-        length = get_path_length(starting_point, path)
+        length = get_path_length(path, starting_point)
         if length > distancebudget:
             step_min = step_test  
         else:
@@ -306,7 +308,7 @@ def find_fixed_budget_spiral(starting_point, x_min, x_max, y_min, y_max, velocit
     while step_max > step_min + 1:
         step_test = (step_min + step_max) / 2
         path = generate_spiral_path(x_min, x_max, y_min, y_max, step = step_test)
-        length = get_path_length(starting_point, path)
+        length = get_path_length(path, starting_point)
         if length > distancebudget:
             step_min = step_test
         else:
