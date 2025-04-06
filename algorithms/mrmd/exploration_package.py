@@ -98,13 +98,12 @@ class ExplorationPackageSet:
         self.ep_to_explore.append(ep)
 
     def find_shortest_path(self, start, end):
-        """Tries every combination of traversal directions to find the optimal one"""
+        """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes 30 seconds"""
         choices = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right, ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
         min_len = float('inf')
         best_path = None
         count = 0
         for perm in itertools.permutations(self.ep_to_explore):
-            print(f"Permutation: perm")
             generator_choices = itertools.product(
                 choices, repeat=len(self.ep_to_explore))
             for gens in generator_choices:
@@ -112,18 +111,16 @@ class ExplorationPackageSet:
                 intrinsic = 0
                 for generator, ep in zip(gens, perm):
                     # print(generator.__name__)
-                    # path.append(generator(ep))
                     newpath = generator(ep)
-                    print(f"path length: {generator} {get_path_length(newpath)}")
-                    #print(f"\tpath length: {get_path_length(newpath)}")
+                    # print(f"path length: {generator} {get_path_length(newpath)}")
                     intrinsic += get_path_length(newpath)
                     path = np.concatenate((path, newpath), axis=0)
                 path = np.concatenate((path, np.array([end])), axis=0)                
                 length = get_path_length(path)
                 count += 1
-                print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
+                # print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
                 if length < min_len:
                     min_len = length
-                    print(length)
+                    # print(length)
                     best_path = path
         return best_path        
