@@ -39,9 +39,22 @@ class Robot:
         self.im = im
         self.com = None # communication medium
     
+
+    def __getstate__(self):
+        """Specifying that when saving the robot, I won't pickle the env, im and policy"""
+        state = self.__dict__.copy()
+        # remove fields you don't want to pickle
+        dont_pickle = ['policy', 'im', 'env']
+        for field in dont_pickle:        
+            if field in state:
+                del state[field]
+        return state
+
+
     def assign_policy(self, policy):
         """Assign a policy to the robot and set up the links from both directions"""
         self.policy = policy
+        self.policy_name = policy.name
         policy.robot = self
 
     def add_action(self, action):

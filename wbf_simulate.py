@@ -5,12 +5,10 @@ Functions helping to run experiments with the Waterberry Farms benchmark.
 
 """
 
-# import numpy as np
-# import pathlib
 import logging
-#import pickle
-#import copy
+import pickle
 import time
+import gzip as compress
 
 #import bz2 as compress
 # import gzip as compress
@@ -48,7 +46,7 @@ def simulate_1day(results):
     """
     # we are assigning here to the robot the information model
     # FIXME: this might be more tricky later
-    results["robot"].im = results["estimator-code"]
+    results["robot"].im = results["estimator-CODE"]
     results["scores"] = []
     results["observations"] = []
     results["positions"] = []
@@ -69,14 +67,14 @@ def simulate_timestep_1robot(results, timestep):
     results["positions"].append(position)
     obs = results["wbfe"].get_observation(position)
     results["observations"].append(obs)
-    results["estimator-code"].add_observation(obs)
+    results["estimator-CODE"].add_observation(obs)
     results["robot"].add_observation(obs)
     results["time-track"].policy_finish(results)
     # update the im and the score at every im_resolution steps and at the last iteration
     results["im_resolution_count"] += 1
     if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-        results["estimator-code"].proceed(results["im_resolution"])
-        results["score"] = results["score-code"].score(results["wbfe"], results["estimator-code"])
+        results["estimator-CODE"].proceed(results["im_resolution"])
+        results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
         for i in range(results["im_resolution_count"]):
             results["scores"].append(results["score"])
         results["im_resolution_count"] = 0
@@ -94,7 +92,7 @@ def simulate_1day_multirobot(results):
     # we are assigning here to all the robots the information model
     # FIXME: this might be more tricky later
     for robot in results["robots"]:
-        robot.im = results["estimator-code"]
+        robot.im = results["estimator-CODE"]
     
     # positions, observations and scores are all list of lists
     # first index: time, second index: robot
@@ -132,7 +130,7 @@ def simulate_timestep_multirobot(results, timestep):
         robot.proceed(1)
         position = [int(robot.x), int(robot.y), timestep]
         obs = results["wbfe"].get_observation(position)
-        results["estimator-code"].add_observation(obs)
+        results["estimator-CODE"].add_observation(obs)
         robot.add_observation(obs)
         positions.append(position)
         observations.append(obs)
@@ -144,8 +142,8 @@ def simulate_timestep_multirobot(results, timestep):
     # update the im and the score at every im_resolution steps and at the last iteration
     results["im_resolution_count"] += 1
     if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-        results["estimator-code"].proceed(results["im_resolution"])
-        results["score"] = results["score-code"].score(results["wbfe"], results["estimator-code"])
+        results["estimator-CODE"].proceed(results["im_resolution"])
+        results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
         for i in range(results["im_resolution_count"]):
             results["scores"].append(results["score"])
         results["im_resolution_count"] = 0
@@ -153,3 +151,18 @@ def simulate_timestep_multirobot(results, timestep):
         results["hook-after-day"](results)
     results["time-track"].current(timestep, results)
 
+def save_simulation_results(resultsfile, results):
+    """Saves the results of the simulation to a compressed pickle
+    file. 
+    To allow for the loading under every circumstances, it removes 
+    all fields that are named "xxx-code"
+    Things such as the estimator, which would require more stuff for this, will be named for the time being estimator-CODE
+    """
+
+    results_nc = {}
+    for a in results:
+        if not a.endswith("-code"):
+            results_nc[a]=results[a]
+    print(f"Saving results to: {resultsfile}")
+    with compress.open(resultsfile, "wb") as f:
+        pickle.dump(results_nc, f)    

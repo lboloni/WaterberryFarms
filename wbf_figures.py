@@ -208,7 +208,7 @@ def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None
     """
     #print(results)
     wbfe = results["wbfe"]
-    wbfim = results["estimator-code"]
+    wbfim = results["estimator-CODE"]
 
     if ground_truth == "est+gt": # estimate and ground truth inline
         if plot_uncertainty:
@@ -236,7 +236,7 @@ def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None
         raise f"Ground truth value {ground_truth} not understood"
 
     if title is None:
-        fig.suptitle(f"{results['policy-code'].name}-{results['estimator-code'].name}", fontsize=16)
+        fig.suptitle(f"{results['policy-name']}-{results['estimator-name']}", fontsize=16)
     elif title != "":
         fig.suptitle(title, fontsize=16)
 
@@ -273,7 +273,7 @@ def end_of_day_scores(results, graphfilename = "EndOfDayGraph.pdf", title = None
     """
     #print(results)
     wbfe = results["wbfe"]
-    wbfim = results["estimator-code"]
+    wbfim = results["estimator-CODE"]
     scores = WBF_MultiScore.score_components()
     fig, axes = plt.subplots(1, len(scores), figsize=(3*len(scores),3))
     for i, scorename in enumerate(scores):
@@ -285,7 +285,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     """Hook for after day which generates the pictures of the graphs, for instance, for a movie. This works for the single robot setting."""
 
     wbfe, wbf = results["wbfe"], results["wbf"]
-    wbfim = results["estimator-code"]
+    wbfim = results["estimator-CODE"]
     path = results["results-path"]
     pnew = pathlib.Path(path.parent, "dir_" + path.name[4:])
     pnew.mkdir(exist_ok = True)
@@ -382,8 +382,8 @@ def graph_gt_and_results(allresults, labels, metric="tylcv", horizontal=False):
     firstax[0].axis('off')
     firstax[2].axis('off')
 
-    # graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator-code"], ax_env_tylcv=axes[0][1])
-    graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator-code"], **{f"ax_env_{metric}":firstax[1]})
+    # graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator-CODE"], ax_env_tylcv=axes[0][1])
+    graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator-CODE"], **{f"ax_env_{metric}":firstax[1]})
     axes[1][0].set_title(f"Ground truth {metric}")
     filename = f"gt-{metric}-"
     for i, label in enumerate(labels):        
@@ -398,10 +398,10 @@ def graph_gt_and_results(allresults, labels, metric="tylcv", horizontal=False):
         empty = np.ones_like(vars(results["wbfe"])[metric].value.T)
         image_env = axrow[0].imshow(empty, vmin=0, vmax=1, origin="lower", cmap="gray")    
         add_robot_path(results, axrow[0], draw_robot = False)
-        # graph_env_im(results["wbfe"], results["estimator-code"], ax_im_tylcv=axrow[1])
-        graph_env_im(results["wbfe"], results["estimator-code"], **{f"ax_im_{metric}" : axrow[1]})
-        # graph_env_im(results["wbfe"], results["estimator-code"], ax_unc_tylcv = axrow[2], cmap=uncmap)
-        graph_env_im(results["wbfe"], results["estimator-code"], cmap=uncmap, **{f"ax_unc_{metric}": axrow[2]})
+        # graph_env_im(results["wbfe"], results["estimator-CODE"], ax_im_tylcv=axrow[1])
+        graph_env_im(results["wbfe"], results["estimator-CODE"], **{f"ax_im_{metric}" : axrow[1]})
+        # graph_env_im(results["wbfe"], results["estimator-CODE"], ax_unc_tylcv = axrow[2], cmap=uncmap)
+        graph_env_im(results["wbfe"], results["estimator-CODE"], cmap=uncmap, **{f"ax_unc_{metric}": axrow[2]})
         axrow[0].set_title(f"{label} path")
         axrow[1].set_title(f"{label} estimate")
         axrow[2].set_title(f"{label} uncertainty")
