@@ -406,6 +406,18 @@ def load_all_results(directory, prefix = "res_Miniberry-30_1M_"):
 #
 # *********************************************************
 
+
+def show_empty(results, ax, title_string = "{label}"):
+    """Create an empty graph of the appropriate size, 
+    used for future drawing, eg. paths, plans or detections"""
+    wbfe = results["wbfe"]
+    empty = np.ones_like(wbfe.tylcv.value.T)
+    image = ax.imshow(empty, vmin=0, vmax=1, origin="lower", cmap="gray")    
+    label = "Robot path."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
 def show_env_tylcv(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the environment for tylcv"""
     wbfe = results["wbfe"]
