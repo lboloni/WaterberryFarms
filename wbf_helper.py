@@ -14,6 +14,7 @@ from path_generators import find_fixed_budget_lawnmower
 import gzip as compress
 import pickle
 import pathlib
+import imageio.v2 as imageio
 
 
 def create_wbf(exp):
@@ -142,3 +143,40 @@ def create_score(exp_score, exp_env):
         score.name = exp_score["score-name"]
         return score
     raise Exception(f"Unsupported score type {exp_score['score-code']}")
+
+def create_wbfe_custom(exp_env):
+    """Creates a custom WBFE for the TYLCV. It creates the specified png file
+    if it does not exist. Use some image editor, such as GIMP to edit the 
+    values. 
+    FIXME: extend to the CCR and soil fields. This is experimental stuff. 
+    """
+    wbf, wbfe = create_wbfe(exp_env)
+    # we have to proceed on it, but it doesn't matter how much
+    #wbfe.proceed(exp["time-start-environment"])
+    wbfe.proceed(1)
+    # check if there is a custom field in the environment
+    if "custom-tylcv" in exp_env:
+        exp_filename = exp_env["exp_run_sys_indep_file"]
+        exp_path = pathlib.Path(exp_filename).parent
+        custom_env_file = pathlib.Path(exp_path, exp_env["custom-tylcv"])
+        if custom_env_file.exists():
+            print(f"loading from {custom_env_file}")
+            loaded_array = imageio.imread(custom_env_file)
+            print(loaded_array)
+            if loaded_array.ndim == 3:
+                one_channel = loaded_array[:, :, 0]  # 0=Red, 1=Green, 2=Blue
+            else:
+                one_channel = loaded_array  # already grayscale
+            # overwrite the field
+            wbfe.tylcv.value = one_channel
+            # changes the environment to all tomato
+            wbf.patches = []
+            area = [[0,0], [wbfe.width,0], [wbfe.width, wbfe.height], [0, wbfe.height]]
+            wbf.add_patch("all-tylcv", type="tomato", area = area, color="blue")
+        else:
+            print(f"custom env. file {custom_env_file} does not exist.")
+            
+            plt.imsave(custom_env_file, wbfe.tylcv.value, cmap='gray')
+    else:
+        print("this environment is not really custom")
+    return wbf, wbfe
