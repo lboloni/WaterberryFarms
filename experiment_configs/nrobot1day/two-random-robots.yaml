@@ -5,7 +5,7 @@ exp_environment: "miniberry-30"
 exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
 
-timesteps-per-day: 50
+timesteps-per-day: 500
 
 robots:
   - name: "robot-1"

@@ -40,23 +40,8 @@ import matplotlib.lines as lines
 logging.basicConfig(level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
-def graph_robot_path_day_old(results, day, ax):
-    """
-    Used to visualize the path of robot based on references? 
-    FIXME: It does not seem to be used 
-    """
-    # FIXME: what about the positions?
-    wbfe = results["wbfe"]
-    empty = np.ones_like(wbfe.tylcv.value.T)
-    image_env_tylcv = ax.imshow(empty, vmin=0, vmax=1, origin="lower", cmap="gray")    
-    ax.set_title("Robot path")
-    obsx = []
-    obsy = []
-    for obs in results["observations-days"][day]:
-        obsx.append(obs[StoredObservationIM.X])
-        obsy.append(obs[StoredObservationIM.Y])
-        old_obs = obs
-    ax.add_line(lines.Line2D(obsx, obsy, color="red"))
+ROBOT_COLORS = ["red", "blue", "green", "orange", "pink"]
+
 
 def graph_scores_per_day(results, ax):
     """Plot the scores on a one-a-day basis in the results of a multi-day experiment"""
@@ -90,6 +75,7 @@ def graph_scores(results, ax, label = None):
 #  From here: code for plotting the results
 #
 #
+
 
 def graph_env_im(wbfe, wbfim, title_string = "{label}", ax_env_tylcv = None, ax_im_tylcv = None, ax_env_ccr = None, ax_im_ccr = None, ax_env_soil = None, ax_im_soil = None, ax_unc_tylcv = None, ax_unc_ccr = None, ax_unc_soil = None, cmap="gray"):
     """A generic function for plotting environments and their approximations into specific ax values. If an ax value is None, it will not plot."""
@@ -157,49 +143,6 @@ def graph_env_im(wbfe, wbfim, title_string = "{label}", ax_env_tylcv = None, ax_
         ax_unc_soil.set_title(eval(evalstring))
 
 
-def add_robot_path(results, ax, draw_it = True, pathcolor="blue", 
-                   pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1, robot_number = -1):
-    """
-    Adds the path of a robot or robots to the figure, based on the observations.
-    If robot_number is -1, means all the robots.
-    """
-    if not draw_it:
-        return
-    
-    if robot_number == -1: # all robots
-        if "robots" not in results: # single robot
-            observations = results["observations"]
-            robot = results["robot"]
-            add_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
-        else: # paint all robots
-            colors = ["red", "blue", "green", "orange", "pink"]
-            for i, robot in enumerate(results["robots"]):
-                color = colors[i % len(results["robots"])]
-                observations = [o[i] for o in results["observations"]]
-                add_individual_robot_path(results, ax, robot, observations, pathcolor = color, pathwidth = pathwidth, robotcolor = color, draw_robot=draw_robot, from_obs=from_obs, to_obs = to_obs)                             
-    else: # we assume there are multiple robots and we want one
-        observations = [o[robot_number] for o in results["observations"]]
-        robot = results["robots"][robot_number]
-        add_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
-
-def add_individual_robot_path(results, ax, robot, observations, 
-                              pathcolor="blue", pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1):
-    """Adds the path of an individual robot. Normally called from 
-    add_robot_path"""
-    obsx = []
-    obsy = []
-    if from_obs == -1:
-        from_obs = 0
-    if to_obs == -1:
-        to_obs = len(observations)
-    obses = observations[from_obs:to_obs]
-    for obs in obses:
-        obsx.append(obs[StoredObservationIM.X])
-        obsy.append(obs[StoredObservationIM.Y])
-    ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor, linewidth=pathwidth))
-    if draw_robot:
-        ax.add_patch(patches.Circle((robot.x, robot.y), radius=1, facecolor=robotcolor))
-
 
 def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None, plot_uncertainty = True, ground_truth = "est+gt", score = None):
     """From the results of a 1 day experiment, create a figure that shows the
@@ -245,7 +188,7 @@ def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None
         empty = np.ones_like(wbfe.tylcv.value.T)
         image_env_tylcv = ax_robot_path.imshow(empty, vmin=0, vmax=1, origin="lower", cmap="gray")    
         ax_robot_path.set_title("Robot path")
-        add_robot_path(results, ax_robot_path, draw_robot = False)
+        show_robot_path(results, ax_robot_path, draw_robot = False)
         graph_scores(results, ax_scores, score)
 
     if ground_truth == "est+gt": # estimate and ground truth inline
@@ -295,7 +238,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # tyclv-im-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_im_tylcv=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"tylcv-im-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -303,7 +246,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # ccr-im-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_im_ccr=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"ccr-im-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -311,7 +254,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # soil-im-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_im_soil=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"soil-im-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -319,7 +262,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # tyclv-unc-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_unc_tylcv=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"tylcv-unc-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -327,7 +270,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # ccr-unc-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_unc_ccr=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"ccr-unc-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -335,7 +278,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # soil-unc-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_unc_soil=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"soil-unc-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -343,7 +286,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # tyclv-env-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_env_tylcv=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"tylcv-env-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -351,7 +294,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # ccr-env-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_env_ccr=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"ccr-env-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -359,7 +302,7 @@ def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
     # soil-env-robot
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     graph_env_im(wbfe, wbfim, ax_env_soil=ax)
-    add_robot_path(results, ax, draw_it = draw_robot_path)
+    show_robot_path(results, ax, draw_it = draw_robot_path)
     picname = f"soil-env-robot-{len(results['observations']):05d}.jpg"
     plt.savefig(pathlib.Path(results["results-basedir"], pathlib.Path(pnew, picname)))
     plt.close(fig)
@@ -397,7 +340,7 @@ def graph_gt_and_results(allresults, labels, metric="tylcv", horizontal=False):
         # empty = np.ones_like(results["wbfe"].tylcv.value.T)
         empty = np.ones_like(vars(results["wbfe"])[metric].value.T)
         image_env = axrow[0].imshow(empty, vmin=0, vmax=1, origin="lower", cmap="gray")    
-        add_robot_path(results, axrow[0], draw_robot = False)
+        show_robot_path(results, axrow[0], draw_robot = False)
         # graph_env_im(results["wbfe"], results["estimator-CODE"], ax_im_tylcv=axrow[1])
         graph_env_im(results["wbfe"], results["estimator-CODE"], **{f"ax_im_{metric}" : axrow[1]})
         # graph_env_im(results["wbfe"], results["estimator-CODE"], ax_unc_tylcv = axrow[2], cmap=uncmap)
@@ -456,3 +399,100 @@ def load_all_results(directory, prefix = "res_Miniberry-30_1M_"):
             allresults[label] = results
     return allresults
 
+# *********************************************************
+# 
+#  From here: a new set of functions, operating on results
+#  and hopefully easier to use
+#
+# *********************************************************
+
+def show_env_tylcv(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the environment for tylcv"""
+    wbfe = results["wbfe"]
+    image = ax.imshow(wbfe.tylcv.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "TYLCV Env."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_im_tylcv(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the information model for tylcv"""
+    wbfim = results["estimator-CODE"]
+    image = ax.imshow(wbfim.im_tylcv.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "TYLCV IM."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_unc_tylcv(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the uncertainty of the information model for tylcv"""
+    wbfim = results["estimator-CODE"]
+    image = ax.imshow(wbfim.im_tylcv.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "TYLCV Uncertainty"
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_detections(results, ax, field = "TYLCV", detection_color="Blue"):
+    """Shows the detections for all robots"""
+    if "robots" not in results: # single robot
+        show_detections_individual_robot(results, ax, -1, field, detection_color=detection_color)
+    else: # multiple robots
+        for i, robot in enumerate(results["robots"]):
+            color = ROBOT_COLORS[i % len(results["robots"])]
+            show_detections_individual_robot(results, ax, robotno=i, field=field, detection_color=color)
+
+def show_detections_individual_robot(results, ax, robotno=1, field = "TYLCV", detection_color="Blue"):
+    """Shows the detections for one specific robot. 
+    """
+    if robotno == -1:
+        obs = np.array(results["observations"])[:]
+    else:
+        obs = np.array(results["observations"])[:, robotno]
+    detections = [[a[StoredObservationIM.X], a[StoredObservationIM.Y]] for a in obs if a[field][StoredObservationIM.VALUE] == 0.0]
+     
+    for point in detections:
+        ax.add_patch(matplotlib.patches.Circle((point[0], point[1]), radius=0.5, facecolor=detection_color))
+
+
+def show_robot_path(results, ax, draw_it = True, pathcolor="blue", 
+                   pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1, robot_number = -1):
+    """
+    Adds the path of a robot or robots to the figure, based on the observations.
+    If robot_number is -1, means all the robots.
+    """
+    if not draw_it:
+        return
+    
+    if robot_number == -1: # all robots
+        if "robots" not in results: # single robot
+            observations = results["observations"]
+            robot = results["robot"]
+            show_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
+        else: # paint all robots
+            for i, robot in enumerate(results["robots"]):
+                color = ROBOT_COLORS[i % len(results["robots"])]
+                observations = [o[i] for o in results["observations"]]
+                show_individual_robot_path(results, ax, robot, observations, pathcolor = color, pathwidth = pathwidth, robotcolor = color, draw_robot=draw_robot, from_obs=from_obs, to_obs = to_obs)                             
+    else: # we assume there are multiple robots and we want one
+        observations = [o[robot_number] for o in results["observations"]]
+        robot = results["robots"][robot_number]
+        show_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
+
+def show_individual_robot_path(results, ax, robot, observations, 
+                              pathcolor="blue", pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1):
+    """Adds the path of an individual robot. Normally called from 
+    add_robot_path"""
+    obsx = []
+    obsy = []
+    if from_obs == -1:
+        from_obs = 0
+    if to_obs == -1:
+        to_obs = len(observations)
+    obses = observations[from_obs:to_obs]
+    for obs in obses:
+        obsx.append(obs[StoredObservationIM.X])
+        obsy.append(obs[StoredObservationIM.Y])
+    ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor, linewidth=pathwidth))
+    if draw_robot:
+        ax.add_patch(patches.Circle((robot.x, robot.y), radius=1, facecolor=robotcolor))
