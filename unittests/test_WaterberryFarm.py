@@ -11,7 +11,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from WaterberryFarm import WaterberryFarm
+from water_berry_farm import WaterberryFarm
 
 import logging
 # logging.basicConfig(level=logging.WARNING)

@@ -1,4 +1,4 @@
-import LoggingSetup
+import wbf_logging
 import logging
 
 import itertools

@@ -10,7 +10,7 @@ from robot import Robot
 from policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
     AbstractWaypointPolicy
 from path_generators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
-from WaterberryFarm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
+from water_berry_farm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
 
 import numpy as np
 import pathlib
@@ -429,6 +429,60 @@ def show_unc_tylcv(results, ax, title_string = "{label}", cmap="gray"):
     wbfim = results["estimator-CODE"]
     image = ax.imshow(wbfim.im_tylcv.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "TYLCV Uncertainty"
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_env_ccr(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the environment for ccr"""
+    wbfe = results["wbfe"]
+    image = ax.imshow(wbfe.ccr.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "CCR Env."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_im_ccr(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the information model for ccr"""
+    wbfim = results["estimator-CODE"]
+    image = ax.imshow(wbfim.im_ccr.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "CCR IM."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_unc_ccr(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the uncertainty of the information model for ccr"""
+    wbfim = results["estimator-CODE"]
+    image = ax.imshow(wbfim.im_ccr.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "CCR Uncertainty"
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_env_soil(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the environment for soil"""
+    wbfe = results["wbfe"]
+    image = ax.imshow(wbfe.soil.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "Soil Env."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_im_soil(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the information model for ccr"""
+    wbfim = results["estimator-CODE"]
+    image = ax.imshow(wbfim.im_soil.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "Soil IM."
+    evalstring = f"f'{title_string}'"
+    ax.set_title(eval(evalstring))
+    return image
+
+def show_unc_soil(results, ax, title_string = "{label}", cmap="gray"):
+    """visualize the uncertainty of the information model for ccr"""
+    wbfim = results["estimator-CODE"]
+    image = ax.imshow(wbfim.im_soil.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
+    label = "Soil Uncertainty"
     evalstring = f"f'{title_string}'"
     ax.set_title(eval(evalstring))
     return image
