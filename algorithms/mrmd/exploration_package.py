@@ -1,8 +1,7 @@
 """
 exploration_package.py
 
-Classes of the MultiResolutionMultiRobot paper that discuss frameworks
-that explore certain areas.
+Classes of the MultiResolutionMultiRobot paper that implement exploration packages, decisions to explore certain areas.
 
 """
 
@@ -20,6 +19,10 @@ class ExplorationPackage:
         self.step = step
         self.path = None
         
+    def __repr__(self):
+        retval = f"ExplorationPackage x=[{self.x_min},{self.x_max}] " +         f"y=[{self.y_min}, {self.y_max}] step={self.step}"
+        return retval
+
     def lawnmower_horizontal_bottom_left(self, shift=[0,0]):
         """Generates a horizontal lawnmower path, that starts at the bottom left, which is at x_min, y_min, and proceeds in the direction of higher y"""
         current = [self.x_min, self.y_min]
