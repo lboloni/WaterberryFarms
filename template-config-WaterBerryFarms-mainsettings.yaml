@@ -1,0 +1,5 @@
+# This is a sample of the main settings file. 
+# It should go into HOMEDIR/.config/WaterBerryFarms/mainsettings.yaml
+# Change the path here to run different configurations on different machines. 
+configpath: "\a\b\settings\settings-WaterBerryFarms-MachineName.yaml"
+
