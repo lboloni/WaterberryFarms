@@ -1,0 +1,4 @@
+# A custom environment of Miniberry-100 size, used in the MRMR paper
+typename: "Miniberry-100"
+precompute-time: 10
+"custom-tylcv": "custom-tylcv-mrmr.png"
