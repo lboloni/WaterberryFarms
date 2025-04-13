@@ -12,7 +12,8 @@ exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
 
 timesteps-per-day: 500
-time-start-environment: 6
+time-start-environment: 25
+
 
 robots:
   - name: "robot-1"

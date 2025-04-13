@@ -499,16 +499,16 @@ def show_unc_soil(results, ax, title_string = "{label}", cmap="gray"):
     ax.set_title(eval(evalstring))
     return image
 
-def show_detections(results, ax, field = "TYLCV", detection_color="Blue"):
+def show_detections(results, ax, field = "TYLCV", detection_color="Blue", radius=0.5):
     """Shows the detections for all robots"""
     if "robots" not in results: # single robot
-        show_detections_individual_robot(results, ax, -1, field, detection_color=detection_color)
+        show_detections_individual_robot(results, ax, -1, field, detection_color=detection_color, radius=radius)
     else: # multiple robots
         for i, robot in enumerate(results["robots"]):
             color = ROBOT_COLORS[i % len(results["robots"])]
-            show_detections_individual_robot(results, ax, robotno=i, field=field, detection_color=color)
+            show_detections_individual_robot(results, ax, robotno=i, field=field, detection_color=color, radius=radius)
 
-def show_detections_individual_robot(results, ax, robotno=1, field = "TYLCV", detection_color="Blue"):
+def show_detections_individual_robot(results, ax, robotno=1, field = "TYLCV", detection_color="Blue", radius=0.5):
     """Shows the detections for one specific robot. 
     """
     if robotno == -1:
@@ -518,7 +518,7 @@ def show_detections_individual_robot(results, ax, robotno=1, field = "TYLCV", de
     detections = [[a[StoredObservationIM.X], a[StoredObservationIM.Y]] for a in obs if a[field][StoredObservationIM.VALUE] == 0.0]
      
     for point in detections:
-        ax.add_patch(matplotlib.patches.Circle((point[0], point[1]), radius=0.5, facecolor=detection_color))
+        ax.add_patch(matplotlib.patches.Circle((point[0], point[1]), radius=radius, facecolor=detection_color))
 
 
 def show_robot_path(results, ax, draw_it = True, pathcolor="blue", 
