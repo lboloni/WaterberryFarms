@@ -2,17 +2,20 @@
 # FIXME: we will need to change the environment to a custom one with more 
 # stuff to pick
 # exp_environment: "miniberry-100-custom-mrmr"
+name: "3 random waypoint"
+
 exp_environment: "miniberry-100"
 exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
 
 timesteps-per-day: 500
+time-start-environment: 6
 
 robots:
   - name: "robot-1"
     exp-policy: "random-waypoint"
   - name: "robot-2"
     exp-policy: "random-waypoint-seed10"
-  - name: "robot-2"
+  - name: "robot-3"
     exp-policy: "random-waypoint-seed20"
   
