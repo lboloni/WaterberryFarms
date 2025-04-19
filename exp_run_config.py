@@ -1,11 +1,13 @@
 """
-This file contains settings for the WBF project. These can be considered as constants for a particular run, but they might have different values on different computers or setups.
+This file implements the Experiment / Run / Subrun framework. 
+
+These can be considered as constants for a particular run, but they might have different values on different computers or setups.
 
 They should be accessed through Config().values["value"]
 
 A configuration system that allows porting between different machines and the use of multiple configuration files. 
 
-It starts by loading a file from ~/.config/WaterBerryFarms/mainsettings.yaml" 
+It starts by loading a file from ~/.config/<<ProjectName>>>/mainsettings.yaml" 
 from where the "configpath" property points to the path of the 
 actual configuration file. 
 
@@ -20,9 +22,9 @@ Config()["group"]["value"]
 
 import yaml
 import pathlib
+import shutil
 from datetime import datetime
 
-# PROJECTNAME = "WaterBerryFarms"
 
 class Experiment:
     """A class encapsulating an experiment"""
@@ -54,7 +56,18 @@ class Experiment:
 
     def clean(self):
         """Programatically clean up an experiment to allow new run"""
-        raise Exception("Experiment.clean not implemented yet")
+        d = self.data_dir()
+        if not d.exists():
+            print(f"The experiment directory\n\t{d}\n\tdoes not exist.")
+            return
+        response = input("Cleaning the experiment will remove the directory: \n\{d}\n Confirm (y/n): ").strip().lower()
+        if response == 'y':
+            d = self.data_dir()
+            shutil.rmtree(d)
+            d.mkdir(exist_ok=False)
+        elif response == 'n':
+            print(f"You chose NOT to delete the experiment directory\n\t{d}")
+            return
 
     def save(self):
         with open(pathlib.Path(self.data_dir(), "exprun.yaml"), "w") as f:
@@ -67,7 +80,15 @@ class Experiment:
     def get_time_started(self):
         parsed = datetime.strptime(self.values[Config.TIME_STARTED], Config.TIME_FORMAT)
         return parsed
-    
+
+    def start_timer(self, timer_name="default"):
+        now = datetime.now()
+        self.values["timer-" + timer_name + "-start"] = now.strftime(Config.TIME_FORMAT)
+
+    def end_timer(self, timer_name="default"):
+        now = datetime.now()
+        self.values["timer-" + timer_name + "-end"] = now.strftime(Config.TIME_FORMAT)
+
     def done(self):
         """Sets the time done variable, and saves"""
         now = datetime.now()
@@ -148,6 +169,8 @@ class Config:
     def list_subruns(self, exp_name, run_name):
         """List the done subruns in the experiment. """
         data_dir = pathlib.Path(self.values["experiment_data"], exp_name, run_name)
+        if not data_dir.exists():
+            return []
         subdirs = [p.name for p in data_dir.iterdir() if p.is_dir()]
         return subdirs
 
