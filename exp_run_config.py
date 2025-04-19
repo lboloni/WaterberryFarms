@@ -120,6 +120,37 @@ class Config:
         print(Config.PREFIX, end="")
         print(pattern, flush=True)
 
+    def list_experiments(self):
+        """List the experiment directories as strings that are present 
+        in the current locations."""
+        current_directory = pathlib.Path(__file__).resolve().parent    
+        experiments = pathlib.Path(current_directory, "experiment_configs")
+        subdirs = [p.name for p in experiments.iterdir() if p.is_dir()]
+        return subdirs
+
+    def list_runs(self, exp_name, done_only=False):
+        """List the runs present in the experiment. By default, this is listing the experiment files, not the executed directories. 
+        FIXME: add functionality to list the done ones. 
+        """
+        if not done_only:
+            current_directory = pathlib.Path(__file__).resolve().parent    
+            runs = pathlib.Path(current_directory, "experiment_configs", exp_name)
+            if not runs.exists():
+                raise Exception("No experiment named {exp_name} in the current context")
+            runs = [p.stem for p in runs.iterdir() if p.is_file() and p.suffix == ".yaml"]
+            return runs
+        # if we are specifying done_only, we are listing them from the 
+        # data directory
+        data_dir = pathlib.Path(self.values["experiment_data"], exp_name)
+        subdirs = [p.name for p in data_dir.iterdir() if p.is_dir()]
+        return subdirs
+
+    def list_subruns(self, exp_name, run_name):
+        """List the done subruns in the experiment. """
+        data_dir = pathlib.Path(self.values["experiment_data"], exp_name, run_name)
+        subdirs = [p.name for p in data_dir.iterdir() if p.is_dir()]
+        return subdirs
+
     def get_experiment(self, experiment_name, run_name, subrun_name=None):
         """Returns an experiment configuration, which is the 
         mixture between the system-dependent configuration and the system independent configuration."""
