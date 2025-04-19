@@ -21,27 +21,49 @@ Config()["group"]["value"]
 import yaml
 from pathlib import Path
 
-PROJECTNAME = "WaterBerryFarms"
+# PROJECTNAME = "WaterBerryFarms"
+
+
+class Experiment:
+    """A class encapsulating an experiment"""
+    def __init__(self, values):
+        self.values = values
+
+    def __getitem__(self, key):
+        return self.values[key]
+    
+    def __repr__(self):
+        """FIXME: print the experiment out in a readable way"""
+        return "Experiment: {self.values}"
+    
+    def clean(self):
+        """Programatically clean up an experiment to allow new run"""
+        raise Exception("Experiment.clean not implemented yet")
 
 class Config:
     """The overall settings class. """
     _instance = None  # Class-level attribute to store the instance
 
+    PREFIX = "** ExpRun ** : "
+    PROJECTNAME = None
+
     def __new__(cls, *args, **kwargs):
+        if Config.PROJECTNAME is None:
+            Config.__log(f"Config.PROJECTNAME not set, assign it before using the exp/run framework")
         if not cls._instance:
             cls._instance = super(Config, cls).__new__(cls)
             home_directory = Path.home()
-            main_config = Path(home_directory, ".config", PROJECTNAME,"mainsettings.yaml")
-            print(f"Loading pointer config file: {main_config}")
+            main_config = Path(home_directory, ".config", Config.PROJECTNAME, "mainsettings.yaml")
+            Config.__log(f"Loading pointer config file:\n\t {main_config}")
             if not main_config.exists():
                 raise Exception(f"Missing pointer config file: {main_config}")
             with main_config.open("rt") as handle:
                 main_config = yaml.safe_load(handle)
             configpath = main_config["configpath"]
-            print(f"Loading machine-specific config file: {configpath}", flush=True)
+            Config.__log(f"Loading machine-specific config file: {configpath}")
             configpath = Path(configpath)
             if not configpath.exists():
-                raise Exception(f"Missing machine-specific config file: {configpath}")
+                raise Exception(f"Missing machine-specific config file:\n\t {configpath}")
             with configpath.open("rt") as handle:
                 cls._instance.values = yaml.safe_load(handle)
             cls._instance.values["configpath"] = configpath
@@ -51,7 +73,13 @@ class Config:
     def __getitem__(self, key):
         return self.values[key]
     
-    def get_experiment(self, group_name, run_name):
+    @staticmethod
+    def __log(pattern):
+        """Print exprun messages in a distinguishable form"""
+        print(Config.PREFIX, end="")
+        print(pattern, flush=True)
+
+    def get_experiment(self, group_name, run_name, subrun_name=None):
         """Returns an experiment configuration, which is the 
         mixture between the system-dependent configuration and the system independent configuration."""
         current_directory = Path(__file__).resolve().parent
@@ -93,12 +121,10 @@ class Config:
         #
         # Load the system dependent run configuration
         #
-
         if "experiment_system_dependent_dir" not in self.values:            
             print(f"The key 'experiment_system_dependent_dir' must be present in the configuration. \nThis is the parent directory from where system dependent part of the experiment configurations must go.")
             print(f"An appropriate place to specify this is the system dependent config file, \n in this case: {self['configpath']}")
             raise Exception("Missing experiment_system_dependent_dir specification")
-
 
         experiment_directory = Path(self.values["experiment_system_dependent_dir"])
         experiment_sys_dep = Path(experiment_directory, group_name, run_name + "_sysdep.yaml")
@@ -113,4 +139,4 @@ class Config:
 
         print(f"Configuration for experiment: {group_name}/{run_name} successfully loaded", flush=True)
 
-        return exp_config
+        return Experiment(exp_config)
