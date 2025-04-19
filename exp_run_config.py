@@ -27,7 +27,8 @@ from datetime import datetime
 
 
 class Experiment:
-    """A class encapsulating an experiment"""
+    """A class encapsulating an experiment. It is a dict-like interface, with additional functionality for mandatory fields like data_dir, and support for saving to the data_dir and timers."""
+    
     def __init__(self, values):
         self.values = values
 
@@ -37,6 +38,9 @@ class Experiment:
     def __setitem__(self, key, value):
         self.values[key] = value
         self.save()
+
+    def __contains__(self, key):
+        return key in self.values
 
     def __repr__(self):
         """FIXME: print the experiment out in a readable way"""

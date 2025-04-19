@@ -8,12 +8,19 @@ Functions helping to run experiments with the Waterberry Farms benchmark.
 import logging
 import pickle
 import time
+import pathlib
 import gzip as compress
 
 #import bz2 as compress
 # import gzip as compress
 
 from policy import AbstractCommunicateAndFollowPath
+from exp_run_config import Config
+Config.PROJECTNAME = "WaterBerryFarms"
+from pprint import pprint
+import gzip as compress
+from wbf_helper import get_geometry, create_wbfe, create_policy, create_estimator, create_score
+from robot import Robot
 
 # logging.basicConfig(level=logging.WARNING)
 logging.basicConfig(level=logging.INFO)
@@ -166,3 +173,86 @@ def save_simulation_results(resultsfile, results):
     print(f"Saving results to: {resultsfile}")
     with compress.open(resultsfile, "wb") as f:
         pickle.dump(results_nc, f)    
+
+def run_1robot1day(exp):
+    """Take an experiment of type 1robot1day, set up the results
+    based on the description in it, which includes the policy description. 
+    Then runs simulate1day, and saves it to the experiment. """
+
+    resultsfile = pathlib.Path(exp.data_dir(), "results.pickle")
+    if resultsfile.exists():
+        print(f"Results file already exists:\n{resultsfile}")
+        print(f"Delete this file if re-running is desired.")
+        # raise Exception("Nothing to do.")
+        return
+
+    # the exp for the environment
+    exp_env = Config().get_experiment("environment", exp["exp_environment"])
+    pprint(exp_env)
+    results = {}
+
+    #
+    # Setting the policy based on the exp for policy
+    #
+    exp_policy = Config().get_experiment("policy", exp["exp_policy"])
+    pprint(exp_policy)
+    if exp_policy["policy-code"] == "-":
+        # the policy is created through a policy generator that is evaluated
+        # this is for new code models
+        generator = exp_policy["policy-code-generator"]        
+        policy = eval(generator)(exp_policy, exp_env)
+    else:
+        policy = create_policy(exp_policy, exp_env)
+    results["policy-code"] = policy
+    results["policy-name"] = results["policy-code"].name
+    #
+    # End of setting the policy
+    #
+
+    #
+    # Setting the estimator code based on the exp for estimator
+    #
+    exp_estimator = Config().get_experiment("estimator", exp["exp_estimator"])
+    pprint(exp_estimator)
+    results["estimator-CODE"] = create_estimator(exp_estimator, exp_env)
+    results["estimator-name"] = results["estimator-CODE"].name
+    #
+    # End of setting the estimator
+    #
+
+    #
+    # Setting the score code based on the exp for the score
+    #
+    exp_score = Config().get_experiment("score", exp["exp_score"])
+    pprint(exp_score)
+    results["score-code"] = create_score(exp_score, exp_env)
+    results["score-name"] = results["score-code"].name
+    #
+    # End of setting the score 
+    #
+    results["velocity"] = exp["velocity"]
+    results["timesteps-per-day"] = exp["timesteps-per-day"]
+    results["time-start-environment"] = exp["time-start-environment"]
+    results["im_resolution"] = exp["im_resolution"]
+    results["results-basedir"] = exp["data_dir"]
+    results["action"] = "run-one-day"
+    results["typename"] = exp_env["typename"]
+    wbf, wbfe = create_wbfe(exp_env)
+    # move ahead to the starting point of the environment
+    wbfe.proceed(results["time-start-environment"])
+    results["wbf"] = wbf
+    results["wbfe"] = wbfe
+    results["days"] = 1
+    get_geometry(results["typename"], results)
+    # create the robot and set the policy
+    results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
+    results["robot"].assign_policy(results["policy-code"])
+    # 
+    # This is where we actually calling the simulation
+    #
+    simulate_1day(results)
+    #print(f"Saving results to: {resultsfile}")
+    #with compress.open(resultsfile, "wb") as f:
+    #    pickle.dump(results, f)
+    save_simulation_results(resultsfile, results)
+    exp.done()
