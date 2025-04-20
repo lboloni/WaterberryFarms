@@ -1,0 +1,3 @@
+# Implements the Pioneer agent in the MRMR paper
+policy-name: "MRMR-Pioneer"
+policy-code: "MRMR_Pioneer"

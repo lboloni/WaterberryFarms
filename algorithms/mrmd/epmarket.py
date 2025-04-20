@@ -133,3 +133,13 @@ class EPMarket:
                 bestbidderagent.won(epoff)
                 self.accepted_offers.append(epoff)
         self.pending_offers = []
+
+class EPM:
+    """A singleton class for a single market. Simplifies the implementation"""
+    _instance = None  # Class-level attribute to store the instance
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(EPM, cls).__new__(cls)
+            cls._instance.epm = EPMarket()
+        return cls._instance

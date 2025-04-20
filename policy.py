@@ -5,16 +5,11 @@ Implementation of the basic policy framework, and some fundamental policies.
 """
 
 import numpy as np
-# import ast
-# import math
-# import random
-# import itertools
 import logging
-import matplotlib.pyplot as plt
-from matplotlib.path import Path
-import matplotlib.patches as patches
-
-from robot import Robot
+#import matplotlib.pyplot as plt
+#from matplotlib.path import Path
+#import matplotlib.patches as patches
+#from robot import Robot
 
 class Policy:
     def __init__(self):

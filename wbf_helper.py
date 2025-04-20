@@ -7,15 +7,14 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess, WBF_Score_WeightedAsymmetric
 from policy import RandomWaypointPolicy, FollowPathPolicy
-
 from path_generators import find_fixed_budget_lawnmower
-
+from algorithms.mrmd.mrmr_policies import MRMR_Pioneer, MRMR_Contractor
 
 import gzip as compress
 import pickle
 import pathlib
 import imageio.v2 as imageio
-
+import matplotlib.pyplot as plt
 
 def create_wbf(exp):
     """Factory function for creating a WBF from an experiment 
@@ -117,7 +116,14 @@ def create_policy(exp_policy, exp_env):
         policy.name = exp_policy["policy-name"] 
         # "FixedBudgetLawnmower"
         return policy
-
+    #
+    # MRMR policies
+    #
+    if exp_policy["policy-code"] == "MRMR_Pioneer":
+        return MRMR_Pioneer(exp_policy, exp_env)
+    if exp_policy["policy-code"] == "MRMR_Contractor":
+        return MRMR_Contractor(exp_policy, exp_env)
+    
 
     raise Exception(f"Unsupported policy type {exp_policy['policy-code']}")
 
@@ -156,7 +162,7 @@ def create_wbfe_custom(exp_env):
     FIXME: extend to the CCR and soil fields. This is experimental stuff. 
     """
     wbf, wbfe = create_wbfe(exp_env)
-    # we have to proceed on it, but it doesn't matter how much
+    # we have to "proceed" on it, but it doesn't matter how much
     #wbfe.proceed(exp["time-start-environment"])
     wbfe.proceed(1)
     # check if there is a custom field in the environment

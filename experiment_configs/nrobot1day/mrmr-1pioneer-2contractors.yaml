@@ -1,0 +1,33 @@
+# Experiment for the MRMR paper: a lead robot placing experiments and two robots doing bidding and detection
+
+# FIXME: for the time being this is just a placeholder with the
+# 3 random ones, such that I can test the flow
+
+# stuff to pick
+# exp_environment: "miniberry-100-custom-mrmr"
+name: "1 pioneer 2 contractors"
+
+exp_environment: "miniberry-100"
+exp_estimator: "adaptive-disk"
+exp_score: "weighted_asymmetric"
+
+timesteps-per-day: 500
+time-start-environment: 25
+
+robots:
+  - name: "robot-pioneer"
+    exp-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "mrmr-pioneer"
+      policy-code: "MRMR_Pioneer"
+      # area: "[5, 5, 95, 95]" # [xmin, ymin, xmax, ymax]
+  - name: "robot-contr-1"
+    exp-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "mrmr-contractor-1"
+      policy-code: "MRMR_Contractor"
+  - name: "robot-contr-2"
+    exp-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "mrmr-contractor-2"
+      policy-code: "MRMR_Contractor"

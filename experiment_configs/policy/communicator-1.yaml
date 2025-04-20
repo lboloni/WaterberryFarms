@@ -1,4 +1,4 @@
-# Specifies the parameters of a random waypoint policy
+# Describes a local communicator policy (experimental)
 policy-name: "LocalCommunicator"
 policy-code: "-"
 policy-code-generator: "generateLocalCommunicator"
