@@ -107,7 +107,12 @@ def create_policy(exp_policy, exp_env):
         geo = get_geometry(exp_env["typename"])
         # FIXME: maybe here I can specify a percentage budget....
         budget = exp_policy["budget"]
-        path = find_fixed_budget_lawnmower([0,0], geo["xmin"], geo["xmax"], geo["ymin"], geo["ymax"], geo["velocity"], time = budget)
+        # check if the area was passed
+        if "area" in exp_policy:
+            corners = eval(exp_policy["area"]) # [xmin, ymin, xmax, ymax]
+            path = find_fixed_budget_lawnmower([0,0], corners[0], corners[2], corners[1], corners[3], geo["velocity"], time = budget)
+        else:
+            path = find_fixed_budget_lawnmower([0,0], geo["xmin"], geo["xmax"], geo["ymin"], geo["ymax"], geo["velocity"], time = budget)
         policy = FollowPathPolicy(vel = geo["velocity"], waypoints = path, repeat = True)
         policy.name = exp_policy["policy-name"] 
         # "FixedBudgetLawnmower"

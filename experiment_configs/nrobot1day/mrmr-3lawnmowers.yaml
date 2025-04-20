@@ -17,17 +17,17 @@ time-start-environment: 15
 
 robots:
   - name: "robot-1"
-    exp-policy: "lawnmower"
+    exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      - area: "[0, 0, 33, 100]"
-      - name: lawn-bottom
+      area: "[5, 5, 95, 30]" # [xmin, ymin, xmax, ymax]
+      policy-name: "lawn-bottom"
   - name: "robot-2"
-    exp-policy: "lawnmower"
+    exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      - area: "[33, 0, 66, 100]"
-      - name: lawn-middle
+      area: "[5, 35, 95, 60]"
+      policy-name: "lawn-middle"
   - name: "robot-3"
-    exp-policy: "lawnmower"
+    exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      - area: "[60, 0, 100, 00]"
-      - name: lawn-top
+      area: "[5, 65, 95, 95]"
+      policy-name: "lawn-top"
