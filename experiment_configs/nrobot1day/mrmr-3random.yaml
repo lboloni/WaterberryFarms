@@ -14,8 +14,16 @@ time-start-environment: 19
 robots:
   - name: "robot-1"
     exp-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      - seed: 1
+      - name: rw-seed-1
   - name: "robot-2"
     exp-policy: "random-waypoint-seed10"
+    exp-policy-extra-parameters:
+      - seed: 10
+      - name: rw-seed-10
   - name: "robot-3"
     exp-policy: "random-waypoint-seed20"
-  
+    exp-policy-extra-parameters:
+      - seed: 20
+      - name: rw-seed-20

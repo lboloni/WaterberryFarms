@@ -17,8 +17,17 @@ time-start-environment: 15
 
 robots:
   - name: "robot-1"
-    exp-policy: "random-waypoint"
+    exp-policy: "lawnmower"
+    exp-policy-extra-parameters:
+      - area: "[0, 0, 33, 100]"
+      - name: lawn-bottom
   - name: "robot-2"
-    exp-policy: "random-waypoint-seed10"
+    exp-policy: "lawnmower"
+    exp-policy-extra-parameters:
+      - area: "[33, 0, 66, 100]"
+      - name: lawn-middle
   - name: "robot-3"
-    exp-policy: "random-waypoint-seed20"
+    exp-policy: "lawnmower"
+    exp-policy-extra-parameters:
+      - area: "[60, 0, 100, 00]"
+      - name: lawn-top

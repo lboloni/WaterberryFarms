@@ -183,7 +183,6 @@ def run_1robot1day(exp):
     if resultsfile.exists():
         print(f"Results file already exists:\n{resultsfile}")
         print(f"Delete this file if re-running is desired.")
-        # raise Exception("Nothing to do.")
         return
 
     # the exp for the environment
@@ -251,8 +250,5 @@ def run_1robot1day(exp):
     # This is where we actually calling the simulation
     #
     simulate_1day(results)
-    #print(f"Saving results to: {resultsfile}")
-    #with compress.open(resultsfile, "wb") as f:
-    #    pickle.dump(results, f)
     save_simulation_results(resultsfile, results)
     exp.done()
