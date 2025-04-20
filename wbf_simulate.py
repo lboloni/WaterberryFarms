@@ -21,6 +21,7 @@ from pprint import pprint
 import gzip as compress
 from wbf_helper import get_geometry, create_wbfe, create_policy, create_estimator, create_score
 from robot import Robot
+from communication import PerfectCommunicationMedium
 
 # logging.basicConfig(level=logging.WARNING)
 logging.basicConfig(level=logging.INFO)
@@ -194,6 +195,13 @@ def run_1robot1day(exp):
     # Setting the policy based on the exp for policy
     #
     exp_policy = Config().get_experiment("policy", exp["exp_policy"])
+    # if extra parameters were passed on, add them to the exp value
+    if "exp-policy-extra-parameters" in exp:
+        extra = exp["exp-policy-extra-parameters"]
+        for val in extra:
+            print(val)
+            exp_policy[val] = extra[val]
+
     pprint(exp_policy)
     if exp_policy["policy-code"] == "-":
         # the policy is created through a policy generator that is evaluated
@@ -252,3 +260,90 @@ def run_1robot1day(exp):
     simulate_1day(results)
     save_simulation_results(resultsfile, results)
     exp.done()
+
+
+def run_nrobot1day(exp):
+    """Take an experiment of type 1robot1day, set up the results
+    based on the description in it, which includes the policy description. 
+    Then runs simulate1day, and saves it to the experiment."""
+
+    resultsfile = pathlib.Path(exp["data_dir"], "results.pickle")
+    if resultsfile.exists():
+        print(f"Results file already exists:\n{resultsfile}")
+        print(f"Delete this file if re-running is desired.")
+        return 
+
+    # the exp for the environment
+    exp_env = Config().get_experiment("environment", exp["exp_environment"])
+    pprint(exp_env)
+    # the exp for estimator
+    exp_estimator = Config().get_experiment("estimator", exp["exp_estimator"])
+    pprint(exp_estimator)
+    # the exp for the score
+    exp_score = Config().get_experiment("score", exp["exp_score"])
+    pprint(exp_score)
+
+    # extract the sub policies for the individual robots
+    robotspecs = []
+    for values in exp["robots"]:
+        robotspec = {}
+        robotspec["name"] = values["name"]
+        exp_policy = Config().get_experiment("policy", values["exp-policy"]) 
+        # if extra parameters were passed on, add them to the exp value
+        if "exp-policy-extra-parameters" in values:
+            extra = values["exp-policy-extra-parameters"]
+            for val in extra:
+                print(val)
+                exp_policy[val] = extra[val]
+        robotspec["exp-policy"] = exp_policy
+        robotspecs.append(robotspec)
+    pprint(robotspecs)
+
+    results = {}
+    results["estimator-CODE"] = create_estimator(exp_estimator, exp_env)
+    results["estimator-name"] = results["estimator-CODE"].name
+    results["score-code"] = create_score(exp_score, exp_env)
+    results["score-name"] = results["score-code"].name
+
+    results["velocity"] = exp["velocity"]
+    results["timesteps-per-day"] = exp["timesteps-per-day"]
+    # results["timesteps-per-day-override"] = exp["timesteps-per-day-override"]
+    results["time-start-environment"] = exp["time-start-environment"]
+    results["im_resolution"] = exp["im_resolution"]
+    results["results-basedir"] = exp["data_dir"]
+    results["action"] = "run-one-day"
+    results["typename"] = exp_env["typename"]
+    wbf, wbfe = create_wbfe(exp_env)
+    # move ahead to the starting point of the environment
+    wbfe.proceed(results["time-start-environment"])
+    results["wbf"] = wbf
+    results["wbfe"] = wbfe
+    results["days"] = 1
+    com = PerfectCommunicationMedium(wbfe)
+    results["communication"] = com
+    results["communication-rounds"] = 5
+    get_geometry(results["typename"], results)
+
+    robots = []
+    for robotspec in robotspecs:
+        # create the robot and set the policy
+        robot = Robot(robotspec["name"], 0, 0, 0, env=None, im=None)
+        robot.com = results["communication"]
+        if robotspec["exp-policy"]["policy-code"] == "-":
+            generator = robotspec["exp-policy"]["policy-code-generator"]        
+            policy = eval(generator)(robotspec["exp-policy"], exp_env)
+        else:
+            policy = create_policy(robotspec["exp-policy"], exp_env)
+        robot.assign_policy(policy)
+        robots.append(robot)
+        com.add_robot(robot)
+    results["robots"] = robots
+
+    # 
+    # This is where we actually calling the simulation
+    #
+    simulate_1day_multirobot(results)
+    #print(f"Saving results to: {resultsfile}")
+    #with compress.open(resultsfile, "wb") as f:
+    #    pickle.dump(results, f)
+    save_simulation_results(resultsfile, results)

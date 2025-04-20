@@ -1,5 +1,9 @@
 """
-This file implements the Experiment / Run / Subrun framework. 
+exp_run_config.py
+
+Implements the Experiment / Run / Subrun framework. 
+
+FIXME: clean up the below text
 
 These can be considered as constants for a particular run, but they might have different values on different computers or setups.
 
