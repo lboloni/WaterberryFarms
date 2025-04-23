@@ -20,14 +20,17 @@ robots:
     exp-policy-extra-parameters:
       policy-name: "mrmr-pioneer"
       policy-code: "MRMR_Pioneer"
+      seed: 1
       # area: "[5, 5, 95, 95]" # [xmin, ymin, xmax, ymax]
   - name: "robot-contr-1"
     exp-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-contractor-1"
       policy-code: "MRMR_Contractor"
+      seed: 2
   - name: "robot-contr-2"
     exp-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-contractor-2"
       policy-code: "MRMR_Contractor"
+      seed: 3
