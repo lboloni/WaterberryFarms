@@ -137,15 +137,26 @@ class MRMR_Contractor(AbstractCommunicateAndFollowPath):
         self.epagent = EPAgent(self.name)
         self.epm = EPM().epm
         print("MRMR_Contractor policy was created")
+        # the current epoffer which is under execution
+        self.current_epoffer = None
     
+    def plan_current_path():
+        """Plan a path that covers the eps accepted but not terminated"""
+        # FIXME implement me
+        return None
+
+
     def act(self, delta_t):
         """Call the following of the path"""
         super().act(delta_t)
 
     def act_send(self, round):
-        print(f"{self.name} act_send called at round {round}")
-        self.robot.com.send(self.robot, destination=None, message = Message("hello"))
+        """FIXME: the market negotiation was supposed to happen here
+        but for the time being we assume that we had direct access to the market
+        """
+        # print(f"{self.name} act_send called at round {round}")
+        # self.robot.com.send(self.robot, destination=None, message = Message("hello"))
         
     def act_receive(self, round, messages):
-        print(f"{self.name} act_receive called at round {round}")
-        print(f"Messages {messages}")
+        # print(f"{self.name} act_receive called at round {round}")
+        # print(f"Messages {messages}")
