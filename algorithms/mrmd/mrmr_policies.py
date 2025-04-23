@@ -32,12 +32,6 @@ class SimpleCommunicator(AbstractCommunicateAndFollowPath):
         print(f"Messages {messages}")
 
 
-def create_random_waypoints(exp, xcurrent, ycurrent, budget):
-    """Create a random waypoint path, whose area is described in 
-    exp['area'] and minimum lenghth in 'budget'"""
-    # x = self.random.uniform(self.low_point[0], self.high_point[0])
-    # y = self.random.uniform(self.low_point[1], self.high_point[1])
-    # self.nextwaypoint = [x, y]
 
 
 class MRMR_Pioneer(AbstractCommunicateAndFollowPath):
