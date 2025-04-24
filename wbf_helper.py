@@ -8,7 +8,7 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess, WBF_Score_WeightedAsymmetric
 from policy import RandomWaypointPolicy, FollowPathPolicy
 from path_generators import find_fixed_budget_lawnmower
-from algorithms.mrmd.mrmr_policies import MRMR_Pioneer, MRMR_Contractor
+from papers.y2025_mrmr.mrmr_policies import MRMR_Pioneer, MRMR_Contractor
 
 import gzip as compress
 import pickle

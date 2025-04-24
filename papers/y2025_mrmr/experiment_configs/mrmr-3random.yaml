@@ -1,0 +1,29 @@
+# Experiment for the MRMR paper, three random waypoint robots
+# FIXME: we will need to change the environment to a custom one with more 
+# stuff to pick
+# exp_environment: "miniberry-100-custom-mrmr"
+name: "3 random waypoint"
+
+exp_environment: "miniberry-100"
+exp_estimator: "adaptive-disk"
+exp_score: "weighted_asymmetric"
+
+timesteps-per-day: 500
+time-start-environment: 19
+
+robots:
+  - name: "robot-1"
+    exp-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      seed: 1
+      name: rw-seed-1
+  - name: "robot-2"
+    exp-policy: "random-waypoint-seed10"
+    exp-policy-extra-parameters:
+      seed: 10
+      name: rw-seed-10
+  - name: "robot-3"
+    exp-policy: "random-waypoint-seed20"
+    exp-policy-extra-parameters:
+      seed: 20
+      name: rw-seed-20

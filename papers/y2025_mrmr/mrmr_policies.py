@@ -4,13 +4,13 @@ mrmr_policies.py
 Functions helping to run experiments with the Waterberry Farms benchmark.
 
 """
-from policy import AbstractCommunicateAndFollowPath
+from policy import Policy
 from communication import Message
 from algorithms.mrmd.epmarket import EPM, EPAgent, EPOffer
 from algorithms.mrmd.exploration_package import ExplorationPackage
 import numpy as np
 
-class MRMR_Pioneer(AbstractCommunicateAndFollowPath):
+class MRMR_Pioneer(Policy):
     """Implements the Pioneer agent for the MRMR paper"""
 
     def __init__(self, exp_policy, exp_env):
@@ -76,26 +76,16 @@ class MRMR_Pioneer(AbstractCommunicateAndFollowPath):
             if len(self.detections) > 0:
                 self.streak = self.detections
                 self.detections = []
-                self.ep = self.decide_to_offer_an_ep()        
-
-    def act_send(self, round):
-        """FIXME: the market negotiation is supposed to happen here, with
-        messages, but for the time being we assume that we have direct access to the market"""
-        # print(f"{self.name} act_send called at round {round}")
-        if round == 0:
-            if self.ep is not None:
-                # sending a message
-                # self.robot.com.send(self.robot, destination=None, message = Message(ep))
-                # directly accessing the market
-                # assume a fixe
-                epoff = EPOffer(self.ep, self.name, 100)
-                self.epm.add_offer(epoff)    
+                self.ep = self.decide_to_offer_an_ep()
+        if self.ep is None:
+            return
+        #
+        # participation in the market, if we decided to make an offer
+        #
         
-    def act_receive(self, round, messages):
-        print(f"{self.name} act_receive called at round {round}")
-        print(f"Messages {messages}")
 
-class MRMR_Contractor(AbstractCommunicateAndFollowPath):
+
+class MRMR_Contractor(Policy):
     """Implements the Contractor agent for the MRMR paper"""
 
     def __init__(self, exp_policy, exp_env):
@@ -109,6 +99,7 @@ class MRMR_Contractor(AbstractCommunicateAndFollowPath):
         print("MRMR_Contractor policy was created")
         # the current epoffer which is under execution
         self.current_epoffer = None
+        self.replan_needed = True # set to true if new ep accepted
         self.plan = self.replan()
     
     def create_ep_xyplan(self, eps, time):
@@ -124,6 +115,8 @@ class MRMR_Contractor(AbstractCommunicateAndFollowPath):
 
     def replan(self):
         """Plan a path that covers the eps accepted but not terminated"""
+        if not self.replan_needed:
+            return
         # FIXME implement me
         # Path:
         # [{"x":4, "y":4, "ep":None,}],....
@@ -142,8 +135,10 @@ class MRMR_Contractor(AbstractCommunicateAndFollowPath):
         eps = self.epagent.commitments
         ep_plan = self.create_ep_plan(eps, t+1)
         self.plan.append(ep_plan)
-        # part three: create random waypoint to the rest
-        return None
+        # part three: create random waypoints to the rest
+        # FIXME implement me
+        self.replan_needed = False
+        return 
     
     def can_bid(self, epoffer):
         """This function allows the agent to decide whether it can bid for a certain offer or not."""
@@ -175,19 +170,6 @@ class MRMR_Contractor(AbstractCommunicateAndFollowPath):
         assert self.plan[0]["t"] != self.robot.env.t
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         # set the current location
-
-
-    def act_send(self, round):
-        """FIXME: the market negotiation was supposed to happen here
-        but for the time being we assume that we had direct access to the market
-        """
-        # print(f"{self.name} act_send called at round {round}")
-        # self.robot.com.send(self.robot, destination=None, message = Message("hello"))
-        
-    def act_receive(self, round, messages):
-        # print(f"{self.name} act_receive called at round {round}")
-        # print(f"Messages {messages}")
-
 
 
 class SimpleCommunicator(AbstractCommunicateAndFollowPath):
