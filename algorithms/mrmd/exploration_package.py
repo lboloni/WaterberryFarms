@@ -127,3 +127,39 @@ class ExplorationPackageSet:
                     # print(length)
                     best_path = path
         return best_path        
+
+    def find_shortest_path_ep(self, start, end):
+        """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes 30 seconds
+        
+        Returns the path, and the path in the form of a list of dicts labeled with the EPs that are part of it
+
+        """
+        choices = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right, ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
+        min_len = float('inf')
+        best_path = None
+        best_ep_path = None
+        count = 0
+        for perm in itertools.permutations(self.ep_to_explore):
+            generator_choices = itertools.product(
+                choices, repeat=len(self.ep_to_explore))
+            for gens in generator_choices:
+                path = np.array([start])
+                ep_path = []
+                intrinsic = 0
+                for generator, ep in zip(gens, perm):
+                    # print(generator.__name__)
+                    newpath = generator(ep)
+                    # print(f"path length: {generator} {get_path_length(newpath)}")
+                    intrinsic += get_path_length(newpath)
+                    path = np.concatenate((path, newpath), axis=0)
+                    ep_path.append({"path": newpath, "ep": ep})
+                path = np.concatenate((path, np.array([end])), axis=0)                
+                length = get_path_length(path)
+                count += 1
+                # print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
+                if length < min_len:
+                    min_len = length
+                    # print(length)
+                    best_path = path
+                    best_ep_path = ep_path
+        return best_path, best_ep_path        

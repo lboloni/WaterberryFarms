@@ -10,30 +10,6 @@ from algorithms.mrmd.epmarket import EPM, EPAgent, EPOffer
 from algorithms.mrmd.exploration_package import ExplorationPackage
 import numpy as np
 
-class SimpleCommunicator(AbstractCommunicateAndFollowPath):
-    """Example, simple communicator policy"""
-    def __init__(self, exp_policy, exp_env):
-        waypoints = [[5, 5 * exp_policy["seed"]]]
-        repeat = False
-        vel = 1
-        super().__init__(vel, waypoints, repeat)
-        self.name = exp_policy["policy-name"]
-    
-    def act(self, delta_t):
-        """Call the following of the path"""
-        super().act(delta_t)
-
-    def act_send(self, round):
-        print(f"{self.name} act_send called at round {round}")
-        self.robot.com.send(self.robot, destination=None, message = Message("hello"))
-        
-    def act_receive(self, round, messages):
-        print(f"{self.name} act_receive called at round {round}")
-        print(f"Messages {messages}")
-
-
-
-
 class MRMR_Pioneer(AbstractCommunicateAndFollowPath):
     """Implements the Pioneer agent for the MRMR paper"""
 
@@ -94,7 +70,7 @@ class MRMR_Pioneer(AbstractCommunicateAndFollowPath):
         super().act(delta_t)
         # if this is an observation with a detection, add it to detections
         obs = self.observations[-1]
-        if obs["value"] = 1:
+        if obs["value"] == 1:
             self.detections.append([obs["x"], obs["y"]])
         else: # end of streak
             if len(self.detections) > 0:
@@ -211,3 +187,26 @@ class MRMR_Contractor(AbstractCommunicateAndFollowPath):
     def act_receive(self, round, messages):
         # print(f"{self.name} act_receive called at round {round}")
         # print(f"Messages {messages}")
+
+
+
+class SimpleCommunicator(AbstractCommunicateAndFollowPath):
+    """Example, simple communicator policy"""
+    def __init__(self, exp_policy, exp_env):
+        waypoints = [[5, 5 * exp_policy["seed"]]]
+        repeat = False
+        vel = 1
+        super().__init__(vel, waypoints, repeat)
+        self.name = exp_policy["policy-name"]
+    
+    def act(self, delta_t):
+        """Call the following of the path"""
+        super().act(delta_t)
+
+    def act_send(self, round):
+        print(f"{self.name} act_send called at round {round}")
+        self.robot.com.send(self.robot, destination=None, message = Message("hello"))
+        
+    def act_receive(self, round, messages):
+        print(f"{self.name} act_receive called at round {round}")
+        print(f"Messages {messages}")
