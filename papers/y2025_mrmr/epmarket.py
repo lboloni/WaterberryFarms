@@ -35,6 +35,7 @@ class EPAgent:
         self.outstanding_bids = {}
         self.agreed_deals = []
         self.terminated_deals = []
+        self.policy = None
         
 
     def __repr__(self):
@@ -67,6 +68,8 @@ class EPAgent:
         """Called by the epoff during clearing to show that 
         you now have a commitment"""
         self.commitments.append(epoff)
+        if self.policy is not None:
+            self.policy.won()
 
     def commitment_executed(self, epoff, real_value):
         """Called by the agent to indicate that the commitment was executed"""

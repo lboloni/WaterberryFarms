@@ -100,7 +100,7 @@ class ExplorationPackageSet:
         """
         self.ep_to_explore.append(ep)
 
-    def find_shortest_path(self, start, end):
+    def obsolete_find_shortest_path(self, start, end):
         """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes 30 seconds"""
         choices = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right, ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
         min_len = float('inf')
@@ -128,7 +128,7 @@ class ExplorationPackageSet:
                     best_path = path
         return best_path        
 
-    def find_shortest_path_ep(self, start, end):
+    def find_shortest_path_ep(self, start, end=None):
         """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes 30 seconds
         
         Returns the path, and the path in the form of a list of dicts labeled with the EPs that are part of it
@@ -153,7 +153,8 @@ class ExplorationPackageSet:
                     intrinsic += get_path_length(newpath)
                     path = np.concatenate((path, newpath), axis=0)
                     ep_path.append({"path": newpath, "ep": ep})
-                path = np.concatenate((path, np.array([end])), axis=0)                
+                if end is not None:
+                    path = np.concatenate((path, np.array([end])), axis=0)                
                 length = get_path_length(path)
                 count += 1
                 # print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
