@@ -19,18 +19,20 @@ class MRMR_Policy(Policy):
         self.exp_policy = exp_policy
         self.exp_env = exp_env
         self.name = exp_policy["policy-name"]
+        self.timestep = -1 # local way to keep track of time, based on act calls
         # create the corresponding epagent and join the market
         self.epagent = EPAgent(self.name)
         self.epagent.policy = self
         self.epm = EPM().epm
         self.epm.join(self.epagent)
+        
 
     def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
         """Create a random xy plan starting from the specified position and time t. We assume that the robot is connected at this point"""
         geom_x_min = 0
-        geom_x_max = self.robot.env.width
+        geom_x_max = self.robot.im.width
         geom_y_min = 0
-        geom_y_max = self.robot.env.height
+        geom_y_max = self.robot.im.height
         budget = self.exp_policy["budget"] - t
         seed = self.exp_policy["seed"]
         randwp = create_random_waypoints(seed, xcurrent, ycurrent, geom_x_min, geom_x_max, geom_y_min, geom_y_max, budget)
@@ -54,7 +56,7 @@ class MRMR_Pioneer(MRMR_Policy):
         if not self.replan_needed:
             return    
         self.plan = []    
-        randxy = self.create_randxy(xcurrent=self.robot.x, ycurrent=self.robot.y, t=self.robot.env.time)
+        randxy = self.create_randxy(xcurrent=self.robot.x, ycurrent=self.robot.y, t=self.timestep)
         self.plan += randxy
         self.replan_needed = False        
 
@@ -63,11 +65,11 @@ class MRMR_Pioneer(MRMR_Policy):
         if self.streak is None:
             return None
         # fixme
-        env = self.robot.env
+        im = self.robot.im
         geom_x_min = 0
-        geom_x_max = env.width
+        geom_x_max = im.width
         geom_y_min = 0
-        geom_y_max = env.height
+        geom_y_max = im.height
         # create an ep around the streak
         x_min = np.min(self.streak[:,0])
         x_max = np.max(self.streak[:,0])
@@ -96,15 +98,16 @@ class MRMR_Pioneer(MRMR_Policy):
 
     def act(self, delta_t):
         """The primary behavior of the agent. """
-        assert self.plan[0]["t"] != self.robot.env.time
+        self.timestep += delta_t
         self.replan()
+        assert self.plan[0]["t"] == self.timestep
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         self.plan.pop(0) # move on with the plan
         # 
         # managing streaks of detections
         # FIXME: I am almost sure that this needs to be modified, tylcv 
         #
-        obs = self.observations[-1]
+        obs = self.robot.observations[-1]
         if obs["value"] == 1:
             self.detections.append([obs["x"], obs["y"]])
         else: # end of streak
@@ -199,7 +202,7 @@ class MRMR_Contractor(MRMR_Policy):
     def can_bid(self, epoffer):
         """This function allows the agent to decide whether it can bid for a certain offer or not."""
         # step one: find the termination time of the current ep
-        t = self.robot.env.t
+        t = self.timestep
         if self.plan[0]["ep"] is not None: # we are in an ep
             i = 0
             currentep = self.plan[0]["ep"]
@@ -221,9 +224,10 @@ class MRMR_Contractor(MRMR_Policy):
 
     def act(self, delta_t):
         """Call the following of the path"""
-        # just verify that the time is the right one
-        assert self.plan[0]["t"] != self.robot.env.t
+        self.timestep += delta_t
         self.replan()
+        # just verify that the time is the right one
+        assert self.plan[0]["t"] == self.timestep
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         # if the observation is a new one, add it to the value of the offer
         if self.current_epoffer is not None:

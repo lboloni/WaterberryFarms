@@ -86,6 +86,7 @@ class Robot:
         """Enacts one pending action. We are allowing here for a couple of shorthand
         actions like east, west, south, north..."""
         if action == "Observe":
+            # FIXME: I think that this is obsolete code...
             # simple point observation, skip it if we are outside the environment
             try:
                 reading = self.env.value[int(self.x),int(self.y)]
