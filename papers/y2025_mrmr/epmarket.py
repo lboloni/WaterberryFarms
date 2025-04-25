@@ -103,6 +103,8 @@ class EPMarket:
         self.agents = {}   
         self.pending_offers = [] 
         self.accepted_offers = [] 
+        # dictionary allowing to match the eps to offers
+        self.ep_to_offer = {}
 
     def __repr__(self):
         retval = "EPMarket:\n"
@@ -117,6 +119,7 @@ class EPMarket:
 
     def add_offer(self, epoff):
         self.pending_offers.append(epoff)
+        self.ep_to_offer[epoff.ep] = epoff
 
     def clearing(self):
         """Award the the offers to the highest bidder, or reject it."""

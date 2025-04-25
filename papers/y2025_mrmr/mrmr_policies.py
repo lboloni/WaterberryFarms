@@ -11,11 +11,11 @@ from papers.y2025_mrmr.exploration_package import ExplorationPackage, Exploratio
 from papers.y2025_mrmr.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
 import numpy as np
 
-class MRMR_Pioneer(Policy):
-    """Implements the Pioneer agent for the MRMR paper"""
+
+class MRMR_Policy(Policy):
+    """Implements the common ancestor of the MRMR (multiresolution multirobot models)"""
 
     def __init__(self, exp_policy, exp_env):
-        super().__init__()
         self.exp_policy = exp_policy
         self.exp_env = exp_env
         self.name = exp_policy["policy-name"]
@@ -24,13 +24,42 @@ class MRMR_Pioneer(Policy):
         self.epagent.policy = self
         self.epm = EPM().epm
         self.epm.join(self.epagent)
+
+    def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
+        """Create a random xy plan starting from the specified position and time t. We assume that the robot is connected at this point"""
+        geom_x_min = 0
+        geom_x_max = self.robot.env.width
+        geom_y_min = 0
+        geom_y_max = self.robot.env.height
+        budget = self.exp_policy["budget"] - t
+        seed = self.exp_policy["seed"]
+        randwp = create_random_waypoints(seed, xcurrent, ycurrent, geom_x_min, geom_x_max, geom_y_min, geom_y_max, budget)
+        randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)
+        return randxy
+
+
+class MRMR_Pioneer(MRMR_Policy):
+    """Implements the Pioneer agent for the MRMR paper"""
+
+    def __init__(self, exp_policy, exp_env):
+        super().__init__(exp_policy, exp_env)
         # contains the list of detections
         self.detections = []
         # when the streak ended, we put it here
         self.streak = None
-    
+        self.plan = []
+        self.replan_needed = True
+
+    def replan(self):
+        if not self.replan_needed:
+            return    
+        self.plan = []    
+        randxy = self.create_randxy(xcurrent=self.robot.x, ycurrent=self.robot.y, t=self.robot.env.time)
+        self.plan += randxy
+        self.replan_needed = False        
+
     def decide_to_offer_an_ep(self):
-        """This is the function in which the agent decides to offer an ep""" 
+        """This is the function in which the agent decides to offer an ep. The ep is a border around the current streak of detections""" 
         if self.streak is None:
             return None
         # fixme
@@ -64,13 +93,17 @@ class MRMR_Pioneer(Policy):
         else:
             return {"ep": ep, "value": 100}
 
+
     def act(self, delta_t):
         """The primary behavior of the agent. """
-        if self.waypoints is None:
-            budget = 1000 # fixme, we need to take this from somewhere
-            self.waypoints = create_random_waypoints(self.exp_policy, self.robot.x, self.robot.y, budget)
-        super().act(delta_t)
-        # if this is an observation with a detection, add it to detections
+        assert self.plan[0]["t"] != self.robot.env.time
+        self.replan()
+        self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
+        self.plan.pop(0) # move on with the plan
+        # 
+        # managing streaks of detections
+        # FIXME: I am almost sure that this needs to be modified, tylcv 
+        #
         obs = self.observations[-1]
         if obs["value"] == 1:
             self.detections.append([obs["x"], obs["y"]])
@@ -85,7 +118,6 @@ class MRMR_Pioneer(Policy):
         # participation in the market, if we decided to make an offer
         #
         epoff = self.epagent.offer(self.offer_plan["ep"], self.offer_plan["value"])
-        # FIXME: continue the market participation play here from MRMR-experiments.ipynb
         for agentname in self.epm.agents:
             if agentname == self.name: continue
             agent = self.epm.agents[agentname]
@@ -96,27 +128,15 @@ class MRMR_Pioneer(Policy):
 
 
 
-class MRMR_Contractor(Policy):
+class MRMR_Contractor(MRMR_Policy):
     """Implements the Contractor agent for the MRMR paper"""
 
     def __init__(self, exp_policy, exp_env):
-        super().__init__()
-        waypoints = [[5, 5 * exp_policy["seed"]]]
-        repeat = False
-        vel = 1
-        self.exp_policy = exp_policy
-        self.exp_env = exp_env
-        self.name = exp_policy["policy-name"]
-        # create the corresponding epagent and join the market
-        self.epagent = EPAgent(self.name)
-        self.epagent.policy = self
-        self.epm = EPM().epm
-        self.epm.join(self.epagent)
+        super().__init__(exp_policy, exp_env)
         # the current epoffer which is under execution
         self.current_epoffer = None
-        self.replan_needed = True # set to true if new ep accepted
         self.plan = []
-        self.replan()
+        self.replan_needed = True # set to true if new ep accepted
     
     def won(self, epoff):
         """Called by the agent when the agent won the policy"""
@@ -138,7 +158,7 @@ class MRMR_Contractor(Policy):
         if len(oldplan) > 0 and oldplan[0]["ep"] is not None:
             currentep = oldplan[0]["ep"]
             while True:
-                step = oldplan.pop()
+                step = oldplan.pop(0)
                 if step["ep"] != currentep:
                     break
                 self.plan.append(step)
@@ -167,14 +187,9 @@ class MRMR_Contractor(Policy):
         else:
             xcurrent = self.plan[-1]["x"]
             ycurrent = self.plan[-1]["y"]
-        xmin = 0 # fixme, extract from the environment
-        xmax = 100
-        ymin = 0
-        ymax = 100
-        budget = self.exp_policy["budget"] - t
-        seed = self.exp_policy["seed"]
-        randwp = create_random_waypoints(seed, xcurrent, ycurrent, xmin, xmax, ymin, ymax, budget)
-        randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)
+
+        randxy = self.create_randxy(t)
+
         self.plan += randxy
         self.replan_needed = False
         self.current_epoffer = None
@@ -208,6 +223,7 @@ class MRMR_Contractor(Policy):
         """Call the following of the path"""
         # just verify that the time is the right one
         assert self.plan[0]["t"] != self.robot.env.t
+        self.replan()
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         # if the observation is a new one, add it to the value of the offer
         if self.current_epoffer is not None:
@@ -221,27 +237,6 @@ class MRMR_Contractor(Policy):
             self.current_real_value = 0
         # if the new one is the start of a new epoffer, start it
         if self.plan[0]["ep"] is not None:
-            self.current_epoffer = self.plan[0]["ep"]
+            self.current_epoffer = self.epm.ep_to_epoff[self.plan[0]["ep"]]
         # move on with the plan
         self.plan.pop(0)
-
-class SimpleCommunicator(AbstractCommunicateAndFollowPath):
-    """Example, simple communicator policy"""
-    def __init__(self, exp_policy, exp_env):
-        waypoints = [[5, 5 * exp_policy["seed"]]]
-        repeat = False
-        vel = 1
-        super().__init__(vel, waypoints, repeat)
-        self.name = exp_policy["policy-name"]
-    
-    def act(self, delta_t):
-        """Call the following of the path"""
-        super().act(delta_t)
-
-    def act_send(self, round):
-        print(f"{self.name} act_send called at round {round}")
-        self.robot.com.send(self.robot, destination=None, message = Message("hello"))
-        
-    def act_receive(self, round, messages):
-        print(f"{self.name} act_receive called at round {round}")
-        print(f"Messages {messages}")
