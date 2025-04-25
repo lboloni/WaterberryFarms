@@ -15,12 +15,7 @@ class MRMR_Pioneer(Policy):
     """Implements the Pioneer agent for the MRMR paper"""
 
     def __init__(self, exp_policy, exp_env):
-        # how to get the budget?
-        #waypoints = create_random_waypoints(exp, self.robot)
-        #repeat = False
-        vel = 1
-        #super().__init__(vel, waypoints, repeat)
-        super().__init__(vel, None, repeat=False)
+        super().__init__()
         self.exp_policy = exp_policy
         self.exp_env = exp_env
         self.name = exp_policy["policy-name"]
@@ -39,7 +34,7 @@ class MRMR_Pioneer(Policy):
         if self.streak is None:
             return None
         # fixme
-        env = self.robot.env.
+        env = self.robot.env
         geom_x_min = 0
         geom_x_max = env.width
         geom_y_min = 0
@@ -53,8 +48,8 @@ class MRMR_Pioneer(Policy):
         border = 3 * self.streak.shape[0]
         x_min = max(geom_x_min, x_min-border)
         x_max = min(geom_x_max, x_max-border)
-        y_min = max(geom_x_min, y_min-border)
-        y_max = min(geom_x_min, y_max-border)
+        y_min = max(geom_y_min, y_min-border)
+        y_max = min(geom_y_max, y_max-border)
         ep = ExplorationPackage(x_min, x_max, y_min, y_max, step = 2)
         # reset the streak
         self.streak = None
@@ -105,10 +100,10 @@ class MRMR_Contractor(Policy):
     """Implements the Contractor agent for the MRMR paper"""
 
     def __init__(self, exp_policy, exp_env):
+        super().__init__()
         waypoints = [[5, 5 * exp_policy["seed"]]]
         repeat = False
         vel = 1
-        super().__init__(vel, waypoints, repeat)
         self.exp_policy = exp_policy
         self.exp_env = exp_env
         self.name = exp_policy["policy-name"]
@@ -120,7 +115,8 @@ class MRMR_Contractor(Policy):
         # the current epoffer which is under execution
         self.current_epoffer = None
         self.replan_needed = True # set to true if new ep accepted
-        self.plan = self.replan()
+        self.plan = []
+        self.replan()
     
     def won(self, epoff):
         """Called by the agent when the agent won the policy"""
@@ -134,7 +130,6 @@ class MRMR_Contractor(Policy):
         """Plan a path that covers the eps accepted but not terminated"""
         if not self.replan_needed:
             return
-        # FIXME implement me
         # Path:
         # [{"x":4, "y":4, "ep":None,}],....
         oldplan = self.plan
@@ -160,7 +155,7 @@ class MRMR_Contractor(Policy):
         epset = ExplorationPackageSet()
         epset.ep_to_explore += self.epagent.commitments
         _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent])
-        ep_path = self.create_ep_plan(eps, t+)
+        ep_path = self.create_ep_plan(epset, t+1)
         ep_xyplan = xyplan_from_ep_path(ep_path, t+1)
         self.plan.append(ep_xyplan)
         # part three: create random waypoints to the rest
@@ -181,8 +176,9 @@ class MRMR_Contractor(Policy):
         randwp = create_random_waypoints(seed, xcurrent, ycurrent, xmin, xmax, ymin, ymax, budget)
         randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)
         self.plan += randxy
-        # FIXME implement me
         self.replan_needed = False
+        self.current_epoffer = None
+        self.current_real_value = 0 # accumulated real value for the offer
         return 
     
     def can_bid(self, epoffer):
@@ -210,12 +206,24 @@ class MRMR_Contractor(Policy):
 
     def act(self, delta_t):
         """Call the following of the path"""
-        # super().act(delta_t)
         # just verify that the time is the right one
         assert self.plan[0]["t"] != self.robot.env.t
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
-        # set the current location
-
+        # if the observation is a new one, add it to the value of the offer
+        if self.current_epoffer is not None:
+            # FIXME: handle new observations, I will need to create a separate function for this, for the time being the value is zero, but should not be
+            self.current_real_value += 0
+        # terminating the current epoffer
+        if self.current_epoffer != self.plan[0]["ep"]:
+            # current ep was terminated             
+            self.epagent.commitment_executed(self.current_epoffer, real_value = self.current_real_value)
+            self.current_epoffer = None
+            self.current_real_value = 0
+        # if the new one is the start of a new epoffer, start it
+        if self.plan[0]["ep"] is not None:
+            self.current_epoffer = self.plan[0]["ep"]
+        # move on with the plan
+        self.plan.pop(0)
 
 class SimpleCommunicator(AbstractCommunicateAndFollowPath):
     """Example, simple communicator policy"""
