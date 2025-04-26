@@ -25,6 +25,7 @@ class MRMR_Policy(Policy):
         self.epagent.policy = self
         self.epm = EPM().epm
         self.epm.join(self.epagent)
+        self.observations = []
         
 
     def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
@@ -39,6 +40,9 @@ class MRMR_Policy(Policy):
         randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)
         return randxy
 
+    def add_observation(self, obs):
+        """MRMR policies collect the observations"""
+        self.observations.append(obs)
 
 class MRMR_Pioneer(MRMR_Policy):
     """Implements the Pioneer agent for the MRMR paper"""
@@ -51,6 +55,7 @@ class MRMR_Pioneer(MRMR_Policy):
         self.streak = None
         self.plan = []
         self.replan_needed = True
+        self.offer_plan = None
 
     def replan(self):
         if not self.replan_needed:
@@ -107,8 +112,10 @@ class MRMR_Pioneer(MRMR_Policy):
         # managing streaks of detections
         # FIXME: I am almost sure that this needs to be modified, tylcv 
         #
-        obs = self.robot.observations[-1]
-        if obs["value"] == 1:
+        if len(self.observations) == 0:
+            return
+        obs = self.observations[-1]
+        if obs["TYLCV"]["value"] == 1.0:
             self.detections.append([obs["x"], obs["y"]])
         else: # end of streak
             if len(self.detections) > 0:
@@ -145,10 +152,6 @@ class MRMR_Contractor(MRMR_Policy):
         """Called by the agent when the agent won the policy"""
         self.replan_needed = True
 
-
-    def create_ep_plan(eps, t):
-        """Creates a plan that contains segments"""
-
     def replan(self):
         """Plan a path that covers the eps accepted but not terminated"""
         if not self.replan_needed:
@@ -165,34 +168,34 @@ class MRMR_Contractor(MRMR_Policy):
                 if step["ep"] != currentep:
                     break
                 self.plan.append(step)
+
         # part two: create a plan accross the eps remaining
+        if self.epagent.commitments:
+            if self.plan:
+                xcurrent = self.plan[-1]["x"]
+                ycurrent = self.plan[-1]["y"]
+                t = self.plan[-1]["t"]
+            else:
+                xcurrent = self.robot.x
+                ycurrent = self.robot.y
+                t = self.timestep
+            
+            epset = ExplorationPackageSet()
+            epset.ep_to_explore += self.epagent.commitments
+            _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent])
+            ep_xyplan = xyplan_from_ep_path(ep_path, t+1)
+            self.plan.append(ep_xyplan)
 
-        if len(self.plan) == 0:
-            xcurrent = self.robot.x
-            ycurrent = self.robot.y
-        else:
-            xcurrent = self.plan[-1]["x"]
-            ycurrent = self.plan[-1]["y"]
-
-        t = self.plan[-1]["t"]
-        epset = ExplorationPackageSet()
-        epset.ep_to_explore += self.epagent.commitments
-        _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent])
-        ep_path = self.create_ep_plan(epset, t+1)
-        ep_xyplan = xyplan_from_ep_path(ep_path, t+1)
-        self.plan.append(ep_xyplan)
         # part three: create random waypoints to the rest
-        t = self.plan[-1]["t"]
-        # fixme, this is some code to chain the xyplans
-        if len(self.plan) == 0:
-            xcurrent = self.robot.x
-            ycurrent = self.robot.y
-        else:
+        if self.plan:
             xcurrent = self.plan[-1]["x"]
             ycurrent = self.plan[-1]["y"]
-
+            t = self.plan[-1]["t"]        
+        else:
+            xcurrent = self.robot.x
+            ycurrent = self.robot.y
+            t = self.timestep
         randxy = self.create_randxy(t)
-
         self.plan += randxy
         self.replan_needed = False
         self.current_epoffer = None

@@ -53,8 +53,6 @@ class AbstractWaypointPolicy(Policy):
             self.robot.add_action(f"loc [{targetx}, {targety}]")
             return True
         # move towards the location with the specified velocity
-        #vel_x = min(vel * deltax / veclength, delta_t * deltax)
-        #vel_y = min(vel * deltay / veclength, delta_t * deltay)
         vel_x = vel * deltax / veclength
         vel_y = vel * deltay / veclength
         action = f"vel [{vel_x}, {vel_y}]"
