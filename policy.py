@@ -6,6 +6,7 @@ Implementation of the basic policy framework, and some fundamental policies.
 
 import numpy as np
 import logging
+from communication import Message
 #import matplotlib.pyplot as plt
 #from matplotlib.path import Path
 #import matplotlib.patches as patches

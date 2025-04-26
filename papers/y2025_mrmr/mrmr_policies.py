@@ -4,12 +4,15 @@ mrmr_policies.py
 Functions helping to run experiments with the Waterberry Farms benchmark.
 
 """
+
+import numpy as np
+import copy
+
 from policy import Policy, AbstractCommunicateAndFollowPath
 from communication import Message
 from papers.y2025_mrmr.epmarket import EPM, EPAgent, EPOffer
 from papers.y2025_mrmr.exploration_package import ExplorationPackage, ExplorationPackageSet
 from papers.y2025_mrmr.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
-import numpy as np
 
 
 class MRMR_Policy(Policy):
@@ -69,6 +72,7 @@ class MRMR_Pioneer(MRMR_Policy):
         """This is the function in which the agent decides to offer an ep. The ep is a border around the current streak of detections""" 
         if self.streak is None:
             return None
+        streak = np.array(self.streak)
         # fixme
         im = self.robot.im
         geom_x_min = 0
@@ -76,17 +80,20 @@ class MRMR_Pioneer(MRMR_Policy):
         geom_y_min = 0
         geom_y_max = im.height
         # create an ep around the streak
-        x_min = np.min(self.streak[:,0])
-        x_max = np.max(self.streak[:,0])
-        y_min = np.min(self.streak[:,1])
-        y_max = np.max(self.streak[:,1])
+        x_min = np.min(streak[:,0])
+        x_max = np.max(streak[:,0])
+        y_min = np.min(streak[:,1])
+        y_max = np.max(streak[:,1])
         # the longer the streak, the larger the ep
-        border = 3 * self.streak.shape[0]
+        # border = 3 * streak.shape[0]
+        border = 3
         x_min = max(geom_x_min, x_min-border)
-        x_max = min(geom_x_max, x_max-border)
+        x_max = min(geom_x_max, x_max+border)
         y_min = max(geom_y_min, y_min-border)
-        y_max = min(geom_y_max, y_max-border)
+        y_max = min(geom_y_max, y_max+border)
         ep = ExplorationPackage(x_min, x_max, y_min, y_max, step = 2)
+        # offer value is proportional with the area 
+        offer_value = (x_max - x_min) * (y_max - y_min) * 0.1
         # reset the streak
         self.streak = None
         # check if the ep overlaps with any of the other eps.
@@ -98,7 +105,7 @@ class MRMR_Pioneer(MRMR_Policy):
         if overlap:
             return None
         else:
-            return {"ep": ep, "value": 100}
+            return {"ep": ep, "value": offer_value}
 
 
     def act(self, delta_t):
@@ -133,7 +140,7 @@ class MRMR_Pioneer(MRMR_Policy):
             agent = self.epm.agents[agentname]
             policy = agent.policy
             if policy.can_bid(epoff):
-                agent.bid(epoff, 100) # for the time being, bid exactly
+                agent.bid(epoff, epoff.prize) # bid exactly the prize
         self.epm.clearing() # this will call agentC.won
 
 
@@ -152,6 +159,21 @@ class MRMR_Contractor(MRMR_Policy):
         """Called by the agent when the agent won the policy"""
         self.replan_needed = True
 
+    def plan_ends_at(self):
+        """Returns the location and time where the current plan ends"""
+        if self.plan:
+            planstep = self.plan[-1]
+            if not isinstance(planstep, dict):
+                print(f"Planstep {planstep}")
+            xcurrent = planstep["x"]
+            ycurrent = planstep["y"]
+            t = planstep["t"]
+        else:
+            xcurrent = self.robot.x
+            ycurrent = self.robot.y
+            t = self.timestep
+        return xcurrent, ycurrent, t
+
     def replan(self):
         """Plan a path that covers the eps accepted but not terminated"""
         if not self.replan_needed:
@@ -160,41 +182,31 @@ class MRMR_Contractor(MRMR_Policy):
         # [{"x":4, "y":4, "ep":None,}],....
         oldplan = self.plan
         self.plan = []
+        #
         # part one: copy the remainder of the current ep
-        if len(oldplan) > 0 and oldplan[0]["ep"] is not None:
+        #
+        if oldplan and oldplan[0]["ep"]:
             currentep = oldplan[0]["ep"]
             while True:
                 step = oldplan.pop(0)
                 if step["ep"] != currentep:
                     break
                 self.plan.append(step)
-
+        #
         # part two: create a plan accross the eps remaining
+        #
         if self.epagent.commitments:
-            if self.plan:
-                xcurrent = self.plan[-1]["x"]
-                ycurrent = self.plan[-1]["y"]
-                t = self.plan[-1]["t"]
-            else:
-                xcurrent = self.robot.x
-                ycurrent = self.robot.y
-                t = self.timestep
-            
+            xcurrent, ycurrent, t = self.plan_ends_at()            
             epset = ExplorationPackageSet()
-            epset.ep_to_explore += self.epagent.commitments
+            # epset.ep_to_explore += self.epagent.commitments
+            epset.ep_to_explore = [x.ep for x in self.epagent.commitments]
             _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent])
-            ep_xyplan = xyplan_from_ep_path(ep_path, t+1)
-            self.plan.append(ep_xyplan)
-
-        # part three: create random waypoints to the rest
-        if self.plan:
-            xcurrent = self.plan[-1]["x"]
-            ycurrent = self.plan[-1]["y"]
-            t = self.plan[-1]["t"]        
-        else:
-            xcurrent = self.robot.x
-            ycurrent = self.robot.y
-            t = self.timestep
+            ep_xyplan = xyplan_from_ep_path(ep_path, t)
+            self.plan += ep_xyplan
+        #
+        # part three: create random waypoints to the rest of the budget
+        # 
+        xcurrent, ycurrent, t = self.plan_ends_at()            
         randxy = self.create_randxy(t)
         self.plan += randxy
         self.replan_needed = False
@@ -206,7 +218,8 @@ class MRMR_Contractor(MRMR_Policy):
         """This function allows the agent to decide whether it can bid for a certain offer or not."""
         # step one: find the termination time of the current ep
         t = self.timestep
-        if self.plan[0]["ep"] is not None: # we are in an ep
+        currentep = None
+        if self.plan[0]["ep"]: # we are in an ep
             i = 0
             currentep = self.plan[0]["ep"]
             while True:
@@ -216,12 +229,15 @@ class MRMR_Contractor(MRMR_Policy):
                     break
         t = t + 1
         # get all the eps, except the current one
-        eps = self.epagent.commitments
-        eps.remove(currentep)
-        eps.add(epoffer.ep)
+        # eps = copy.copy(self.epagent.commitments)
+        eps = ExplorationPackageSet()
+        eps.ep_to_explore = [x.ep for x in self.epagent.commitments if x.ep != currentep]
+        eps.add_ep(epoffer.ep)
         # create an optimal path 
-        path = self.create_ep_xyplan(eps, t)
-        if path[-1]["t"] < self.exp["budget"]:
+        current = [self.robot.x, self.robot.y]
+        _, best_ep_path = eps.find_shortest_path_ep(current)
+        path = xyplan_from_ep_path(best_ep_path, t)
+        if path[-1]["t"] < self.exp_policy["budget"]:
             return True # we can bid
         return False # we cannot bid
 
@@ -230,20 +246,22 @@ class MRMR_Contractor(MRMR_Policy):
         self.timestep += delta_t
         self.replan()
         # just verify that the time is the right one
+        if self.plan[0]["t"] != self.timestep:
+            print("not asserted well!")
         assert self.plan[0]["t"] == self.timestep
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         # if the observation is a new one, add it to the value of the offer
-        if self.current_epoffer is not None:
+        if self.current_epoffer:
             # FIXME: handle new observations, I will need to create a separate function for this, for the time being the value is zero, but should not be
             self.current_real_value += 0
         # terminating the current epoffer
-        if self.current_epoffer != self.plan[0]["ep"]:
+        if self.current_epoffer and self.current_epoffer != self.plan[0]["ep"]:
             # current ep was terminated             
             self.epagent.commitment_executed(self.current_epoffer, real_value = self.current_real_value)
             self.current_epoffer = None
             self.current_real_value = 0
         # if the new one is the start of a new epoffer, start it
         if self.plan[0]["ep"] is not None:
-            self.current_epoffer = self.epm.ep_to_epoff[self.plan[0]["ep"]]
+            self.current_epoffer = self.epm.ep_to_offer[self.plan[0]["ep"]]
         # move on with the plan
         self.plan.pop(0)

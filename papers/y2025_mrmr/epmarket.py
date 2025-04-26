@@ -30,7 +30,7 @@ class EPAgent:
         self.name = name
         self.epm = None
         self.money = 0
-        self.commitments = []
+        self.commitments = [] # list of the offers to which we committed
         self.outstanding_offers = {}
         self.outstanding_bids = {}
         self.agreed_deals = []
@@ -69,7 +69,7 @@ class EPAgent:
         you now have a commitment"""
         self.commitments.append(epoff)
         if self.policy is not None:
-            self.policy.won()
+            self.policy.won(epoff)
 
     def commitment_executed(self, epoff, real_value):
         """Called by the agent to indicate that the commitment was executed"""
