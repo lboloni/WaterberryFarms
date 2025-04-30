@@ -34,9 +34,9 @@ class MRMR_Policy(Policy):
     def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
         """Create a random xy plan starting from the specified position and time t. We assume that the robot is connected at this point"""
         geom_x_min = 0
-        geom_x_max = self.robot.im.width
+        geom_x_max = self.robot.im.width - 1
         geom_y_min = 0
-        geom_y_max = self.robot.im.height
+        geom_y_max = self.robot.im.height - 1
         budget = self.exp_policy["budget"] - t
         seed = self.exp_policy["seed"]
         randwp = create_random_waypoints(seed, xcurrent, ycurrent, geom_x_min, geom_x_max, geom_y_min, geom_y_max, budget)
@@ -76,9 +76,9 @@ class MRMR_Pioneer(MRMR_Policy):
         # fixme
         im = self.robot.im
         geom_x_min = 0
-        geom_x_max = im.width
+        geom_x_max = im.width - 1 
         geom_y_min = 0
-        geom_y_max = im.height
+        geom_y_max = im.height - 1
         # create an ep around the streak
         x_min = np.min(streak[:,0])
         x_max = np.max(streak[:,0])

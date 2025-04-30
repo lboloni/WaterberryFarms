@@ -502,13 +502,13 @@ def show_unc_soil(results, ax, title_string = "{label}", cmap="gray"):
 def show_detections(results, ax, field = "TYLCV", detection_color="Blue", radius=0.5):
     """Shows the detections for all robots"""
     if "robots" not in results: # single robot
-        show_detections_individual_robot(results, ax, -1, field, detection_color=detection_color, radius=radius)
+        show_individual_robot_detections(results, ax, -1, field, detection_color=detection_color, radius=radius)
     else: # multiple robots
         for i, robot in enumerate(results["robots"]):
             color = ROBOT_COLORS[i % len(results["robots"])]
-            show_detections_individual_robot(results, ax, robotno=i, field=field, detection_color=color, radius=radius)
+            show_individual_robot_detections(results, ax, robotno=i, field=field, detection_color=color, radius=radius)
 
-def show_detections_individual_robot(results, ax, robotno=1, field = "TYLCV", detection_color="Blue", radius=0.5):
+def show_individual_robot_detections(results, ax, robotno=1, field = "TYLCV", detection_color="Blue", radius=0.5):
     """Shows the detections for one specific robot. 
     """
     if robotno == -1:
@@ -548,7 +548,7 @@ def show_robot_path(results, ax, draw_it = True, pathcolor="blue",
 def show_individual_robot_path(results, ax, robot, observations, 
                               pathcolor="blue", pathwidth=1, robotcolor = "green", draw_robot = True, from_obs=-1, to_obs=-1):
     """Adds the path of an individual robot. Normally called from 
-    add_robot_path"""
+    show_robot_path"""
     obsx = []
     obsy = []
     if from_obs == -1:
