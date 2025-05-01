@@ -144,8 +144,11 @@ class MRMR_Pioneer(MRMR_Policy):
             if agentname == self.name: continue
             agent = self.epm.agents[agentname]
             policy = agent.policy
-            if policy.can_bid(epoff):
+            canbid, underbid = policy.can_bid(epoff)
+            if canbid:
+                # agent.bid(epoff, epoff.prize - underbid) # bid exactly the prize
                 agent.bid(epoff, epoff.prize) # bid exactly the prize
+
         self.epm.clearing() # this will call agentC.won
 
 
@@ -183,9 +186,12 @@ class MRMR_Contractor(MRMR_Policy):
     def replan(self):
         """Plan a path that covers the eps accepted but not terminated"""
         if not self.replan_needed:
-            return
+            return        
         # Path:
         # [{"x":4, "y":4, "ep":None,}],....
+        if not hasattr(self.robot, "oldplans"):
+            self.robot.oldplans = {}
+        self.robot.oldplans[self.timestep] = copy.copy(self.plan)
         oldplan = self.plan
         self.plan = []
         #
@@ -244,8 +250,11 @@ class MRMR_Contractor(MRMR_Policy):
         _, best_ep_path = eps.find_shortest_path_ep(current, maxtime=1.0)
         path = xyplan_from_ep_path(best_ep_path, t)
         if path[-1]["t"] < self.exp_policy["budget"]:
-            return True # we can bid
-        return False # we cannot bid
+            # FIXME: this needs to be made more sophisticated
+            # underbid with one tenth of the budget remaining
+            underbid = (self.exp_policy["budget"] - path[-1]["t"]) / 10.0
+            return True, underbid # we can bid
+        return False, 0 # we cannot bid
 
     def act(self, delta_t):
         """Call the following of the path"""
