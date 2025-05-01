@@ -121,8 +121,12 @@ class MRMR_Pioneer(MRMR_Policy):
         #
         if len(self.observations) == 0:
             return
+        #
+        # maintaining a streak???
+        #
         obs = self.observations[-1]
-        if obs["TYLCV"]["value"] == 1.0:
+        # print(f'Pio obs {obs["TYLCV"]["value"]}')
+        if obs["TYLCV"]["value"] == 0.0:
             self.detections.append([obs["x"], obs["y"]])
         else: # end of streak
             if len(self.detections) > 0:

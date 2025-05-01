@@ -43,6 +43,9 @@ class Experiment:
         self.values[key] = value
         self.save()
 
+    def __delitem__(self, key):
+        self.values.__delitem__(key)
+
     def __contains__(self, key):
         return key in self.values
 

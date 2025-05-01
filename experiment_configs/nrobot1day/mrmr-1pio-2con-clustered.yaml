@@ -5,10 +5,10 @@
 
 # stuff to pick
 # exp_environment: "miniberry-100-custom-mrmr"
-name: "1 pioneer 2 contractors"
+name: "1 pioneer 2 contractors clustered"
 
 #exp_environment: "miniberry-100"
-exp_environment: "mrmr-custom-notclustered"
+exp_environment: "mrmr-custom-clustered"
 exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
 

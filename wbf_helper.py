@@ -12,6 +12,7 @@ from papers.y2025_mrmr.mrmr_policies import MRMR_Pioneer, MRMR_Contractor
 
 import gzip as compress
 import pickle
+import copy
 import pathlib
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt
@@ -37,8 +38,9 @@ def create_wbfe(exp):
     path_geometry = pathlib.Path(exp["data_dir"], "farm_geometry")
     path_environment = pathlib.Path(exp["data_dir"], "farm_environment")
 
-    # caching: if it already exists, return it.
-    if path_geometry.exists():
+    # caching: if it already exists, return it. Only works for non custom
+    # TO BE DEBUGGED: it should work for custom
+    if path_geometry.exists() and "custom-tylcv" not in exp:
         print("loading the geometry and environment from saved data")
         with compress.open(path_geometry, "rb") as f:
             wbf = pickle.load(f)
@@ -50,10 +52,41 @@ def create_wbfe(exp):
     wbf = create_wbf(exp)
     wbf.create_type_map()
     wbfe = WaterberryFarmEnvironment(wbf, use_saved=False, seed=10, savedir=exp["data_dir"])
+    if "custom-tylcv" in exp:    
+        customize_environment(wbf, wbfe, exp)
     with compress.open(path_geometry, "wb") as f:
         pickle.dump(wbf, f)
     with compress.open(path_environment, "wb") as f:
         pickle.dump(wbfe, f)
+    return wbf, wbfe
+
+def customize_environment(wbf, wbfe, exp_env):
+    """Creates a custom WBFE for the TYLCV. It creates the specified png file
+    if it does not exist. Use some image editor, such as GIMP to edit the 
+    values. 
+    FIXME: extend to the CCR and soil fields. This is experimental stuff. 
+    """
+    wbfe.proceed(1)
+    exp_filename = exp_env["exp_run_sys_indep_file"]
+    exp_path = pathlib.Path(exp_filename).parent
+    custom_env_file = pathlib.Path(exp_path, exp_env["custom-tylcv"])
+    if custom_env_file.exists():
+        print(f"loading from {custom_env_file}")
+        loaded_array = imageio.imread(custom_env_file)
+        print(loaded_array)
+        if loaded_array.ndim == 3:
+            one_channel = loaded_array[:, :, 0]  # 0=Red, 1=Green, 2=Blue
+        else:
+            one_channel = loaded_array  # already grayscale
+        # overwrite the field
+        wbfe.tylcv.value = one_channel / 255.0
+        # changes the environment to all tomato
+        wbf.patches = []
+        area = [[0,0], [wbfe.width,0], [wbfe.width, wbfe.height], [0, wbfe.height]]
+        wbf.add_patch("all-tylcv", type="tomato", area = area, color="blue")
+    else:
+        print(f"custom env. file {custom_env_file} does not exist")            
+        plt.imsave(custom_env_file, wbfe.tylcv.value, cmap='gray')
     return wbf, wbfe
 
 def get_geometry(typename, geo = None):
@@ -155,39 +188,3 @@ def create_score(exp_score, exp_env):
         return score
     raise Exception(f"Unsupported score type {exp_score['score-code']}")
 
-def create_wbfe_custom(exp_env):
-    """Creates a custom WBFE for the TYLCV. It creates the specified png file
-    if it does not exist. Use some image editor, such as GIMP to edit the 
-    values. 
-    FIXME: extend to the CCR and soil fields. This is experimental stuff. 
-    """
-    wbf, wbfe = create_wbfe(exp_env)
-    # we have to "proceed" on it, but it doesn't matter how much
-    #wbfe.proceed(exp["time-start-environment"])
-    wbfe.proceed(1)
-    # check if there is a custom field in the environment
-    if "custom-tylcv" in exp_env:
-        exp_filename = exp_env["exp_run_sys_indep_file"]
-        exp_path = pathlib.Path(exp_filename).parent
-        custom_env_file = pathlib.Path(exp_path, exp_env["custom-tylcv"])
-        if custom_env_file.exists():
-            print(f"loading from {custom_env_file}")
-            loaded_array = imageio.imread(custom_env_file)
-            print(loaded_array)
-            if loaded_array.ndim == 3:
-                one_channel = loaded_array[:, :, 0]  # 0=Red, 1=Green, 2=Blue
-            else:
-                one_channel = loaded_array  # already grayscale
-            # overwrite the field
-            wbfe.tylcv.value = one_channel
-            # changes the environment to all tomato
-            wbf.patches = []
-            area = [[0,0], [wbfe.width,0], [wbfe.width, wbfe.height], [0, wbfe.height]]
-            wbf.add_patch("all-tylcv", type="tomato", area = area, color="blue")
-        else:
-            print(f"custom env. file {custom_env_file} does not exist.")
-            
-            plt.imsave(custom_env_file, wbfe.tylcv.value, cmap='gray')
-    else:
-        print("this environment is not really custom")
-    return wbf, wbfe
