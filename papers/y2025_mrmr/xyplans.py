@@ -30,10 +30,9 @@ def xyplan_from_waypoints(waypoints, t=0, vel=1, ep=None):
         plan.append(step)
     return plan
 
-def create_random_waypoints(seed=0, xcurrent=0, ycurrent=0, xmin=0, xmax=100, ymin=0, ymax=100, budget=1000, vel=1):
+def create_random_waypoints(random, xcurrent=0, ycurrent=0, xmin=0, xmax=100, ymin=0, ymax=100, budget=1000, vel=1):
     """Create a random waypoint path, whose area is described in 
     exp['area'] and minimum length in 'budget' when traversed with velocity vel"""
-    random = np.random.default_rng(seed)
     waypoints = [[xcurrent, ycurrent]]
     while True:
         x = int(random.uniform(xmin, xmax))

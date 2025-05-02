@@ -29,6 +29,10 @@ class MRMR_Policy(Policy):
         self.epm = EPM().epm
         self.epm.join(self.epagent)
         self.observations = []
+        # initializing the agent's random generator
+        seed = self.exp_policy["seed"]
+        self.random = np.random.default_rng(seed)
+
         
 
     def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
@@ -38,8 +42,8 @@ class MRMR_Policy(Policy):
         geom_y_min = 0
         geom_y_max = self.robot.im.height - 1
         budget = self.exp_policy["budget"] - t
-        seed = self.exp_policy["seed"]
-        randwp = create_random_waypoints(seed, xcurrent, ycurrent, geom_x_min, geom_x_max, geom_y_min, geom_y_max, budget)
+
+        randwp = create_random_waypoints(self.random, xcurrent, ycurrent, geom_x_min, geom_x_max, geom_y_min, geom_y_max, budget)
         randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)
         return randxy
 
@@ -191,7 +195,7 @@ class MRMR_Contractor(MRMR_Policy):
         # [{"x":4, "y":4, "ep":None,}],....
         if not hasattr(self.robot, "oldplans"):
             self.robot.oldplans = {}
-        self.robot.oldplans[self.timestep] = copy.copy(self.plan)
+        # self.robot.oldplans[self.timestep] = copy.copy(self.plan)
         oldplan = self.plan
         self.plan = []
         #
@@ -224,6 +228,7 @@ class MRMR_Contractor(MRMR_Policy):
         self.replan_needed = False
         self.current_epoffer = None
         self.current_real_value = 0 # accumulated real value for the offer
+        self.robot.oldplans[self.timestep] = copy.copy(self.plan)        
         return 
     
     def can_bid(self, epoffer):

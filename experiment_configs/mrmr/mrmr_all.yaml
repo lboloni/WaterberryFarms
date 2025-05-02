@@ -1,0 +1,20 @@
+name: "all"
+comment: "all-experiments"
+
+allruns:
+  - "mrmr-clustered-1pio-2con"
+  - "mrmr-clustered-3lawnmowers"
+  - "mrmr-clustered-3random"
+  - "mrmr-unclustered-1pio-2con"
+  - "mrmr-unclustered-3lawnmowers"
+  - "mrmr-unclustered-3random"
+
+clustered-runs:
+  - "mrmr-clustered-1pio-2con"
+  - "mrmr-clustered-3lawnmowers"
+  - "mrmr-clustered-3random"
+
+unclustered-runs:
+  - "mrmr-unclustered-1pio-2con"
+  - "mrmr-unclustered-3lawnmowers"
+  - "mrmr-unclustered-3random"
