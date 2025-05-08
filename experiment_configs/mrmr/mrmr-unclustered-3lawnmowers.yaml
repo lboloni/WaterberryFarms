@@ -12,21 +12,21 @@ exp_environment: "mrmr-custom-notclustered"
 exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
 
-timesteps-per-day: 500
+timesteps-per-day: 1000
 time-start-environment: 15
 
 robots:
-  - name: "robot-1"
+  - name: "lawn-1"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
       area: "[5, 5, 95, 30]" # [xmin, ymin, xmax, ymax]
       policy-name: "lawn-bottom"
-  - name: "robot-2"
+  - name: "lawn-2"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
       area: "[5, 35, 95, 60]"
       policy-name: "lawn-middle"
-  - name: "robot-3"
+  - name: "lawn-3"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
       area: "[5, 65, 95, 95]"
