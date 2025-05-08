@@ -21,13 +21,16 @@ robots:
     exp-policy-extra-parameters:
       area: "[5, 5, 95, 30]" # [xmin, ymin, xmax, ymax]
       policy-name: "lawn-bottom"
+      budget: 1000 # same as timesteps-per-day
   - name: "lawn-2"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
       area: "[5, 35, 95, 60]"
       policy-name: "lawn-middle"
+      budget: 1000 # same as timesteps-per-day
   - name: "lawn-3"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
       area: "[5, 65, 95, 95]"
       policy-name: "lawn-top"
+      budget: 1000 # same as timesteps-per-day

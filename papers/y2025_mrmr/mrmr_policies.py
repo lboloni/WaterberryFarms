@@ -33,8 +33,6 @@ class MRMR_Policy(Policy):
         seed = self.exp_policy["seed"]
         self.random = np.random.default_rng(seed)
 
-        
-
     def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
         """Create a random xy plan starting from the specified position and time t. We assume that the robot is connected at this point"""
         geom_x_min = 0
@@ -44,11 +42,12 @@ class MRMR_Policy(Policy):
         budget = self.exp_policy["budget"] - t
 
         randwp = create_random_waypoints(self.random, xcurrent, ycurrent, geom_x_min, geom_x_max, geom_y_min, geom_y_max, budget)
-        randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)
-        return randxy
+        randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)        
+        return randxy[0:int(budget)]
 
     def add_observation(self, obs):
         """MRMR policies collect the observations"""
+        obs["name"] = self.name
         self.observations.append(obs)
 
 class MRMR_Pioneer(MRMR_Policy):
@@ -195,12 +194,15 @@ class MRMR_Contractor(MRMR_Policy):
         # [{"x":4, "y":4, "ep":None,}],....
         if not hasattr(self.robot, "oldplans"):
             self.robot.oldplans = {}
-        # self.robot.oldplans[self.timestep] = copy.copy(self.plan)
+        
+        self.robot.oldplans[self.timestep] = copy.copy(self.plan)
         oldplan = self.plan
+
         self.plan = []
         #
         # part one: copy the remainder of the current ep
         #
+        step = None
         if oldplan and oldplan[0]["ep"]:
             currentep = oldplan[0]["ep"]
             while True:
@@ -208,27 +210,37 @@ class MRMR_Contractor(MRMR_Policy):
                 if step["ep"] != currentep:
                     break
                 self.plan.append(step)
+        if step:
+            print(f"Part one last step {step}")
         #
         # part two: create a plan accross the eps remaining
         #
         if self.epagent.commitments:
             xcurrent, ycurrent, t = self.plan_ends_at()            
+            print(f"Part two first step {xcurrent}, {ycurrent}, {t}")
             epset = ExplorationPackageSet()
             # epset.ep_to_explore += self.epagent.commitments
             epset.ep_to_explore = [x.ep for x in self.epagent.commitments]
             _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent], maxtime=1.0)
             ep_xyplan = xyplan_from_ep_path(ep_path, t)
             self.plan += ep_xyplan
+            print(f"Part two last step {self.plan[-1]}")
         #
         # part three: create random waypoints to the rest of the budget
         # 
         xcurrent, ycurrent, t = self.plan_ends_at()            
+        print(f"Part three first step {xcurrent}, {ycurrent}, {t}")
         randxy = self.create_randxy(xcurrent=xcurrent, ycurrent=ycurrent, t=t)
         self.plan += randxy
+        print(f"Part three last step {self.plan[-1]}")
+
         self.replan_needed = False
         self.current_epoffer = None
         self.current_real_value = 0 # accumulated real value for the offer
-        self.robot.oldplans[self.timestep] = copy.copy(self.plan)        
+        # self.robot.oldplans[self.timestep] = copy.copy(self.plan)        
+
+        if t > 1:
+            print(f"Self plan first {self.plan[0]}, \n robot location {self.robot.x},{self.robot.y} \n last observation {self.observations[-1]}")
         return 
     
     def can_bid(self, epoffer):
@@ -269,7 +281,15 @@ class MRMR_Contractor(MRMR_Policy):
         if self.plan[0]["t"] != self.timestep:
             print(f"not asserted well! plan={self.plan[0]['t']} self.timestep={self.timestep}")
         assert self.plan[0]["t"] == self.timestep
+
+        dist = abs(self.plan[0]['x']-self.robot.x) + abs(self.plan[0]['y']-self.robot.y)
+        if dist > 2:
+            print("Weird, big jump?")
+
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
+
+    
+
         # if the observation is a new one, add it to the value of the offer
         if self.current_epoffer:
             # FIXME: handle new observations, I will need to create a separate function for this, for the time being the value is zero, but should not be

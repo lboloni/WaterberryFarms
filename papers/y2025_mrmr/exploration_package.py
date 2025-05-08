@@ -128,7 +128,9 @@ class ExplorationPackageSet:
                 choices, repeat=len(self.ep_to_explore))
             for gens in generator_choices:
                 path = np.array([start])
-                ep_path = []
+                # FIXME: this fixes the fact that the path does not start 
+                # with the start but then it breaks the 
+                ep_path = [{"path": [start], "ep": None}]
                 intrinsic = 0
                 for generator, ep in zip(gens, perm):
                     # print(generator.__name__)

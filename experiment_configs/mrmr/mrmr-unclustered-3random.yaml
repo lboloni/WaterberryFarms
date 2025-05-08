@@ -17,13 +17,16 @@ robots:
     exp-policy-extra-parameters:
       seed: 1
       name: rwp-1
+      budget: 1000 # same as timesteps-per-day
   - name: "robot-2"
     exp-policy: "random-waypoint-seed10"
     exp-policy-extra-parameters:
       seed: 10
       name: rwp-2
+      budget: 1000 # same as timesteps-per-day
   - name: "robot-3"
     exp-policy: "random-waypoint-seed20"
     exp-policy-extra-parameters:
       seed: 20
       name: rwp-3
+      budget: 1000 # same as timesteps-per-day
