@@ -10,7 +10,7 @@ import pickle
 import time
 import pathlib
 import gzip as compress
-
+import inspect
 #import bz2 as compress
 # import gzip as compress
 
@@ -206,8 +206,10 @@ def run_1robot1day(exp):
     if exp_policy["policy-code"] == "-":
         # the policy is created through a policy generator that is evaluated
         # this is for new code models
-        generator = exp_policy["policy-code-generator"]        
-        policy = eval(generator)(exp_policy, exp_env)
+        generator = exp_policy["policy-code-generator"]
+        frame= inspect.currentframe().f_back
+        caller_globals= frame.f_globals     
+        policy = eval(generator, caller_globals)(exp_policy, exp_env)
     else:
         policy = create_policy(exp_policy, exp_env)
     results["policy-code"] = policy
