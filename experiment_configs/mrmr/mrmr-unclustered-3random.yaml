@@ -8,7 +8,7 @@ exp_environment: "mrmr-custom-notclustered"
 exp_estimator: "adaptive-disk"
 exp_score: "weighted_asymmetric"
 
-timesteps-per-day: 500
+timesteps-per-day: 1000
 time-start-environment: 19
 
 robots:
@@ -16,14 +16,17 @@ robots:
     exp-policy: "random-waypoint"
     exp-policy-extra-parameters:
       seed: 1
-      name: rw-seed-1
+      name: rwp-1
+      budget: 1000 # same as timesteps-per-day
   - name: "robot-2"
     exp-policy: "random-waypoint-seed10"
     exp-policy-extra-parameters:
       seed: 10
-      name: rw-seed-10
+      name: rwp-2
+      budget: 1000 # same as timesteps-per-day
   - name: "robot-3"
     exp-policy: "random-waypoint-seed20"
     exp-policy-extra-parameters:
       seed: 20
-      name: rw-seed-20
+      name: rwp-3
+      budget: 1000 # same as timesteps-per-day

@@ -561,4 +561,4 @@ def show_individual_robot_path(results, ax, robot, observations,
         obsy.append(obs[StoredObservationIM.Y])
     ax.add_line(lines.Line2D(obsx, obsy, color = pathcolor, linewidth=pathwidth))
     if draw_robot:
-        ax.add_patch(patches.Circle((robot.x, robot.y), radius=1, facecolor=robotcolor))
+        ax.add_patch(patches.Circle((robot.x, robot.y), radius=3, facecolor=robotcolor))
