@@ -295,7 +295,8 @@ class MRMR_Contractor(MRMR_Policy):
             # FIXME: handle new observations, I will need to create a separate function for this, for the time being the value is zero, but should not be
             self.current_real_value += 0
         # terminating the current epoffer and marking it as executed
-        if self.current_epoffer and self.current_epoffer.ep != self.plan[0]["ep"]:
+        # FIXME: self.plan[0]["ep"] supposed to fix when we are not in a new ep... but will this finish the last one?
+        if self.current_epoffer and self.plan[0]["ep"] and self.current_epoffer.ep != self.plan[0]["ep"]:
             # current ep was terminated             
             self.epagent.commitment_executed(self.current_epoffer, real_value = self.current_real_value)
             self.current_epoffer = None

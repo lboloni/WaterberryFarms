@@ -43,7 +43,7 @@ def create_random_waypoints(random, xcurrent=0, ycurrent=0, xmin=0, xmax=100, ym
     return waypoints
 
 def xyplan_from_ep_path(ep_path, t):
-    """Create the xyplan from the ep path
+    """Create the xyplan from the ep path, which is a list of components that might or might not have an ep
     """
     full_plan = []
     for i in range(len(ep_path)):

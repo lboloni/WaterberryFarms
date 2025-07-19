@@ -76,9 +76,15 @@ class EPAgent:
         epoff.real_value = real_value
         epoff.executed = True
         self.money += epoff.bid_prize
-        self.commitments.remove(epoff)
-        offering_agent = self.epm.agents[epoff.offering_agent_name]
-        offering_agent.offer_finished(epoff)
+        # FIXME: this is probably happening after the last ep
+        if epoff in self.commitments:
+            self.commitments.remove(epoff)
+            offering_agent = self.epm.agents[epoff.offering_agent_name]
+            offering_agent.offer_finished(epoff)
+            print(f"commitment_executed called for epoff {epoff}")
+        else:
+            print(f"For some reason, commitment_executed called although epoff {epoff} is not in commitments")
+            
 
     def offer_accepted(self, epoff):
         """The offer was accepted"""

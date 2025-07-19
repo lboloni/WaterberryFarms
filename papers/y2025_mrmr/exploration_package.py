@@ -113,7 +113,7 @@ class ExplorationPackageSet:
         """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes 30 seconds. 
         maxtime indicates the maximum time spent on this
         
-        Returns the path, and the path in the form of a list of dicts labeled with the EPs that are part of it
+        Returns the path in the form of a list of dicts labeled with the EPs that are part of it
 
         """
         choices = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right, ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
@@ -130,8 +130,9 @@ class ExplorationPackageSet:
                 path = np.array([start])
                 # FIXME: this fixes the fact that the path does not start 
                 # with the start but then it breaks something else
-                # ep_path = [{"path": [start], "ep": None}]
                 ep_path = []
+                # append the first segment, not an ep
+                ep_path.append({"path": [start], "ep": None})
                 intrinsic = 0
                 for generator, ep in zip(gens, perm):
                     # print(generator.__name__)
@@ -140,8 +141,12 @@ class ExplorationPackageSet:
                     intrinsic += get_path_length(newpath)
                     path = np.concatenate((path, newpath), axis=0)
                     ep_path.append({"path": newpath, "ep": ep})
+                # FIXME: the ep_path should also have this
                 if end is not None:
-                    path = np.concatenate((path, np.array([end])), axis=0)                
+                    path = np.concatenate((path, np.array([end])), axis=0)
+                    # append the last segment, not an ep
+                    ep_path.append({"path": [end], "ep": None})
+                
                 length = get_path_length(path)
                 count += 1
                 # print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
