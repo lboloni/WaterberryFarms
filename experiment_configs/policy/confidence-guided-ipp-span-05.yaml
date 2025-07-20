@@ -1,0 +1,8 @@
+policy-name: "confidence-guided-ipp-span-5"
+policy-code: "-"
+# the generator function is in confidence_guided_ipp_policy.py
+policy-code-generator: "generate_confidence_guided_ipp_policy"
+# Budget in absolute values, in future work maybe I can put  
+# a percentage here
+# budget: 300
+span: 5

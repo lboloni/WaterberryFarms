@@ -2,10 +2,12 @@
 confidence_guided_ipp_policy.py
 
 """
-from policy import AbstractWaypointPolicy
 import itertools
 import numpy as np
-
+from policy import AbstractWaypointPolicy
+from exp_run_config import Experiment
+from wbf_simulate import get_geometry
+from water_berry_farm import WBF_IM_GaussianProcess
 
 class AbstractEmbeddedEstimatorPolicy(AbstractWaypointPolicy):
     """A policy that is using an embedded estimator"""
@@ -108,3 +110,13 @@ class ConfidenceGuidedPathPlanning(AbstractEmbeddedEstimatorPolicy):
         retval = list(val)            
         retval.remove((self.robot.x, self.robot.y))
         return retval            
+
+
+def generate_confidence_guided_ipp_policy(exp_policy: Experiment, 
+                                    exp_env: Experiment):
+    """Example of how to create a generator for a policy type, in this case fixed budget lawnmower FBLM"""
+    geo = get_geometry(exp_env["typename"])
+    estimator = WBF_IM_GaussianProcess(geo["width"], geo["height"])
+    policy = ConfidenceGuidedPathPlanning(vel = geo["velocity"], low_point = [geo["xmin"], geo["ymin"]], high_point = [geo["xmax"], geo["ymax"]], estimator = estimator, span = exp_policy["span"])
+    policy.name = exp_policy["policy-name"] 
+    return policy
