@@ -1,6 +1,14 @@
 # Describes an experiment where a random 
 # waypoint robot runs in a miniberry-30 environment
-exp_environment: "miniberry-30-custom"
-exp_policy: "random-waypoint"
-exp_estimator: "adaptive-disk"
-exp_score: "weighted_asymmetric"
+
+exp_environment: "environment"
+run_environment: "miniberry-30-custom"
+
+exp_policy: "policy" 
+run_policy: "random-waypoint"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "weighted_asymmetric"

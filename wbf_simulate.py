@@ -187,14 +187,14 @@ def run_1robot1day(exp):
         return
 
     # the exp for the environment
-    exp_env = Config().get_experiment("environment", exp["exp_environment"])
+    exp_env = Config().get_experiment(exp["exp_environment"], exp["run_environment"])
     pprint(exp_env)
     results = {}
 
     #
     # Setting the policy based on the exp for policy
     #
-    exp_policy = Config().get_experiment("policy", exp["exp_policy"])
+    exp_policy = Config().get_experiment(exp["exp_policy"], exp["run_policy"])
     # if extra parameters were passed on, add them to the exp value
     if "exp-policy-extra-parameters" in exp:
         extra = exp["exp-policy-extra-parameters"]
@@ -222,7 +222,7 @@ def run_1robot1day(exp):
     #
     # Setting the estimator code based on the exp for estimator
     #
-    exp_estimator = Config().get_experiment("estimator", exp["exp_estimator"])
+    exp_estimator = Config().get_experiment(exp["exp_estimator"], exp["run_estimator"])
     pprint(exp_estimator)
     results["estimator-CODE"] = create_estimator(exp_estimator, exp_env)
     results["estimator-name"] = results["estimator-CODE"].name
@@ -233,7 +233,7 @@ def run_1robot1day(exp):
     #
     # Setting the score code based on the exp for the score
     #
-    exp_score = Config().get_experiment("score", exp["exp_score"])
+    exp_score = Config().get_experiment(exp["exp_score"], exp["run_score"])
     pprint(exp_score)
     results["score-code"] = create_score(exp_score, exp_env)
     results["score-name"] = results["score-code"].name
@@ -277,13 +277,13 @@ def run_nrobot1day(exp):
         return 
 
     # the exp for the environment
-    exp_env = Config().get_experiment("environment", exp["exp_environment"])
+    exp_env = Config().get_experiment(exp["exp_environment"], exp["run_environment"])
     pprint(exp_env)
     # the exp for estimator
-    exp_estimator = Config().get_experiment("estimator", exp["exp_estimator"])
+    exp_estimator = Config().get_experiment(exp["exp_estimator"], exp["run_estimator"])
     pprint(exp_estimator)
     # the exp for the score
-    exp_score = Config().get_experiment("score", exp["exp_score"])
+    exp_score = Config().get_experiment(exp["exp_score"], exp["run_score"])
     pprint(exp_score)
 
     # extract the sub policies for the individual robots
@@ -291,7 +291,7 @@ def run_nrobot1day(exp):
     for values in exp["robots"]:
         robotspec = {}
         robotspec["name"] = values["name"]
-        exp_policy = Config().get_experiment("policy", values["exp-policy"]) 
+        exp_policy = Config().get_experiment(values["exp_policy"], values["run-policy"]) 
         # if extra parameters were passed on, add them to the exp value
         if "exp-policy-extra-parameters" in values:
             extra = values["exp-policy-extra-parameters"]
