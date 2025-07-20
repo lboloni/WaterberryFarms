@@ -5,6 +5,7 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 """
 
+from exp_run_config import Experiment
 from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess, WBF_Score_WeightedAsymmetric
 from policy import RandomWaypointPolicy, FollowPathPolicy
 from path_generators import find_fixed_budget_lawnmower
@@ -188,3 +189,21 @@ def create_score(exp_score, exp_env):
         return score
     raise Exception(f"Unsupported score type {exp_score['score-code']}")
 
+# Generators
+
+def generate_fixed_budget_lawnmower(exp_policy: Experiment, 
+                                    exp_env: Experiment):
+    """Example of how to create a generator for a policy type, in this case fixed budget lawnmower FBLM"""
+    geo = get_geometry(exp_env["typename"])
+    # FIXME: maybe here I can specify a percentage budget....
+    budget = exp_policy["budget"]
+    # check if the area was passed
+    if "area" in exp_policy:
+        corners = eval(exp_policy["area"]) # [xmin, ymin, xmax, ymax]
+        path = find_fixed_budget_lawnmower([0,0], corners[0], corners[2], corners[1], corners[3], geo["velocity"], time = budget)
+    else:
+        path = find_fixed_budget_lawnmower([0,0], geo["xmin"], geo["xmax"], geo["ymin"], geo["ymax"], geo["velocity"], time = budget)
+    policy = FollowPathPolicy(vel = geo["velocity"], waypoints = path, repeat = True)
+    policy.name = exp_policy["policy-name"] 
+    # "FixedBudgetLawnmower"
+    return policy

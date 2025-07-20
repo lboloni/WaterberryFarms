@@ -1,0 +1,9 @@
+policy-name: "example-generator-FBLM"
+policy-code: "-"
+# Example of how to refer to a generator - this happens to be in 
+# wbf_helper. This function has to be visible from the place the run_* function 
+# is called
+policy-code-generator: "generate_fixed_budget_lawnmower"
+# Budget in absolute values, in future work maybe I can put  
+# a percentage here
+budget: 300

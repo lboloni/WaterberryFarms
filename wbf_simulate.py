@@ -204,8 +204,9 @@ def run_1robot1day(exp):
 
     pprint(exp_policy)
     if exp_policy["policy-code"] == "-":
-        # the policy is created through a policy generator that is evaluated
+        # the policy is created through a policy generator which takes the policy exp and the environment exp
         # this is for new code models
+        # The generator function should be visible from the code where the run_1robot1day is called
         generator = exp_policy["policy-code-generator"]
         frame= inspect.currentframe().f_back
         caller_globals= frame.f_globals     
@@ -332,8 +333,13 @@ def run_nrobot1day(exp):
         robot = Robot(robotspec["name"], 0, 0, 0, env=None, im=None)
         robot.com = results["communication"]
         if robotspec["exp-policy"]["policy-code"] == "-":
+            # the policy is created through a policy generator which takes the policy exp and the environment exp
+            # this is for new code models
+            # The generator function should be visible from the code where the run_nrobot1day is called
             generator = robotspec["exp-policy"]["policy-code-generator"]        
-            policy = eval(generator)(robotspec["exp-policy"], exp_env)
+            frame= inspect.currentframe().f_back
+            caller_globals= frame.f_globals     
+            policy = eval(generator, caller_globals)(robotspec["exp-policy"], exp_env)
         else:
             policy = create_policy(robotspec["exp-policy"], exp_env)
         robot.assign_policy(policy)
