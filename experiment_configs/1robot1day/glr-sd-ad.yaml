@@ -1,0 +1,13 @@
+# Describes an experiment where a robot following the 
+# GLR-SD policy runs in a miniberry-30 environment
+exp_environment: "environment"
+run_environment: "miniberry-30"
+
+exp_policy: "policy" 
+run_policy: "glr-sd"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "weighted_asymmetric"

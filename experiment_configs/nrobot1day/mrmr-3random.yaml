@@ -4,26 +4,34 @@
 # exp_environment: "miniberry-100-custom-mrmr"
 name: "3 random waypoint"
 
-exp_environment: "miniberry-100"
-exp_estimator: "adaptive-disk"
-exp_score: "weighted_asymmetric"
+exp_environment: "environment"
+run_environment: "miniberry-100"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "weighted_asymmetric"
 
 timesteps-per-day: 500
 time-start-environment: 19
 
 robots:
   - name: "robot-1"
-    exp-policy: "random-waypoint"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
     exp-policy-extra-parameters:
       seed: 1
       name: rw-seed-1
   - name: "robot-2"
-    exp-policy: "random-waypoint-seed10"
+    exp-policy: "policy"
+    run-policy: "random-waypoint-seed10"
     exp-policy-extra-parameters:
       seed: 10
       name: rw-seed-10
   - name: "robot-3"
-    exp-policy: "random-waypoint-seed20"
+    exp-policy: "policy"
+    run-policy: "random-waypoint-seed20"
     exp-policy-extra-parameters:
       seed: 20
       name: rw-seed-20

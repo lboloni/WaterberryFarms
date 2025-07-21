@@ -1,0 +1,4 @@
+policy-name: "GLR CA"
+policy-code: "-"
+# the generator function is in grid_limited_randomness.py
+policy-code-generator: "generate_GLR_CA"
