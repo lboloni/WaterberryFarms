@@ -63,7 +63,7 @@ def GLR_end(control_points, starting_point, geo, time, seed=0, h_cells=2, v_cell
     waypoints = [(starting_point)]
     waypoints += control_points
     while True:
-        pathlength = get_path_length(starting_point, waypoints)
+        pathlength = get_path_length(waypoints, starting_point)
         # print(f"pathlength = {pathlength}")
         if pathlength > path_min_length:
             return waypoints
@@ -88,7 +88,7 @@ def GLR_shortest_detour(control_points, starting_point, geo, time, seed=0, h_cel
             waypoints = add_to_shortest_detour(waypoints, [x,y])
             # print(waypoints)
             # waypoints.append((x,y))
-            pathlength = get_path_length(starting_point, waypoints)
+            pathlength = get_path_length(waypoints, starting_point)
             if pathlength > path_min_length:
                 return waypoints    
             
@@ -103,7 +103,7 @@ def GLR_CristophidesAlgorithm(control_points, starting_point, geo, time, seed=0,
         # print(get_path_length(starting_point, path))
         pathx = copy.deepcopy(path)
         path2= christofidesV2.compute(pathx)
-        pathlength = get_path_length(starting_point, path2)
+        pathlength = get_path_length(path2, starting_point)
         # print(f"pathlength = {pathlength} - Christophides")
         if pathlength > path_min_length:
             break
@@ -123,7 +123,7 @@ def GLR_CristophidesAlgorithm(control_points, starting_point, geo, time, seed=0,
     while upper - 1 > lower:
         subpath = copy.deepcopy(path[:int((upper+lower)/2)])
         path2 = christofidesV2.compute(subpath)
-        pathlength = get_path_length(starting_point, path2)
+        pathlength = get_path_length(path2, starting_point)
         # print(f"pathlength = {pathlength} - binary search")
         # print(f"{upper} {lower}")
         if pathlength > path_min_length:

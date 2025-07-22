@@ -2,3 +2,7 @@ policy-name: "GLR SD"
 policy-code: "-"
 # the generator function is in grid_limited_randomness.py
 policy-code-generator: "generate_GLR_SD"
+
+seed: 10
+h_cells: 2
+v_cells: 2

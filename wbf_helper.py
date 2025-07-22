@@ -101,22 +101,22 @@ def get_geometry(typename, geo = None):
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 0, 10, 0, 10
         geo["width"], geo["height"] = 11, 11
-        #geo["timesteps-per-day"] = 0.4 * 100 
+        geo["timesteps-per-day"] = 0.4 * 100 
     elif typename == "Miniberry-30":
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 0, 30, 0, 30
         geo["width"], geo["height"] = 31, 31
-        #geo["timesteps-per-day"] = 0.4 * 900
+        geo["timesteps-per-day"] = 0.4 * 900
     elif typename == "Miniberry-100":
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 0, 100, 0, 100
         geo["width"], geo["height"] = 101, 101
-        #geo["timesteps-per-day"] = 0.4 * 10000
+        geo["timesteps-per-day"] = 0.4 * 10000
     elif typename == "Waterberry":
         geo["xmin"], geo[
             "xmax"], geo["ymin"], geo["ymax"] = 1000, 5000, 1000, 4000
         geo["width"], geo["height"] = 5001, 4001
-        # geo["timesteps-per-day"] = 0.4 * 12000000
+        geo["timesteps-per-day"] = 0.4 * 12000000
     return geo
 
 
