@@ -1,0 +1,76 @@
+# a file with all the automation runs, all notebooks
+# and most of the possible runs
+
+defaults: &defaults
+  epochs: 10
+  creation_style: 'exist-ok'
+  # creation_style: 'discard-old'
+  
+exps_to_run:
+  # ConvVAE sensorprocessing
+  - name: 'ConvVAE_256'
+    notebook: 'sensorprocessing/Train-Conv-VAE.ipynb'
+    params:
+      <<: *defaults
+      run: 'sp_vae_256'
+  - name: 'ConvVAE_128'
+    notebook: 'sensorprocessing/Train-Conv-VAE.ipynb'
+    params:
+      <<: *defaults
+      run: 'sp_vae_128'
+  # Propriotuned CNN sensorprocessing
+  - name: 'ResNet50_128'
+    notebook: 'sensorprocessing/Train-ProprioTuned-CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'resnet50_128'
+  - name: 'ResNet50_256'
+    notebook: 'sensorprocessing/Train-ProprioTuned-CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'resnet50_256'
+  - name: 'Vgg19_128'
+    notebook: 'sensorprocessing/Train-ProprioTuned-CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'vgg19_128'
+  - name: 'Vgg19_256'
+    notebook: 'sensorprocessing/Train-ProprioTuned-CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'vgg19_256'
+  # Verify Conv VAE
+  - name: 'VerifyConvVAE-128'
+    notebook: 'sensorprocessing/Verify_Conv_VAE.ipynb'
+    params:
+      <<: *defaults
+      run: 'sp_vae_128'
+  - name: 'VerifyConvVAE-256'
+    notebook: 'sensorprocessing/Verify_Conv_VAE.ipynb'
+    params:
+      <<: *defaults
+      run: 'sp_vae_256'
+# Verify Propriotuned CNN
+  - name: 'VerifyResNet50-128'
+    notebook: 'sensorprocessing/Verify_ProprioTuned_CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'resnet50_128'
+  - name: 'VerifyResNet50-256'
+    notebook: 'sensorprocessing/Verify_ProprioTuned_CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'resnet50_256'
+  - name: 'VerifyVgg19-128'
+    notebook: 'sensorprocessing/Verify_ProprioTuned_CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'vgg19_128'
+  - name: 'VerifyVgg19-256'
+    notebook: 'sensorprocessing/Verify_ProprioTuned_CNN.ipynb'
+    params:
+      <<: *defaults
+      run: 'vgg19_256'
+
+
+

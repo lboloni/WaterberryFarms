@@ -1,0 +1,20 @@
+
+# a short file for automation, to be used for templates for 
+# the external automation model
+
+defaults: &defaults
+  creation_style: 'exist-ok'
+  # creation_style: 'discard-old'
+  
+exps_to_run:
+  - name: 'glr-eop-ad-2-2'
+    notebook: 'notebooks/1Robot1Day-Run.ipynb'
+    params:
+      <<: *defaults
+      run: 'glr-eop-ad'
+  - name: 'glr-eop-ad-4-4'
+    notebook: 'notebooks/1Robot1Day-Run.ipynb'
+    params:
+      <<: *defaults
+      run: 'glr-eop-ad'
+
