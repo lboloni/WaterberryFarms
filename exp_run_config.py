@@ -193,13 +193,13 @@ class Config:
         self.values["experiment_data"] = path
         self.__log(f"Experiment data path changed to {self.values['experiment_data']}")
 
-
-
     def copy_experiment(self, exp_name, run_name = None):
         """Copy an experiment run, or all the runs, from an internal
         experiment config to the external on
         FIXME Use list runs
         """
+        # we cannot do this in the internal domain
+        assert self.experiment_path != self.experiment_path_internal
         if run_name:
             source_path = pathlib.Path(self.experiment_path_internal, exp_name, run_name + ".yaml")
             assert source_path.exists()

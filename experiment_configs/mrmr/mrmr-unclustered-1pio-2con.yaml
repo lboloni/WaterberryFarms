@@ -8,16 +8,23 @@
 name: "1 pioneer 2 contractors"
 
 #exp_environment: "miniberry-100"
-exp_environment: "mrmr-custom-notclustered"
-exp_estimator: "adaptive-disk"
-exp_score: "weighted_asymmetric"
+
+exp_environment: "environment"
+run_environment: "mrmr-custom-notclustered"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "weighted_asymmetric"
 
 timesteps-per-day: 1000
 time-start-environment: 25
 
 robots:
   - name: "pio"
-    exp-policy: "generic"
+    exp-policy: "policy"
+    run-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-pioneer"
       policy-code: "MRMR_Pioneer"
@@ -25,14 +32,16 @@ robots:
       budget: 1000 # same as timesteps-per-day
       # area: "[5, 5, 95, 95]" # [xmin, ymin, xmax, ymax]
   - name: "con-1"
-    exp-policy: "generic"
+    exp-policy: "policy"
+    run-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-contractor-1"
       policy-code: "MRMR_Contractor"
       seed: 2
       budget: 1000 # same as timesteps-per-day
   - name: "con-2"
-    exp-policy: "generic"
+    exp-policy: "policy"
+    run-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-contractor-2"
       policy-code: "MRMR_Contractor"

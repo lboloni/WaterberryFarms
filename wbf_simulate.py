@@ -291,7 +291,7 @@ def run_nrobot1day(exp):
     for values in exp["robots"]:
         robotspec = {}
         robotspec["name"] = values["name"]
-        exp_policy = Config().get_experiment(values["exp_policy"], values["run-policy"]) 
+        exp_policy = Config().get_experiment(values["exp-policy"], values["run-policy"]) 
         # if extra parameters were passed on, add them to the exp value
         if "exp-policy-extra-parameters" in values:
             extra = values["exp-policy-extra-parameters"]
