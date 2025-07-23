@@ -1,7 +1,0 @@
-# Specify the comparison for the MRMR paper
-name: "comp_mrmr"
-
-tocompare:
-  - "mrmr-3random"
-  - "mrmr-3lawnmowers"
-  - "mrmr-1pioneer-2contractors"

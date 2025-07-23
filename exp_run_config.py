@@ -187,6 +187,9 @@ class Config:
         self.experiment_path = path
         self.__log(f"Experiment config path changed to {self.experiment_path}")
     
+    def get_experiment_path(self):
+        return self.experiment_path
+
     def set_experiment_data(self, path: pathlib.Path):
         """Sets the experiment data to be an external directory"""
         assert path.exists()
