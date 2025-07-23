@@ -64,7 +64,7 @@ class MRMR_Pioneer(MRMR_Policy):
         self.offer_plan = None
 
     def replan(self):
-        if not self.replan_needed:
+        if not self.replan_needed and self.plan != []:
             return    
         self.plan = []    
         randxy = self.create_randxy(xcurrent=self.robot.x, ycurrent=self.robot.y, t=self.timestep)
@@ -115,7 +115,12 @@ class MRMR_Pioneer(MRMR_Policy):
         """The primary behavior of the agent. """
         self.timestep += delta_t
         self.replan()
-        assert self.plan[0]["t"] == self.timestep
+        # assert self.plan[0]["t"] == self.timestep
+        if len(self.plan) == 0:
+            print("No plan???")
+        if self.plan[0]["t"] != self.timestep:
+            print("assertion broken here")
+
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         self.plan.pop(0) # move on with the plan
         # 

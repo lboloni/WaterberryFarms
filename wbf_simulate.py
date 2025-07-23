@@ -241,7 +241,6 @@ def run_1robot1day(exp):
     # End of setting the score 
     #
     results["velocity"] = exp["velocity"]
-    results["timesteps-per-day"] = exp["timesteps-per-day"]
     results["time-start-environment"] = exp["time-start-environment"]
     results["im_resolution"] = exp["im_resolution"]
     results["results-basedir"] = exp["data_dir"]
@@ -254,6 +253,7 @@ def run_1robot1day(exp):
     results["wbfe"] = wbfe
     results["days"] = 1
     get_geometry(results["typename"], results)
+    results["timesteps-per-day"] = exp["timesteps-per-day"]
     # create the robot and set the policy
     results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
     results["robot"].assign_policy(results["policy-code"])
@@ -309,7 +309,6 @@ def run_nrobot1day(exp):
     results["score-name"] = results["score-code"].name
 
     results["velocity"] = exp["velocity"]
-    results["timesteps-per-day"] = exp["timesteps-per-day"]
     # results["timesteps-per-day-override"] = exp["timesteps-per-day-override"]
     results["time-start-environment"] = exp["time-start-environment"]
     results["im_resolution"] = exp["im_resolution"]
@@ -326,6 +325,8 @@ def run_nrobot1day(exp):
     results["communication"] = com
     results["communication-rounds"] = 5
     get_geometry(results["typename"], results)
+    # overwrite the timesteps per day set by get_geometry with the ones specified by the environment
+    results["timesteps-per-day"] = exp["timesteps-per-day"]
 
     robots = []
     for robotspec in robotspecs:
