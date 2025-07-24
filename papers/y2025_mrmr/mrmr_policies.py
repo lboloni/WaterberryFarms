@@ -1,7 +1,7 @@
 """
 mrmr_policies.py
 
-Functions helping to run experiments with the Waterberry Farms benchmark.
+Implementation of the various MRMR policies
 
 """
 
@@ -10,9 +10,12 @@ import copy
 
 from policy import Policy, AbstractCommunicateAndFollowPath
 from communication import Message
-from papers.y2025_mrmr.epmarket import EPM, EPAgent, EPOffer
-from papers.y2025_mrmr.exploration_package import ExplorationPackage, ExplorationPackageSet
-from papers.y2025_mrmr.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
+#from papers.y2025_mrmr.epmarket import EPM, EPAgent, EPOffer
+#from papers.y2025_mrmr.exploration_package import ExplorationPackage, ExplorationPackageSet
+#from papers.y2025_mrmr.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
+from .epmarket import EPM, EPAgent, EPOffer
+from .exploration_package import ExplorationPackage, ExplorationPackageSet
+from .xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
 
 
 class MRMR_Policy(Policy):
@@ -250,6 +253,8 @@ class MRMR_Contractor(MRMR_Policy):
     
     def can_bid(self, epoffer):
         """This function allows the agent to decide whether it can bid for a certain offer or not."""
+        # maxtime: how long to calculate
+        maxtime = 0.1 # was 1.0
         # step one: find the termination time of the current ep
         t = self.timestep
         currentep = None
@@ -259,7 +264,7 @@ class MRMR_Contractor(MRMR_Policy):
             while True:
                 t = self.plan[i]["t"]
                 i+=1
-                if self.plan[i]["ep"] != currentep:
+                if (i>=len(self.plan)) or self.plan[i]["ep"] != currentep:
                     break
         t = t + 1
         # get all the eps, except the current one
@@ -269,7 +274,7 @@ class MRMR_Contractor(MRMR_Policy):
         eps.add_ep(epoffer.ep)
         # create an optimal path 
         current = [self.robot.x, self.robot.y]
-        _, best_ep_path = eps.find_shortest_path_ep(current, maxtime=1.0)
+        _, best_ep_path = eps.find_shortest_path_ep(current, maxtime=maxtime)
         path = xyplan_from_ep_path(best_ep_path, t)
         if path[-1]["t"] < self.exp_policy["budget"]:
             # FIXME: this needs to be made more sophisticated

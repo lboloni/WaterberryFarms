@@ -1,7 +1,7 @@
 """
 epmarket.py
 
-Classes of the MultiResolutionMultiRobot paper implement a market for exploration packages.
+Classes of the MultiResolutionMultiRobot paper that implement a market for exploration packages.
 
 """
 import pprint
