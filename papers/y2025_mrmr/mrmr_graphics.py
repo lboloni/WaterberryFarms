@@ -4,16 +4,45 @@ mrmr_graphics.py
 Helper functions for creating the graphics for the MRMR paper
 """
 
+from exp_run_config import Config
+Config.PROJECTNAME = "WaterBerryFarms"
+
 import pathlib
 import matplotlib
 import matplotlib.pyplot as plt
 import wbf_figures
 import logging
 import numpy as np
+import gzip as compress
+import pickle
+import pprint
+import tqdm
+
+
 from information_model import StoredObservationIM
 
 logging.getLogger("fontTools").setLevel(logging.WARNING)
 
+
+def load_back_results(experiment, listruns):
+    """Loads back all the results of the experiment runs specified into a list"""
+    all_results = {}
+
+    for run in tqdm.tqdm(listruns):
+        exp = Config().get_experiment(experiment, run)
+        # pprint.pprint(exp)
+
+        resultsfile = pathlib.Path(exp["data_dir"], "results.pickle")
+        if not resultsfile.exists():
+            print(f"Results file does not exist:\n{resultsfile}")
+            print("Run the notebook Run-1Robot1Day with the same exp/run to create it.")
+            raise Exception("Nothing to do.")
+
+        # load the results file
+        with compress.open(resultsfile, "rb") as f:
+            results = pickle.load(f)    
+        all_results[run] = results
+    return all_results
 
 def show_robot_with_plan(expall, scenario, results, robotno, t):
     """Visualize the plan of the robot at a certain time point"""
@@ -44,7 +73,7 @@ def show_robot_with_plan(expall, scenario, results, robotno, t):
     plany = [a["y"] for a in oldplan]
     ax.add_line(matplotlib.lines.Line2D(planx, plany, color = robot_color, linestyle=":", linewidth=1))
 
-    # position of the robot
+    # visualize the position of the robot
     #ax.add_patch(matplotlib.patches.Circle((observations[int(t)]["x"], observations[int(t)]["y"]), radius=3, facecolor=robot_color))
     if observations:
         ax.add_patch(matplotlib.patches.Circle((observations[-1]["x"], observations[-1]["y"]), radius=3, facecolor=robot_color))
@@ -55,12 +84,21 @@ def show_robot_with_plan(expall, scenario, results, robotno, t):
     plt.savefig(filepath)
     print(f"Done saving to {filepath}")
 
-def show_robot_trajectories_and_detections(expall, name, results, robot_colors, lookup):
+def show_robot_trajectories_and_detections(exp_dest, name, results, robot_colors, lookup):
     """ Visualize detection paths for all running scenarios. Create a graph for the visualization of the paths, with the visualization of the detections
+    exp_dest: the exprun whose data dir the figures are going to be put
     """
+    fig_file = pathlib.Path(exp_dest.data_dir(), f"detections-map-{name}.pdf")
+    if fig_file.exists():
+        print(f"{fig_file} exists, skipping.")
+        return
     fig, ax = plt.subplots(1,1, figsize=(3, 3))
     wbf_figures.show_env_tylcv(results, ax)
-    ax.set_title(lookup[name])
+    if lookup and name in lookup:
+        ax.set_title(lookup[name])
+    else:
+        print(f"Missing name map:\n{name}")
+        ax.set_title(name)
     custom_lines = []
     labels = []
 
@@ -81,8 +119,7 @@ def show_robot_trajectories_and_detections(expall, name, results, robot_colors, 
     # fig.legend(handles, labels, ncol=len(exps)+1,
     #        bbox_to_anchor=(0.5, 0), loc="upper center")
 
-    plt.savefig(pathlib.Path(expall.data_dir(), f"detections-map-{name}.pdf"))
-
+    plt.savefig(fig_file)
     plt.close()
 
 def count_detections(results, robotno, field = "TYLCV"):
@@ -91,25 +128,42 @@ def count_detections(results, robotno, field = "TYLCV"):
     detections = [[a[StoredObservationIM.X], a[StoredObservationIM.Y]] for a in obs if a[field][StoredObservationIM.VALUE] == 0.0]
     return len(detections)
 
-def show_agentwise_detections(expall, name, results, robot_colors): 
-    """create a bargraph with the number of detection points for each of them"""   
-    fig, ax = plt.subplots(1,1, figsize=(3, 1.4))
+def show_agentwise_detections(exp_dest, name, results, robot_colors): 
+    """create a bargraph with the number of detection points for each agent and a total for all agents in the specific run
+    exp_dest: the exprun whose data dir the figures are going to be put
+    """   
+    fig_file = pathlib.Path(exp_dest.data_dir(), f"detections-bar-{name}.pdf")
+    if fig_file.exists():
+        print(f"{fig_file} exists, skipping.")
+        return
+    _, ax = plt.subplots(1,1, figsize=(3, 1.4))
     # ax.set_title(lookup[name])
     total = 0
     if "unclustered" in name:
         ax.set_ylim(0, 100)
     else:
-        ax.set_ylim(0, 600)
+        ax.set_ylim(0, 800)
     for i, robot in enumerate(results["robots"]):
         detections = count_detections(results, i)
         total += detections
         br = ax.bar(robot.name, detections, color=robot_colors[i])
     ax.bar("Total", total, color="gray")
-    plt.savefig(pathlib.Path(expall.data_dir(), f"detections-bar-{name}.pdf"))
+    plt.savefig(fig_file)
+    plt.close()
 
-def show_comparative_detections(expall, name, values, lookup, name_colors):    
+def show_comparative_detections(exp_dest, filename, values, lookup, name_colors):    
+    """Create a comparative bargraph between the results listed in the values"""
     fig, ax = plt.subplots(1,1, figsize=(3, 3))
     ax.set_ylim(0, 600)
     for i, policyname in enumerate(values):
-        br = ax.bar(lookup[policyname], values[policyname], color=name_colors[i])
-    plt.savefig(pathlib.Path(expall.data_dir(), f"comparative-bar-{name}.pdf"))
+        if policyname in lookup:
+            name = lookup[policyname]
+        else: 
+            print(f"No short name for:\n{policyname}")
+            name = policyname
+        br = ax.bar(name, values[policyname], color=name_colors[i%len
+        (name_colors)])
+    # rotate the labels, as they don't fit
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(90)
+    plt.savefig(pathlib.Path(exp_dest.data_dir(), f"comparative-bar-{filename}.pdf"))

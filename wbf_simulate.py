@@ -273,18 +273,18 @@ def run_nrobot1day(exp):
     resultsfile = pathlib.Path(exp["data_dir"], "results.pickle")
     if resultsfile.exists():
         print(f"Results file already exists:\n{resultsfile}")
-        print(f"Delete this file if re-running is desired.")
+        # print(f"Delete this file if re-running is desired.")
         return 
 
     # the exp for the environment
     exp_env = Config().get_experiment(exp["exp_environment"], exp["run_environment"])
-    pprint(exp_env)
+    # pprint(exp_env)
     # the exp for estimator
     exp_estimator = Config().get_experiment(exp["exp_estimator"], exp["run_estimator"])
-    pprint(exp_estimator)
+    # pprint(exp_estimator)
     # the exp for the score
     exp_score = Config().get_experiment(exp["exp_score"], exp["run_score"])
-    pprint(exp_score)
+    # pprint(exp_score)
 
     # extract the sub policies for the individual robots
     robotspecs = []
@@ -300,7 +300,7 @@ def run_nrobot1day(exp):
                 exp_policy[val] = extra[val]
         robotspec["exp-policy"] = exp_policy
         robotspecs.append(robotspec)
-    pprint(robotspecs)
+    # pprint(robotspecs)
 
     results = {}
     results["estimator-CODE"] = create_estimator(exp_estimator, exp_env)
