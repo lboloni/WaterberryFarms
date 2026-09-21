@@ -52,43 +52,22 @@ def simulate_1day(results):
     Runs the simulation for one day. All the parameters and output is in the results dictionary.
     As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
     """
-    # we are assigning here to the robot the information model
-    # FIXME: this might be more tricky later
-    results["robot"].im = results["estimator-CODE"]
-    results["scores"] = []
-    results["observations"] = []
-    results["positions"] = []
-    results["computation-cost-policy"] = []
-    results["time-track"] = TimeTrack()
-    results["im_resolution_count"] = 0
+    results["robots"] = [results["robot"]]
+    results["communication-rounds"] = 0
+    initialize_simulation(results)
     for timestep in range(int(results["timesteps-per-day"])):
-        simulate_timestep_1robot(results, timestep)
+        simulate_timestep(results, timestep)
+    if "hook-after-day" in results:
+        results["hook-after-day"](results)
+    del results["robots"]
 
 
 def simulate_timestep_1robot(results, timestep):
-    """Runs the simulation for 1 timestep with 1 robot"""
-    results["time-track"].policy_start()
-    results["robot"].enact_policy()
-    results["robot"].proceed(1)
-    position = [int(results["robot"].x), int(results["robot"].y), timestep]
-    # print(results["robot"])
-    results["positions"].append(position)
-    obs = results["wbfe"].get_observation(position)
-    results["observations"].append(obs)
-    results["estimator-CODE"].add_observation(obs)
-    results["robot"].add_observation(obs)
-    results["time-track"].policy_finish(results)
-    # update the im and the score at every im_resolution steps and at the last iteration
-    results["im_resolution_count"] += 1
-    if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-        results["estimator-CODE"].proceed(results["im_resolution_count"])
-        results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
-        for i in range(results["im_resolution_count"]):
-            results["scores"].append(results["score"])
-        results["im_resolution_count"] = 0
-    if "hook-after-day" in results:
-        results["hook-after-day"](results)
-    results["time-track"].current(timestep, results)
+    """Compatibility wrapper for callers that simulate one robot directly."""
+    if "robots" not in results:
+        results["robots"] = [results["robot"]]
+    results["communication-rounds"] = 0
+    simulate_timestep(results, timestep)
 
 
 def simulate_1day_multirobot(results):
@@ -96,67 +75,102 @@ def simulate_1day_multirobot(results):
     Runs the simulation for one day. All the parameters and output is in the results dictionary.
     As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
     """
-    
-    # we are assigning here to all the robots the information model
-    # FIXME: this might be more tricky later
+    initialize_simulation(results)
+    for timestep in range(int(results["timesteps-per-day"])):
+        simulate_timestep(results, timestep)
+    if "hook-after-day" in results:
+        results["hook-after-day"](results)
+
+
+def simulate_timestep_multirobot(results, timestep):
+    """Compatibility wrapper for callers that simulate multiple robots directly."""
+    simulate_timestep(results, timestep)
+
+
+def initialize_simulation(results):
+    """Initialize the shared one-day lifecycle."""
+    results["robots"] = sorted(results["robots"], key=lambda robot: robot.name)
+    names = [robot.name for robot in results["robots"]]
+    if len(names) != len(set(names)):
+        raise Exception("Robot names must be unique")
     for robot in results["robots"]:
+        if robot.policy is None:
+            raise Exception(f"Robot {robot.name} has no policy")
         robot.im = results["estimator-CODE"]
-    
-    # positions, observations and scores are all list of lists
-    # first index: time, second index: robot
-    results["scores"] = []
+
+    results["robot-names"] = names
+    results["score-events"] = []
+    results["scores"] = results["score-events"]
     results["observations"] = []
     results["positions"] = []
     results["computation-cost-policy"] = []
     results["time-track"] = TimeTrack()
-
-    results["im_resolution_count"] = 0 # counting the steps for the im update
-
-    for timestep in range(int(results["timesteps-per-day"])):
-        simulate_timestep_multirobot(results, timestep)
+    results["im_resolution_count"] = 0
+    results["simulation-timestep"] = 0
+    results["environment-time-during-day"] = results["wbfe"].time
 
 
-def simulate_timestep_multirobot(results, timestep):
-    """Simulate one timestep in a multi-robot setting"""
+def simulate_timestep(results, timestep):
+    """Run one canonical communication-to-hook simulation timestep."""
+    if timestep != results["simulation-timestep"]:
+        raise Exception("Simulation timesteps must be consecutive")
+    if results["wbfe"].time != results["environment-time-during-day"]:
+        raise Exception("Environment time changed during a one-day simulation")
     results["time-track"].policy_start()
-
-    positions = []
-    observations = []
+    robots = results["robots"]
 
     # communication rounds
-    for round in range(results["communication-rounds"]):        
-        for robot in results["robots"]:
+    for round in range(results["communication-rounds"]):
+        for robot in robots:
             if isinstance(robot.policy, AbstractCommunicateAndFollowPath):
                 robot.policy.act_send(round)
-        for robot in results["robots"]:
+        for robot in robots:
             if isinstance(robot.policy, AbstractCommunicateAndFollowPath):
+                if results["communication"].robots[robot.name] is not robot:
+                    raise Exception(f"Mailbox {robot.name} is not owned by its robot")
                 msgs = results["communication"].receive(robot)
                 robot.policy.act_receive(round, msgs)
 
-    for robot in results["robots"]:
+    # policy decisions and action execution are separate phases
+    for robot in robots:
         robot.enact_policy()
+    for robot in robots:
         robot.proceed(1)
-        position = [int(robot.x), int(robot.y), timestep]
-        obs = results["wbfe"].get_observation(position)
-        results["estimator-CODE"].add_observation(obs)
-        robot.add_observation(obs)
-        positions.append(position)
-        observations.append(obs)
 
-    results["positions"].append(positions)
-    results["observations"].append(observations)
+    # all positions and observations use the same post-movement snapshot
+    positions = [[int(robot.x), int(robot.y), timestep] for robot in robots]
+    observations = [results["wbfe"].get_observation(position) for position in positions]
+    if len(observations) != len(robots):
+        raise Exception("Every robot must produce one observation per timestep")
+
+    # the estimator receives the complete timestep before policies see observations
+    for obs in observations:
+        results["estimator-CODE"].add_observation(obs)
+    for robot, obs in zip(robots, observations):
+        robot.add_observation(obs)
+
+    if "robot" in results:
+        results["positions"].append(positions[0])
+        results["observations"].append(observations[0])
+    else:
+        results["positions"].append(positions)
+        results["observations"].append(observations)
 
     results["time-track"].policy_finish(results)
-    # update the im and the score at every im_resolution steps and at the last iteration
     results["im_resolution_count"] += 1
     if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
         results["estimator-CODE"].proceed(results["im_resolution_count"])
         results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
-        for i in range(results["im_resolution_count"]):
-            results["scores"].append(results["score"])
+        if results["score-events"] and results["score-events"][-1]["timestep"] >= timestep:
+            raise Exception("Score event timestamps must be strictly increasing")
+        results["score-events"].append({"timestep": timestep, "score": results["score"]})
         results["im_resolution_count"] = 0
-    if "hook-after-day" in results:
-        results["hook-after-day"](results)
+
+    results["simulation-timestep"] = timestep + 1
+    if "hook-after-timestep" in results:
+        results["hook-after-timestep"](results)
+    if results["wbfe"].time != results["environment-time-during-day"]:
+        raise Exception("Environment time changed during a one-day simulation")
     results["time-track"].current(timestep, results)
 
 def save_simulation_results(resultsfile, results):

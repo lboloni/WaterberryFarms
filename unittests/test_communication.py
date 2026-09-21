@@ -36,6 +36,12 @@ class TestPerfectCommunicationMedium(unittest.TestCase):
         self.assertEqual(self.medium.receive(self.robots[1]), [])
         self.assertEqual(self.medium.receive(self.robots[2])[0].content, "direct")
 
+    def test_duplicate_names_and_foreign_mailbox_access_fail(self):
+        with self.assertRaisesRegex(Exception, "already registered"):
+            self.medium.add_robot(Robot("robot-0", 0, 0, 0))
+        with self.assertRaisesRegex(Exception, "not owned"):
+            self.medium.receive(Robot("robot-1", 0, 0, 0))
+
 
 if __name__ == "__main__":
     unittest.main()

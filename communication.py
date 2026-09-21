@@ -33,6 +33,8 @@ class CommunicationMedium:
     
     def add_robot(self, robot):
         """Adds a robot to the system and creates the corresponding mailbox"""
+        if robot.name in self.robots:
+            raise Exception(f"Robot name {robot.name} is already registered")
         self.robots[robot.name] = robot
         self.mailboxes[robot.name] = []
         robot.com = self
@@ -58,6 +60,8 @@ class PerfectCommunicationMedium(CommunicationMedium):
 
     def receive(self, receiver: Robot):
         """A robot picks up all the messages that were received"""
+        if self.robots[receiver.name] is not receiver:
+            raise Exception(f"Mailbox {receiver.name} is not owned by this robot")
         retval = []
         mailbox = self.mailboxes[receiver.name]
         for msg in mailbox:

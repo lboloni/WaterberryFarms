@@ -58,14 +58,16 @@ def graph_scores_per_day(results, ax):
     ax.set_title("Scores")
 
 def graph_scores(results, ax, label = None):
-    """Plot the scores, for the scores that return a single value"""
+    """Plot score events at the timesteps where the estimator was updated."""
+    events = results["score-events"]
+    timesteps = [event["timestep"] for event in events]
     if label is None:
-        scores = results["scores"]
+        scores = [event["score"] for event in events]
         ax.set_title("Scores")
-    else:   
-        scores = [a[label] for a in results["scores"]]
+    else:
+        scores = [event["score"][label] for event in events]
         ax.set_title(f"Score {label}")
-    ax.plot(scores)
+    ax.plot(timesteps, scores)
     ax.set_ylim(top=0)
     ax.set_xlabel("Time")
     # ax_scores.set_ylabel("Score")
@@ -374,10 +376,12 @@ def plot_scores(allresults, labels, scores, directory, smoothing = 0.7):
             filename += label + "-"
             # rawscore = allresults[label]["scores"]
             results = allresults[label]
-            scores = [a[scorename] for a in results["scores"]]
+            score_events = results["score-events"]
+            timesteps = [event["timestep"] for event in score_events]
+            scores = [event["score"][scorename] for event in score_events]
             # scores = smooth(scores, 0.99)
             scores = smooth(scores, 0.7)
-            ax_scores.plot(scores, label = label)
+            ax_scores.plot(timesteps, scores, label = label)
         # ax_scores.set_ylim(top=2)
         ax_scores.set_xlabel("Time")
         ax_scores.set_ylabel("Score")
@@ -501,7 +505,7 @@ def show_unc_soil(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_detections(results, ax, field = "TYLCV", detection_color="Blue", radius=0.5):
     """Shows the detections for all robots"""
-    if "robots" not in results: # single robot
+    if "robot" in results: # single robot
         show_individual_robot_detections(results, ax, -1, field, detection_color=detection_color, radius=radius)
     else: # multiple robots
         for i, robot in enumerate(results["robots"]):
@@ -531,7 +535,7 @@ def show_robot_path(results, ax, draw_it = True, pathcolor="blue",
         return
     
     if robot_number == -1: # all robots
-        if "robots" not in results: # single robot
+        if "robot" in results: # single robot
             observations = results["observations"]
             robot = results["robot"]
             show_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
