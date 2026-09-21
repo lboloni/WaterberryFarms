@@ -51,21 +51,28 @@ def generate_lawnmower(x_min, x_max, y_min, y_max, winds):
     path.append([x_max, current[1]])
     return np.array(path)
 
-def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+def find_fixed_budget_lawnmower(starting_point, x_min, x_max, y_min, y_max, velocity, time):
     """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
-    windsmax = 1000
-    windsmin = 1
     distancebudget = velocity * time
+    windsmin = 1
+    best_path = generate_lawnmower(x_min, x_max, y_min, y_max, windsmin)
+    if get_path_length(best_path, starting_point) > distancebudget:
+        raise Exception("The budget is too small for a lawnmower path")
+    windsmax = 2
+    while get_path_length(generate_lawnmower(x_min, x_max, y_min, y_max, windsmax), starting_point) <= distancebudget:
+        windsmin = windsmax
+        best_path = generate_lawnmower(x_min, x_max, y_min, y_max, windsmin)
+        windsmax *= 2
     while windsmax > windsmin + 1:
         windstest = (windsmin + windsmax) // 2
-        # print(windstest)
         path = generate_lawnmower(x_min, x_max, y_min, y_max, winds = windstest)
         length = get_path_length(path, starting_point)
         if length > distancebudget:
             windsmax = windstest
         else:
             windsmin = windstest
-    return path
+            best_path = path
+    return best_path
 
 
 # ***************************************************
@@ -208,11 +215,12 @@ def add_control_points_v2(lawnmower_path, control_points):
                 finalPath.append(list(epidemicPointMapping))
     return finalPath
 
-def find_fixed_budget_lawnmower_v2(control_points, starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+def find_fixed_budget_lawnmower_v2(control_points, starting_point, x_min, x_max, y_min, y_max, velocity, time):
     """Finds a lawnmower pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
     step_max = float(y_max-y_min)
     step_min = 0.1
     distancebudget = velocity * time
+    best_path = None
     while step_max > step_min + 0.05: # 0.05 is the minimum vertical step
         step_test = (step_min + step_max) / 2
         pathWithNoControlPoints= generate_lawnmower_path_v2(x_min, x_max, 1, y_min, y_max, step_test)
@@ -220,11 +228,13 @@ def find_fixed_budget_lawnmower_v2(control_points, starting_point, x_min, x_max,
         path = np.array(pathWithControlPoints)
         length = get_path_length(path, starting_point)
         if length > distancebudget:
-            step_min = step_test  
+            step_min = step_test
         else:
             step_max = step_test
-                
-    return path
+            best_path = path
+    if best_path is None:
+        raise Exception("The budget is too small for a lawnmower path")
+    return best_path
 
 # ***************************************************
 #
@@ -300,11 +310,12 @@ def generate_spiral_path(x_min, x_max, y_min, y_max, step = 1):
         path.append([cur_x, cur_y])
     return np.array(path)
 
-def find_fixed_budget_spiral(starting_point, x_min, x_max, y_min, y_max, velocity, time):    
+def find_fixed_budget_spiral(starting_point, x_min, x_max, y_min, y_max, velocity, time):
     """Finds a spiral pattern that best covers the area given a certain budget of time and velocity by performing a binary search on the number of winds. Returns the path"""
     step_max = 1000.0
     step_min = 1.0
     distancebudget = velocity * time
+    best_path = None
     while step_max > step_min + 1:
         step_test = (step_min + step_max) / 2
         path = generate_spiral_path(x_min, x_max, y_min, y_max, step = step_test)
@@ -312,6 +323,9 @@ def find_fixed_budget_spiral(starting_point, x_min, x_max, y_min, y_max, velocit
         if length > distancebudget:
             step_min = step_test
         else:
-            step_max = step_test        
-    return path
+            step_max = step_test
+            best_path = path
+    if best_path is None:
+        raise Exception("The budget is too small for a spiral path")
+    return best_path
 

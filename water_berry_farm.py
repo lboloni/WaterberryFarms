@@ -445,7 +445,7 @@ class WBF_MultiScore(WBF_Score):
             env.ccr, im.im_ccr, 1.0, self.strawberry_negative_importance, env.my_strawberry_mask)
         retval["strawberry-asymmetric-L1-negimport"] = self.strawberry_negative_importance       
         
-        retval["tomato-asymmetric-L1"] = im_score_weighted_asymmetric(env.tylcv, im.im_tylcv, 1.0, self.strawberry_negative_importance, env.my_tomato_mask)
+        retval["tomato-asymmetric-L1"] = im_score_weighted_asymmetric(env.tylcv, im.im_tylcv, 1.0, self.tomato_negative_importance, env.my_tomato_mask)
         retval["tomato-asymmetric-L1-negimport"] = self.tomato_negative_importance
 
         retval["soil-asymmetric-L1"] = im_score_weighted_asymmetric(env.soil, im.im_soil, 1.0, self.soil_negative_importance, env.my_soil_mask)

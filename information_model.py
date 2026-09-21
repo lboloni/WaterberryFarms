@@ -93,10 +93,10 @@ class AbstractScalarFieldIM(StoredObservationIM):
     def estimate_voi(self, observation):
         """The voi of the observation is the reduction of the uncertainty.
         FIXME this can be made different for the GP"""
-        _, uncertainty = self.estimate(self.observations)
+        _, uncertainty = self.estimate(self.observations, None, None)
         observations_new = self.observations.copy()
         observations_new.append(observation)
-        _, uncertainty_new = self.estimate(observations_new)        
+        _, uncertainty_new = self.estimate(observations_new, None, None)
         return np.sum(np.abs(uncertainty - uncertainty_new))
 
 
@@ -111,10 +111,10 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
 
     def estimate(self, observations, prior_value, prior_uncertainty):
         # calculate the estimate for each gaussian process
-        if prior_value != None or prior_uncertainty != None:
-            Exception("GaussianProcessScalarFieldIM cannot handle priors")
+        if prior_value is not None or prior_uncertainty is not None:
+            raise Exception("GaussianProcessScalarFieldIM cannot handle priors")
         est = np.full([self.width,self.height], self.default_value)
-        stdmap = np.zeros([self.width,self.height])
+        stdmap = np.ones([self.width,self.height])
         if len(observations) == 0:
             return est, stdmap
         X = []
@@ -124,10 +124,12 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
             X.append([round(obs[self.X]), round(obs[self.Y])])
             Y.append([obs[self.VALUE]])
         # fit the gaussian process
-        kernel = RBF(length_scale = [2.0, 2.0], length_scale_bounds = [1, 10]) + WhiteKernel(noise_level=0.5)
+        kernel = self.gp_kernel
+        if kernel is None:
+            kernel = RBF(length_scale = [2.0, 2.0], length_scale_bounds = [1, 10]) + WhiteKernel(noise_level=0.5)
 
         # rbf = RBF(length_scale = [2.0, 2.0], length_scale_bounds = "fixed")
-        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5)
+        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5, random_state=0)
         gpr.fit(X,Y)
         x = []
         X = np.array(list(itertools.product(range(self.width), range(self.height))))
@@ -151,12 +153,12 @@ class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
         timestamp, and assumes that each observation refers only to the current 
         point."""
         # value = np.ones((self.width, self.height)) * 0.5
-        if prior_value != None:
-            value = np.clone(prior_value)
+        if prior_value is not None:
+            value = np.copy(prior_value)
         else:
-            value = np.zeros((self.width, self.height)) 
-        if prior_uncertainty != None:
-            uncertainty = np.clone(prior_uncertainty)
+            value = np.full((self.width, self.height), self.default_value)
+        if prior_uncertainty is not None:
+            uncertainty = np.copy(prior_uncertainty)
         else:
             uncertainty = np.ones((self.width, self.height))
         for obs in observations:
@@ -189,10 +191,11 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
             radius = self.disk_radius
 
         # create a mask array
+        self.mask_radius = radius
         self.maskdim = 2 * radius + 1
         self.mask = np.full((self.maskdim, self.maskdim), False, dtype=bool)
-        for i in range(-radius, radius):
-            for j in range(-radius, radius):
+        for i in range(-radius, radius + 1):
+            for j in range(-radius, radius + 1):
                 if (math.sqrt((i*i + j*j)) <= radius):
                     self.mask[i + radius, j + radius] = True
 
@@ -203,17 +206,24 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
 
     def apply_value_mask(self, value, uncertainty, x, y, new_value):
         """Applies the value using a mask based approach"""
-        # logging.info("apply_value_mask started")
-        # create a true/false mask of the size of the environment for the application of the values. This is based on shifting the circular mask to the right location and resolving the situations where it overhangs the margins
-        dimx = int(self.width)
-        dimy = int(self.height)        
-        mask2 = np.full((dimx, dimy), False, dtype=bool)
-        maskp = self.mask[max(0, -x):min(self.maskdim, dimx-x), max(0, -y):min(self.maskdim,dimy-y)]
-        mask2[max(0, x):min(dimx, x+self.maskdim), max(0, y):min(dimy,y+self.maskdim)] = maskp
-        # and now we are assigning the new value for the part covered by the mask
-        value[mask2] = new_value
-        uncertainty[mask2] = 0.0
-        # logging.info("apply_value_mask done")
+        x = int(x)
+        y = int(y)
+        radius = self.mask_radius
+        value_x_start = max(0, x - radius)
+        value_x_end = min(self.width, x + radius + 1)
+        value_y_start = max(0, y - radius)
+        value_y_end = min(self.height, y + radius + 1)
+
+        mask_x_start = value_x_start - (x - radius)
+        mask_x_end = mask_x_start + value_x_end - value_x_start
+        mask_y_start = value_y_start - (y - radius)
+        mask_y_end = mask_y_start + value_y_end - value_y_start
+
+        mask = self.mask[mask_x_start:mask_x_end, mask_y_start:mask_y_end]
+        value_slice = value[value_x_start:value_x_end, value_y_start:value_y_end]
+        uncertainty_slice = uncertainty[value_x_start:value_x_end, value_y_start:value_y_end]
+        value_slice[mask] = new_value
+        uncertainty_slice[mask] = 0.0
 
 def im_score(im, env):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
@@ -249,7 +259,7 @@ def im_score_weighted_asymmetric(im, env, weight_positive, weight_negative, weig
     The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested)
     Weights differently positive errors (when the im is larger than env) and negative errors (when env is larger than im)"""
     wm = weightmap / np.mean(weightmap)
-    error_positive = np.multiply(wm * weight_positive, np.max(im.value - env.value, 0))
-    error_negative = np.multiply(wm * weight_negative, np.max(env.value - im.value, 0))    
+    error_positive = np.multiply(wm * weight_positive, np.maximum(im.value - env.value, 0))
+    error_negative = np.multiply(wm * weight_negative, np.maximum(env.value - im.value, 0))
     return -np.mean(np.add(error_positive, error_negative))
 

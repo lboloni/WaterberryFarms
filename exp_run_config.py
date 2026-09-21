@@ -340,17 +340,16 @@ class Config:
                 exp.save()
         elif creation_style == "version":
             # if the directory exists, move it to a backup
-            if data_dir.exists():                
+            if data_dir.exists():
                 now = datetime.now()
                 formatted = now.strftime("%Y-%m-%d-%H-%M-%S")
-                print(formatted)  # Example output: 2025-05-25-17-11            
                 backup_dir = data_dir.parent / f"{data_dir.name}_{formatted}"
                 self.__log(f"Moving existing experiment directory to {backup_dir}")
                 data_dir.rename(backup_dir)
-                data_dir.mkdir(exist_ok=True, parents=True)
-                exp = Experiment(exp_config)
-                exp.set_time_started()
-                exp.save()
+            data_dir.mkdir(exist_ok=True, parents=True)
+            exp = Experiment(exp_config)
+            exp.set_time_started()
+            exp.save()
         elif creation_style == "discard-old":
             # if the directory exists, remove it
             if data_dir.exists():
@@ -361,5 +360,7 @@ class Config:
             data_dir.mkdir(exist_ok=True, parents=True)
             exp = Experiment(exp_config)
             exp.set_time_started()
-            exp.save()    
+            exp.save()
+        else:
+            raise Exception(f"Unknown creation_style {creation_style}")
         return exp

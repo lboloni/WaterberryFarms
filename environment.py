@@ -41,14 +41,15 @@ class Environment:
         self.random = np.random.default_rng(seed)
         
     def proceed(self, delta_t = 1.0):
-        nexttime = int(self.time / self.time_expansion) * self.time_expansion
-        if nexttime - self.time <= delta_t:
-            self.time = self.time + delta_t
+        """Advance time and update once for every crossed expansion boundary."""
+        target_time = self.time + delta_t
+        next_update = (int(self.time / self.time_expansion) + 1) * self.time_expansion
+        while next_update <= target_time:
+            self.time = next_update
             logging.info("Environment.proceed - calling the inner_proceed")
-            self.inner_proceed(delta_t)
-        else:
-            self.time = self.time + delta_t
-            logging.info("Environment.proceed - skipping the inner_proceed")
+            self.inner_proceed(self.time_expansion)
+            next_update += self.time_expansion
+        self.time = target_time
 
     def inner_proceed(self, delta_t = 1.0):
         pass
@@ -61,7 +62,7 @@ class ScalarFieldEnvironment(Environment):
     def __init__(self, name, width, height, seed, value = None):
         super().__init__(width, height, seed)
         self.name = name # the name of the value
-        if value != None:
+        if value is not None:
             self.value = value.copy()
         else:
             self.value = np.zeros((self.width, self.height))
@@ -154,8 +155,8 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
     def initial_infection(self):
         """Creates a random initial infection but only in the areas that are not immune"""
         for i in range(self.infection_seeds):
-            x = self.random.integers(0, self.width-1)
-            y = self.random.integers(0, self.height-1)
+            x = self.random.integers(0, self.width)
+            y = self.random.integers(0, self.height)
             if self.status[x,y] != -2.0:
                 self.status[x, y] = self.infection_seeds_initial
 

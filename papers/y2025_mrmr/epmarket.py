@@ -155,3 +155,7 @@ class EPM:
             cls._instance = super(EPM, cls).__new__(cls)
             cls._instance.epm = EPMarket()
         return cls._instance
+
+    def reset(self):
+        """Start a new independent exploration-package market."""
+        self.epm = EPMarket()

@@ -81,7 +81,7 @@ def simulate_timestep_1robot(results, timestep):
     # update the im and the score at every im_resolution steps and at the last iteration
     results["im_resolution_count"] += 1
     if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-        results["estimator-CODE"].proceed(results["im_resolution"])
+        results["estimator-CODE"].proceed(results["im_resolution_count"])
         results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
         for i in range(results["im_resolution_count"]):
             results["scores"].append(results["score"])
@@ -150,7 +150,7 @@ def simulate_timestep_multirobot(results, timestep):
     # update the im and the score at every im_resolution steps and at the last iteration
     results["im_resolution_count"] += 1
     if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-        results["estimator-CODE"].proceed(results["im_resolution"])
+        results["estimator-CODE"].proceed(results["im_resolution_count"])
         results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
         for i in range(results["im_resolution_count"]):
             results["scores"].append(results["score"])
@@ -169,7 +169,7 @@ def save_simulation_results(resultsfile, results):
 
     results_nc = {}
     for a in results:
-        if not a.endswith("-code"):
+        if not a.lower().endswith("-code"):
             results_nc[a]=results[a]
     print(f"Saving results to: {resultsfile}")
     with compress.open(resultsfile, "wb") as f:
@@ -269,6 +269,9 @@ def run_nrobot1day(exp):
     """Take an experiment of type 1robot1day, set up the results
     based on the description in it, which includes the policy description. 
     Then runs simulate1day, and saves it to the experiment."""
+
+    from papers.y2025_mrmr.epmarket import EPM
+    EPM().reset()
 
     resultsfile = pathlib.Path(exp["data_dir"], "results.pickle")
     if resultsfile.exists():

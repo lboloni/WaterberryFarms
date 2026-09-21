@@ -109,6 +109,8 @@ class ConfidenceGuidedPathPlanning(AbstractEmbeddedEstimatorPolicy):
         # remove the current location from it
         retval = list(val)            
         retval.remove((self.robot.x, self.robot.y))
+        if not retval:
+            raise Exception("No feasible waypoint in the configured span")
         return retval            
 
 

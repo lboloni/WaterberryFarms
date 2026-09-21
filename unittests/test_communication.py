@@ -1,35 +1,41 @@
-import unittest
+import pathlib
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import unittest
 
-import pprint
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from communication import PerfectCommunicationMedium, Message
+from communication import Message, PerfectCommunicationMedium
 from environment import ScalarFieldEnvironment
 from robot import Robot
 
+
 class TestPerfectCommunicationMedium(unittest.TestCase):
+    def setUp(self):
+        self.environment = ScalarFieldEnvironment("field", 3, 3, seed=0)
+        self.medium = PerfectCommunicationMedium(self.environment)
+        self.robots = [Robot(f"robot-{index}", 0, 0, 0) for index in range(3)]
+        for robot in self.robots:
+            self.medium.add_robot(robot)
 
-    def test_message_delivery(self):
-        # self.assertEqual(2+3, 5)
-        env = ScalarFieldEnvironment("noname", 100, 100, seed=1)
-        com = PerfectCommunicationMedium(env)
-        robot1 = Robot("robot-1", init_x=0, init_y=0, init_altitude=1, env=env)
-        com.add_robot(robot1)
-        robot2 = Robot("robot-2", init_x=0, init_y=0, init_altitude=1, env=env)
-        com.add_robot(robot2)
-        robot3 = Robot("robot-3", init_x=0, init_y=0, init_altitude=1, env=env)
-        com.add_robot(robot3)
-        com.send(robot1, destination=None, message = Message("hello"))
-        # pick up the messages
-        msgs1 = com.receive(robot1)
-        pprint.pprint(msgs1)
-        msgs2 = com.receive(robot2)
-        pprint.pprint(msgs2)
-        msgs3 = com.receive(robot3)
-        pprint.pprint(msgs3)
+    def test_broadcast_excludes_sender_and_clears_mailbox(self):
+        self.environment.time = 4
+        self.medium.send(self.robots[0], None, Message("hello"))
+        self.assertEqual(self.medium.receive(self.robots[0]), [])
+        for receiver in self.robots[1:]:
+            messages = self.medium.receive(receiver)
+            self.assertEqual(len(messages), 1)
+            self.assertEqual(messages[0].content, "hello")
+            self.assertEqual(messages[0].sender_name, "robot-0")
+            self.assertEqual(messages[0].destination_name, receiver.name)
+            self.assertEqual(messages[0].time_sent, 4)
+            self.assertEqual(messages[0].time_received, 4)
+            self.assertEqual(self.medium.receive(receiver), [])
+
+    def test_directed_message_has_one_recipient(self):
+        self.medium.send(self.robots[0], "robot-2", Message("direct"))
+        self.assertEqual(self.medium.receive(self.robots[1]), [])
+        self.assertEqual(self.medium.receive(self.robots[2])[0].content, "direct")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
