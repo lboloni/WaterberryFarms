@@ -11,7 +11,7 @@ The deterministic correctness suite covers:
 - Point, adaptive-disk, and Gaussian-process information models.
 - Weighted and asymmetric scoring.
 - Experiment configuration assembly and output-directory creation modes.
-- Single-robot and multi-robot simulation.
+- Unified one- and multi-robot simulation through caller-constructed components.
 - Perfect communication and MRMR market primitives.
 - Result serialization.
 
@@ -19,7 +19,7 @@ Notebooks, files under `obsolete`, LAIP, Bounomodes, and unfinished paper protot
 
 ## Canonical simulation lifecycle
 
-Both one-day runners use one shared timestep implementation. Robots are ordered by their unique names, and each phase completes for all robots before the next phase begins:
+The keyword-only `simulate_1day` function implements the canonical lifecycle. Robots are ordered by their unique names, and each phase completes for all robots before the next phase begins:
 
 1. Perform every communication round, with all sends before any receives.
 2. Ask every policy to schedule actions.
@@ -32,16 +32,24 @@ Both one-day runners use one shared timestep implementation. Robots are ordered 
 
 `hook-after-day` is called once after the day's last timestep. Policies deciding at timestep `t` can use observations only through `t-1`; positions and observations stamped `t` describe the state after movement at `t`.
 
-The one-day runners treat one robot timestep as one unit for policy and movement calls. They advance the environment by `time-start-environment` environment units before the run, then require `Environment.time` to remain constant throughout the robot timesteps. No multi-day runner currently exists. A future multi-day runner must call the day hook before advancing the environment once at the boundary and must continue the absolute robot timestamp across days. `Environment.time_expansion` belongs only to environment evolution and does not alter robot timestamps.
+The simulator treats one robot timestep as one unit for policy and movement calls. The caller advances the environment to the desired starting time before the run. `Environment.time` must then remain constant throughout the robot timesteps and both hooks. No multi-day runner currently exists. A future multi-day runner must call the day hook before advancing the environment once at the boundary and must continue the absolute robot timestamp across days. `Environment.time_expansion` belongs only to environment evolution and does not alter robot timestamps.
 
 ## Canonical result schema
 
-- `positions[t]` and `observations[t]` are single records for the single-robot runner and lists in canonical robot-name order for the multi-robot runner.
+- `positions[t][r]` and `observations[t][r]` are always lists in canonical robot-name order, including when there is one robot.
 - `robot-names` records that canonical order.
 - Observation and position timestamps are zero-based absolute robot timesteps.
 - `score-events` contains only estimator-update events in the form `{"timestep": t, "score": score}`. `scores` is an alias retained for result-field compatibility; it is not a dense per-timestep series.
 - `simulation-timestep` is the number of completed robot timesteps.
 - `computation-cost-policy` contains one elapsed-time measurement per completed timestep.
+
+## External component contract
+
+Tests define policies, estimators, evaluators, environments, and robots outside the framework classes and pass them directly to `simulate_1day`. No registry or runtime protocol check is involved; an incompatible object raises at the point where its missing operation is used.
+
+Communication is capability-based. When `communication_rounds` is nonzero, every supplied policy must implement `act_send(round)` and `act_receive(round, messages)`. The lifecycle does not use an `isinstance` check to decide whether an external policy may communicate.
+
+Both hooks have the signature `hook(results, environment, robots, estimator, evaluator)`. The simulation function returns results but performs no persistence. `save_simulation_results` saves exactly the dictionary selected by its caller.
 
 Visualization code plots score events at their recorded timestamps. It does not backfill scores into earlier timesteps.
 

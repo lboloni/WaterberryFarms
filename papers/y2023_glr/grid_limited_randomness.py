@@ -9,7 +9,7 @@ Samuel Matloob, Ayan Dutta, O. Patrick Kreidl, Damla Turgut and Ladislau Bölön
 import copy
 import numpy as np
 from exp_run_config import Experiment
-from wbf_simulate import get_geometry
+from wbf_helper import get_geometry
 from policy import FollowPathPolicy
 from path_generators import euclidean_distance, get_path_length
 

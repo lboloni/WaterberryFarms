@@ -5,14 +5,22 @@ import sys
 import tempfile
 import unittest
 
+import matplotlib.pyplot as plt
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from communication import PerfectCommunicationMedium
-from communication import Message
-from policy import AbstractCommunicateAndFollowPath, FollowPathPolicy
+import wbf_simulate
+from communication import Message, PerfectCommunicationMedium
+from policy import FollowPathPolicy
 from robot import Robot
-from wbf_simulate import save_simulation_results, simulate_1day, simulate_1day_multirobot
-from water_berry_farm import MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_Score_WeightedAsymmetric
+from water_berry_farm import (
+    MiniberryFarm,
+    WaterberryFarmEnvironment,
+    WBF_IM_DiskEstimator,
+    WBF_Score_WeightedAsymmetric,
+)
+from wbf_simulate import save_simulation_results, simulate_1day
+from wbf_figures import show_detections, show_robot_path
 
 
 class RecordingEstimator:
@@ -35,7 +43,7 @@ class ObservationEnvironment:
         return {"x": position[0], "y": position[1], "time": position[2]}
 
 
-class ObservationCountScore:
+class ObservationCountEvaluator:
     def score(self, environment, estimator):
         return len(estimator.observations)
 
@@ -46,24 +54,25 @@ def robot_with_path(name, y=0):
     return robot
 
 
-def base_results():
-    return {
-        "estimator-CODE": RecordingEstimator(),
-        "score-code": ObservationCountScore(),
-        "wbfe": ObservationEnvironment(),
-        "timesteps-per-day": 4,
-        "im_resolution": 3,
-    }
-
-
 class TestSimulation(unittest.TestCase):
-    def test_single_robot_timestep_order_and_final_estimate(self):
-        results = base_results()
-        results["robot"] = robot_with_path("robot")
-        simulate_1day(results)
-        self.assertEqual(results["positions"], [[0, 0, 0], [1, 0, 1], [2, 0, 2], [3, 0, 3]])
-        self.assertEqual(results["observations"], results["estimator-CODE"].observations)
-        self.assertEqual(results["estimator-CODE"].proceed_calls, [3, 1])
+    def test_single_robot_uses_canonical_nested_results(self):
+        estimator = RecordingEstimator()
+        results = simulate_1day(
+            environment=ObservationEnvironment(),
+            robots=[robot_with_path("robot")],
+            estimator=estimator,
+            evaluator=ObservationCountEvaluator(),
+            timesteps=4,
+            estimator_interval=3,
+        )
+        self.assertEqual(results["positions"], [
+            [[0, 0, 0]], [[1, 0, 1]], [[2, 0, 2]], [[3, 0, 3]],
+        ])
+        self.assertEqual(
+            [observations[0] for observations in results["observations"]],
+            estimator.observations,
+        )
+        self.assertEqual(estimator.proceed_calls, [3, 1])
         self.assertEqual(results["score-events"], [
             {"timestep": 2, "score": 3},
             {"timestep": 3, "score": 4},
@@ -73,69 +82,94 @@ class TestSimulation(unittest.TestCase):
     def test_repeated_runs_are_identical(self):
         runs = []
         for _ in range(2):
-            results = base_results()
-            results["robot"] = robot_with_path("robot")
-            simulate_1day(results)
-            runs.append((results["positions"], results["observations"], results["score-events"]))
+            results = simulate_1day(
+                environment=ObservationEnvironment(),
+                robots=[robot_with_path("robot")],
+                estimator=RecordingEstimator(),
+                evaluator=ObservationCountEvaluator(),
+                timesteps=4,
+                estimator_interval=3,
+            )
+            runs.append((results["positions"], results["observations"],
+                         results["score-events"]))
         self.assertEqual(runs[0], runs[1])
-
-    def test_single_and_one_robot_multi_results_agree(self):
-        single = base_results()
-        single["robot"] = robot_with_path("robot")
-        simulate_1day(single)
-
-        multi = base_results()
-        multi["robots"] = [robot_with_path("robot")]
-        multi["communication"] = PerfectCommunicationMedium(multi["wbfe"])
-        multi["communication"].add_robot(multi["robots"][0])
-        multi["communication-rounds"] = 0
-        simulate_1day_multirobot(multi)
-
-        self.assertEqual(single["positions"], [positions[0] for positions in multi["positions"]])
-        self.assertEqual(single["observations"], [observations[0] for observations in multi["observations"]])
-        self.assertEqual(single["score-events"], multi["score-events"])
 
     def test_robot_configuration_order_does_not_change_results(self):
         runs = []
         for names in [("beta", "alpha"), ("alpha", "beta")]:
-            results = base_results()
             robots = {
                 "alpha": robot_with_path("alpha", 0),
                 "beta": robot_with_path("beta", 1),
             }
-            results["robots"] = [robots[name] for name in names]
-            results["communication"] = PerfectCommunicationMedium(results["wbfe"])
-            for robot in results["robots"]:
-                results["communication"].add_robot(robot)
-            results["communication-rounds"] = 0
-            simulate_1day_multirobot(results)
+            results = simulate_1day(
+                environment=ObservationEnvironment(),
+                robots=[robots[name] for name in names],
+                estimator=RecordingEstimator(),
+                evaluator=ObservationCountEvaluator(),
+                timesteps=4,
+                estimator_interval=3,
+            )
             runs.append((results["robot-names"], results["positions"],
                          results["observations"], results["score-events"]))
         self.assertEqual(runs[0], runs[1])
 
-    def test_timestep_and_day_hooks_are_distinct(self):
-        results = base_results()
-        results["robot"] = robot_with_path("robot")
+    def test_hooks_receive_explicit_runtime_objects(self):
+        environment = ObservationEnvironment()
+        robots = [robot_with_path("robot")]
+        estimator = RecordingEstimator()
+        evaluator = ObservationCountEvaluator()
         timestep_calls = []
         day_calls = []
-        results["hook-after-timestep"] = lambda state: timestep_calls.append(len(state["observations"]))
-        results["hook-after-day"] = lambda state: day_calls.append(len(state["observations"]))
-        simulate_1day(results)
+
+        def after_timestep(results, hook_environment, hook_robots,
+                           hook_estimator, hook_evaluator):
+            self.assertIs(hook_environment, environment)
+            self.assertEqual(hook_robots, results["robots"])
+            self.assertIs(hook_estimator, estimator)
+            self.assertIs(hook_evaluator, evaluator)
+            timestep_calls.append(len(results["observations"]))
+
+        def after_day(results, hook_environment, hook_robots,
+                      hook_estimator, hook_evaluator):
+            self.assertIs(hook_environment, environment)
+            self.assertEqual(hook_robots, results["robots"])
+            self.assertIs(hook_estimator, estimator)
+            self.assertIs(hook_evaluator, evaluator)
+            day_calls.append(len(results["observations"]))
+
+        simulate_1day(
+            environment=environment,
+            robots=robots,
+            estimator=estimator,
+            evaluator=evaluator,
+            timesteps=4,
+            estimator_interval=3,
+            after_timestep=after_timestep,
+            after_day=after_day,
+        )
         self.assertEqual(timestep_calls, [1, 2, 3, 4])
         self.assertEqual(day_calls, [4])
 
     def test_duplicate_names_and_missing_policies_fail(self):
-        results = base_results()
-        results["robots"] = [robot_with_path("same"), robot_with_path("same")]
-        results["communication-rounds"] = 0
         with self.assertRaisesRegex(Exception, "unique"):
-            simulate_1day_multirobot(results)
+            simulate_1day(
+                environment=ObservationEnvironment(),
+                robots=[robot_with_path("same"), robot_with_path("same")],
+                estimator=RecordingEstimator(),
+                evaluator=ObservationCountEvaluator(),
+                timesteps=1,
+                estimator_interval=1,
+            )
 
-        results = base_results()
-        results["robots"] = [Robot("unassigned", 0, 0, 0)]
-        results["communication-rounds"] = 0
         with self.assertRaisesRegex(Exception, "no policy"):
-            simulate_1day_multirobot(results)
+            simulate_1day(
+                environment=ObservationEnvironment(),
+                robots=[Robot("unassigned", 0, 0, 0)],
+                estimator=RecordingEstimator(),
+                evaluator=ObservationCountEvaluator(),
+                timesteps=1,
+                estimator_interval=1,
+            )
 
     def test_environment_must_remain_static_during_the_day(self):
         class AdvancingEnvironment(ObservationEnvironment):
@@ -143,17 +177,32 @@ class TestSimulation(unittest.TestCase):
                 self.time += 1
                 return super().get_observation(position)
 
-        results = base_results()
-        results["wbfe"] = AdvancingEnvironment()
-        results["robot"] = robot_with_path("robot")
         with self.assertRaisesRegex(Exception, "Environment time changed"):
-            simulate_1day(results)
+            simulate_1day(
+                environment=AdvancingEnvironment(),
+                robots=[robot_with_path("robot")],
+                estimator=RecordingEstimator(),
+                evaluator=ObservationCountEvaluator(),
+                timesteps=1,
+                estimator_interval=1,
+            )
 
-        results = base_results()
-        results["robot"] = robot_with_path("robot")
-        results["hook-after-timestep"] = lambda state: setattr(state["wbfe"], "time", 1)
+        environment = ObservationEnvironment()
+
+        def advance_environment(results, hook_environment, robots, estimator,
+                                evaluator):
+            hook_environment.time += 1
+
         with self.assertRaisesRegex(Exception, "Environment time changed"):
-            simulate_1day(results)
+            simulate_1day(
+                environment=environment,
+                robots=[robot_with_path("robot")],
+                estimator=RecordingEstimator(),
+                evaluator=ObservationCountEvaluator(),
+                timesteps=1,
+                estimator_interval=1,
+                after_timestep=advance_environment,
+            )
 
     def test_miniberry_adaptive_disk_integration(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -161,29 +210,36 @@ class TestSimulation(unittest.TestCase):
             farm.create_type_map()
             environment = WaterberryFarmEnvironment(
                 farm, use_saved=False, seed=10, savedir=directory)
-            results = {
-                "estimator-CODE": WBF_IM_DiskEstimator(11, 11),
-                "score-code": WBF_Score_WeightedAsymmetric(),
-                "wbfe": environment,
-                "timesteps-per-day": 2,
-                "im_resolution": 2,
-                "robot": robot_with_path("robot"),
-            }
-            simulate_1day(results)
+            results = simulate_1day(
+                environment=environment,
+                robots=[robot_with_path("robot")],
+                estimator=WBF_IM_DiskEstimator(11, 11),
+                evaluator=WBF_Score_WeightedAsymmetric(),
+                timesteps=2,
+                estimator_interval=2,
+            )
             self.assertEqual(len(results["observations"]), 2)
             self.assertEqual(results["score-events"][0]["timestep"], 1)
 
-    def test_saved_results_exclude_runtime_code(self):
+            figure, axes = plt.subplots()
+            show_robot_path(results, axes, draw_robot=False)
+            show_detections(results, axes)
+            plt.close(figure)
+
+    def test_persistence_saves_the_caller_selected_results(self):
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / "results.pickle"
-            save_simulation_results(path, {
-                "value": 4,
-                "score-code": lambda: None,
-                "estimator-CODE": lambda: None,
-            })
+            save_simulation_results(path, {"value": 4})
             with gzip.open(path, "rb") as handle:
                 saved = pickle.load(handle)
             self.assertEqual(saved, {"value": 4})
+
+    def test_legacy_entry_points_are_removed(self):
+        self.assertFalse(hasattr(wbf_simulate, "run_1robot1day"))
+        self.assertFalse(hasattr(wbf_simulate, "run_nrobot1day"))
+        self.assertFalse(hasattr(wbf_simulate, "simulate_1day_multirobot"))
+        self.assertFalse(hasattr(wbf_simulate, "simulate_timestep_1robot"))
+        self.assertFalse(hasattr(wbf_simulate, "simulate_timestep_multirobot"))
 
 
 class TraceEstimator:
@@ -210,7 +266,7 @@ class TraceEnvironment:
         return {"robot": name, "time": position[2]}
 
 
-class TraceScore:
+class TraceEvaluator:
     def __init__(self, trace):
         self.trace = trace
 
@@ -233,22 +289,28 @@ class TracePolicy:
         self.observations.append(observation)
 
 
-class TraceCommunicationPolicy(AbstractCommunicateAndFollowPath):
+class TraceCommunicationPolicy:
+    """Communication policy intentionally unrelated to framework base classes."""
+
     def __init__(self, name, trace):
-        super().__init__(1, [[0, 0]], repeat=False)
         self.name = name
         self.trace = trace
 
     def act(self, delta_t):
         self.trace.append(("policy", self.name))
 
-    def act_send(self, round):
-        self.trace.append(("send", round, self.name))
-        self.robot.com.send(self.robot, None, Message(round))
+    def add_observation(self, observation):
+        pass
 
-    def act_receive(self, round, messages):
-        self.trace.append(("receive", round, self.name,
-                           [message.sender_name for message in messages]))
+    def act_send(self, round_number):
+        self.trace.append(("send", round_number, self.name))
+        self.robot.com.send(self.robot, None, Message(round_number))
+
+    def act_receive(self, round_number, messages):
+        self.trace.append((
+            "receive", round_number, self.name,
+            [message.sender_name for message in messages],
+        ))
 
 
 class TraceRobot:
@@ -273,7 +335,7 @@ class TraceRobot:
         self.policy.add_observation(observation)
 
 
-def trace_results(communicating=False, timesteps=1, im_resolution=1):
+def trace_components(communicating=False):
     trace = []
     policy_type = TraceCommunicationPolicy if communicating else TracePolicy
     robots = [
@@ -281,52 +343,80 @@ def trace_results(communicating=False, timesteps=1, im_resolution=1):
         TraceRobot("alpha", 0, policy_type("alpha", trace), trace),
     ]
     environment = TraceEnvironment(trace)
+    estimator = TraceEstimator(trace)
+    evaluator = TraceEvaluator(trace)
     communication = PerfectCommunicationMedium(environment)
     for robot in robots:
         communication.add_robot(robot)
-    results = {
-        "robots": robots,
-        "communication": communication,
-        "communication-rounds": 2 if communicating else 0,
-        "estimator-CODE": TraceEstimator(trace),
-        "score-code": TraceScore(trace),
-        "wbfe": environment,
-        "timesteps-per-day": timesteps,
-        "im_resolution": im_resolution,
-    }
-    return results, trace
+    return trace, robots, environment, estimator, evaluator, communication
 
 
 class TestCanonicalLifecycle(unittest.TestCase):
     def test_exact_phase_order(self):
-        results, trace = trace_results()
-        results["hook-after-timestep"] = lambda state: trace.append(("timestep-hook", state["simulation-timestep"]))
-        results["hook-after-day"] = lambda state: trace.append(("day-hook", state["simulation-timestep"]))
-        simulate_1day_multirobot(results)
+        trace, robots, environment, estimator, evaluator, communication = \
+            trace_components()
+
+        def after_timestep(results, environment, robots, estimator, evaluator):
+            trace.append(("timestep-hook", results["simulation-timestep"]))
+
+        def after_day(results, environment, robots, estimator, evaluator):
+            trace.append(("day-hook", results["simulation-timestep"]))
+
+        simulate_1day(
+            environment=environment,
+            robots=robots,
+            estimator=estimator,
+            evaluator=evaluator,
+            timesteps=1,
+            estimator_interval=1,
+            after_timestep=after_timestep,
+            after_day=after_day,
+        )
         self.assertEqual(trace, [
             ("policy", "alpha", 0), ("policy", "beta", 0),
             ("execute", "alpha"), ("execute", "beta"),
             ("observe", "alpha"), ("observe", "beta"),
             ("estimator-add", "alpha"), ("estimator-add", "beta"),
-            ("policy-observation", "alpha"), ("policy-observation", "beta"),
+            ("policy-observation", "alpha"),
+            ("policy-observation", "beta"),
             ("estimate", 1), ("score", 2),
             ("timestep-hook", 1), ("day-hook", 1),
         ])
 
     def test_policy_cannot_use_current_observation(self):
-        results, trace = trace_results(timesteps=2, im_resolution=2)
-        simulate_1day_multirobot(results)
+        trace, robots, environment, estimator, evaluator, communication = \
+            trace_components()
+        simulate_1day(
+            environment=environment,
+            robots=robots,
+            estimator=estimator,
+            evaluator=evaluator,
+            timesteps=2,
+            estimator_interval=2,
+        )
         policy_calls = [event for event in trace if event[0] == "policy"]
         self.assertEqual(policy_calls, [
             ("policy", "alpha", 0), ("policy", "beta", 0),
             ("policy", "alpha", 1), ("policy", "beta", 1),
         ])
 
-    def test_communication_rounds_have_send_receive_barriers(self):
-        results, trace = trace_results(communicating=True)
-        simulate_1day_multirobot(results)
-        communication = [event for event in trace if event[0] in ("send", "receive")]
-        self.assertEqual(communication, [
+    def test_communication_uses_plain_external_policy(self):
+        trace, robots, environment, estimator, evaluator, communication = \
+            trace_components(communicating=True)
+        simulate_1day(
+            environment=environment,
+            robots=robots,
+            estimator=estimator,
+            evaluator=evaluator,
+            timesteps=1,
+            estimator_interval=1,
+            communication=communication,
+            communication_rounds=2,
+        )
+        communication_events = [
+            event for event in trace if event[0] in ("send", "receive")
+        ]
+        self.assertEqual(communication_events, [
             ("send", 0, "alpha"), ("send", 0, "beta"),
             ("receive", 0, "alpha", ["beta"]),
             ("receive", 0, "beta", ["alpha"]),

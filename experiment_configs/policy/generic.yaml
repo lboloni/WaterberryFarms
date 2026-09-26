@@ -2,4 +2,3 @@
 # 1robot1day or nrobot1day experiment, all the features have to 
 # be specified in the "exp-policy-extra-parameters" field there
 policy-name: "MRMR-Contractor"
-policy-code: "MRMR_Contractor"

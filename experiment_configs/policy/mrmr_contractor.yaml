@@ -1,3 +1,2 @@
 # Implements the Contractor agent in the MRMR paper
 policy-name: "MRMR-Contractor"
-policy-code: "MRMR_Contractor"

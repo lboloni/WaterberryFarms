@@ -19,15 +19,15 @@ robots:
   - name: "robot-1"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      area: "[5, 5, 95, 30]" # [xmin, ymin, xmax, ymax]
+      area: [5, 5, 95, 30] # [xmin, ymin, xmax, ymax]
       policy-name: "lawn-bottom"
   - name: "robot-2"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      area: "[5, 35, 95, 60]"
+      area: [5, 35, 95, 60]
       policy-name: "lawn-middle"
   - name: "robot-3"
     exp-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      area: "[5, 65, 95, 95]"
+      area: [5, 65, 95, 95]
       policy-name: "lawn-top"

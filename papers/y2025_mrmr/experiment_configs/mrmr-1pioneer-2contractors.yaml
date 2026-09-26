@@ -19,7 +19,6 @@ robots:
     exp-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-pioneer"
-      policy-code: "MRMR_Pioneer"
       seed: 1
       budget: 500 # same as timesteps-per-day
       # area: "[5, 5, 95, 95]" # [xmin, ymin, xmax, ymax]
@@ -27,13 +26,11 @@ robots:
     exp-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-contractor-1"
-      policy-code: "MRMR_Contractor"
       seed: 2
       budget: 500 # same as timesteps-per-day
   - name: "robot-contr-2"
     exp-policy: "generic"
     exp-policy-extra-parameters:
       policy-name: "mrmr-contractor-2"
-      policy-code: "MRMR_Contractor"
       seed: 3
       budget: 500 # same as timesteps-per-day

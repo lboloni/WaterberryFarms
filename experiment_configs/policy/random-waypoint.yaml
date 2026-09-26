@@ -1,4 +1,3 @@
 # Specifies the parameters of a random waypoint policy
 policy-name: "RandomWaypointPolicy"
-policy-code: "RandomWaypointPolicy"
 seed: 0

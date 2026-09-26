@@ -6,7 +6,7 @@ import itertools
 import numpy as np
 from policy import AbstractWaypointPolicy
 from exp_run_config import Experiment
-from wbf_simulate import get_geometry
+from wbf_helper import get_geometry
 from water_berry_farm import WBF_IM_GaussianProcess
 
 class AbstractEmbeddedEstimatorPolicy(AbstractWaypointPolicy):

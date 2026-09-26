@@ -25,4 +25,39 @@ It contains the following major components:
 ## How to use
 
 * The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, ipywidgets and bokeh. 
-* In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy. 
+* In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy.
+
+## Explicit simulation API
+
+Waterberry Farms runs caller-constructed components. Configuration files contain parameters; they do not select or load Python implementations. Experiment code imports and calls the policy generator or constructor it intends to use, constructs the remaining components, and passes them to `simulate_1day`:
+
+```python
+results = simulate_1day(
+    environment=environment,
+    robots=[robot],
+    estimator=estimator,
+    evaluator=evaluator,
+    timesteps=500,
+    estimator_interval=10,
+)
+```
+
+The same function handles any number of robots. Positions and observations are always indexed as `[timestep][robot]`, including for a one-robot run. The simulator does not load configuration, advance the environment to an experiment start time, save results, or mark an experiment complete.
+
+An experiment using a generated policy calls that generator visibly:
+
+```python
+policy = generate_GLR_CA(exp_policy, exp_environment)
+robot.assign_policy(policy)
+```
+
+External components require no registration and need not inherit from a Waterberry Farms class. They need only provide the operations used by the lifecycle:
+
+- A policy provides `name`, `act(delta_t)`, and `add_observation(observation)`. Policies in communicating runs also provide `act_send(round)` and `act_receive(round, messages)`.
+- An estimator provides `add_observation(observation)` and `proceed(delta_t)`.
+- An evaluator provides `score(environment, estimator)`.
+- An environment provides `time` and `get_observation([x, y, timestep])`.
+- A replacement robot provides `name`, `x`, `y`, `policy`, `enact_policy()`, `proceed(delta_t)`, and `add_observation(observation)`.
+- A communication medium provides `robots`, `add_robot(robot)`, `send(...)`, and `receive(robot)`.
+
+The optional `after_timestep` and `after_day` hooks both receive `(results, environment, robots, estimator, evaluator)`. See `examples/external_components.py` for a complete external policy and evaluator.

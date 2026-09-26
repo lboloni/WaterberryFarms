@@ -1,34 +1,18 @@
-"""
-wbf_simulate.py
+"""Simulation lifecycle and result persistence for Waterberry Farms."""
 
-Functions helping to run experiments with the Waterberry Farms benchmark.
-
-"""
-
+import gzip as compress
 import logging
 import pickle
 import time
-import pathlib
-import gzip as compress
-import inspect
-#import bz2 as compress
-# import gzip as compress
 
-from policy import AbstractCommunicateAndFollowPath
-from exp_run_config import Config
-Config.PROJECTNAME = "WaterBerryFarms"
-from pprint import pprint
-import gzip as compress
-from wbf_helper import get_geometry, create_wbfe, create_policy, create_estimator, create_score
-from robot import Robot
-from communication import PerfectCommunicationMedium
 
-# logging.basicConfig(level=logging.WARNING)
 logging.basicConfig(level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
+
 class TimeTrack:
-    """Class for tracking time in the simulations"""
+    """Track policy computation time and periodically report progress."""
+
     def __init__(self):
         self.start_time = time.time_ns()
         self.last_start_time = self.start_time
@@ -37,339 +21,143 @@ class TimeTrack:
         self.policy_start_time = time.time_ns()
 
     def policy_finish(self, results):
-        self.policy_finish_time = time.time_ns()
-        results["computation-cost-policy"].append(self.policy_finish_time - self.policy_start_time)
+        policy_finish_time = time.time_ns()
+        results["computation-cost-policy"].append(
+            policy_finish_time - self.policy_start_time)
 
-    def current(self, timestep, results):
-        self.current_time = time.time_ns()
-        if self.current_time - self.last_start_time > 10e9:
-            print(f"At {timestep} / {int(results['timesteps-per-day'])} elapsed {int((self.current_time - self.start_time) / 1e9)} seconds")
-            self.last_start_time = self.current_time
-
-
-def simulate_1day(results):
-    """
-    Runs the simulation for one day. All the parameters and output is in the results dictionary.
-    As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
-    """
-    results["robots"] = [results["robot"]]
-    results["communication-rounds"] = 0
-    initialize_simulation(results)
-    for timestep in range(int(results["timesteps-per-day"])):
-        simulate_timestep(results, timestep)
-    if "hook-after-day" in results:
-        results["hook-after-day"](results)
-    del results["robots"]
+    def current(self, timestep, timesteps):
+        current_time = time.time_ns()
+        if current_time - self.last_start_time > 10e9:
+            elapsed = int((current_time - self.start_time) / 1e9)
+            print(f"At {timestep} / {timesteps} elapsed {elapsed} seconds")
+            self.last_start_time = current_time
 
 
-def simulate_timestep_1robot(results, timestep):
-    """Compatibility wrapper for callers that simulate one robot directly."""
-    if "robots" not in results:
-        results["robots"] = [results["robot"]]
-    results["communication-rounds"] = 0
-    simulate_timestep(results, timestep)
+def simulate_1day(*, environment, robots, estimator, evaluator, timesteps,
+                  estimator_interval, communication=None,
+                  communication_rounds=0, after_timestep=None,
+                  after_day=None):
+    """Run one day with caller-constructed simulation components."""
 
-
-def simulate_1day_multirobot(results):
-    """
-    Runs the simulation for one day. All the parameters and output is in the results dictionary.
-    As this can also be slow, it performs time tracking, and marks the time tracking values into the results as well.
-    """
-    initialize_simulation(results)
-    for timestep in range(int(results["timesteps-per-day"])):
-        simulate_timestep(results, timestep)
-    if "hook-after-day" in results:
-        results["hook-after-day"](results)
-
-
-def simulate_timestep_multirobot(results, timestep):
-    """Compatibility wrapper for callers that simulate multiple robots directly."""
-    simulate_timestep(results, timestep)
-
-
-def initialize_simulation(results):
-    """Initialize the shared one-day lifecycle."""
-    results["robots"] = sorted(results["robots"], key=lambda robot: robot.name)
-    names = [robot.name for robot in results["robots"]]
+    robots = sorted(robots, key=lambda robot: robot.name)
+    names = [robot.name for robot in robots]
     if len(names) != len(set(names)):
         raise Exception("Robot names must be unique")
-    for robot in results["robots"]:
+    for robot in robots:
         if robot.policy is None:
             raise Exception(f"Robot {robot.name} has no policy")
-        robot.im = results["estimator-CODE"]
+        robot.im = estimator
 
-    results["robot-names"] = names
-    results["score-events"] = []
+    results = {
+        "robots": robots,
+        "robot-names": names,
+        "score-events": [],
+        "observations": [],
+        "positions": [],
+        "computation-cost-policy": [],
+        "simulation-timestep": 0,
+    }
     results["scores"] = results["score-events"]
-    results["observations"] = []
-    results["positions"] = []
-    results["computation-cost-policy"] = []
-    results["time-track"] = TimeTrack()
-    results["im_resolution_count"] = 0
-    results["simulation-timestep"] = 0
-    results["environment-time-during-day"] = results["wbfe"].time
+
+    environment_time = environment.time
+    interval_count = 0
+    time_track = TimeTrack()
+    for timestep in range(int(timesteps)):
+        interval_count = _simulate_timestep(
+            results=results,
+            timestep=timestep,
+            timesteps=timesteps,
+            estimator_interval=estimator_interval,
+            interval_count=interval_count,
+            environment=environment,
+            environment_time=environment_time,
+            robots=robots,
+            estimator=estimator,
+            evaluator=evaluator,
+            communication=communication,
+            communication_rounds=communication_rounds,
+            after_timestep=after_timestep,
+            time_track=time_track,
+        )
+
+    if after_day is not None:
+        after_day(results, environment, robots, estimator, evaluator)
+    if environment.time != environment_time:
+        raise Exception("Environment time changed during a one-day simulation")
+    return results
 
 
-def simulate_timestep(results, timestep):
+def _simulate_timestep(*, results, timestep, timesteps, estimator_interval,
+                       interval_count, environment, environment_time, robots,
+                       estimator, evaluator, communication,
+                       communication_rounds, after_timestep, time_track):
     """Run one canonical communication-to-hook simulation timestep."""
+
     if timestep != results["simulation-timestep"]:
         raise Exception("Simulation timesteps must be consecutive")
-    if results["wbfe"].time != results["environment-time-during-day"]:
+    if environment.time != environment_time:
         raise Exception("Environment time changed during a one-day simulation")
-    results["time-track"].policy_start()
-    robots = results["robots"]
 
-    # communication rounds
-    for round in range(results["communication-rounds"]):
+    time_track.policy_start()
+    for round_number in range(communication_rounds):
         for robot in robots:
-            if isinstance(robot.policy, AbstractCommunicateAndFollowPath):
-                robot.policy.act_send(round)
+            robot.policy.act_send(round_number)
         for robot in robots:
-            if isinstance(robot.policy, AbstractCommunicateAndFollowPath):
-                if results["communication"].robots[robot.name] is not robot:
-                    raise Exception(f"Mailbox {robot.name} is not owned by its robot")
-                msgs = results["communication"].receive(robot)
-                robot.policy.act_receive(round, msgs)
+            if communication.robots[robot.name] is not robot:
+                raise Exception(f"Mailbox {robot.name} is not owned by its robot")
+            messages = communication.receive(robot)
+            robot.policy.act_receive(round_number, messages)
 
-    # policy decisions and action execution are separate phases
     for robot in robots:
         robot.enact_policy()
     for robot in robots:
         robot.proceed(1)
 
-    # all positions and observations use the same post-movement snapshot
-    positions = [[int(robot.x), int(robot.y), timestep] for robot in robots]
-    observations = [results["wbfe"].get_observation(position) for position in positions]
+    positions = [
+        [int(robot.x), int(robot.y), timestep]
+        for robot in robots
+    ]
+    observations = [
+        environment.get_observation(position)
+        for position in positions
+    ]
     if len(observations) != len(robots):
         raise Exception("Every robot must produce one observation per timestep")
 
-    # the estimator receives the complete timestep before policies see observations
-    for obs in observations:
-        results["estimator-CODE"].add_observation(obs)
-    for robot, obs in zip(robots, observations):
-        robot.add_observation(obs)
+    for observation in observations:
+        estimator.add_observation(observation)
+    for robot, observation in zip(robots, observations):
+        robot.add_observation(observation)
 
-    if "robot" in results:
-        results["positions"].append(positions[0])
-        results["observations"].append(observations[0])
-    else:
-        results["positions"].append(positions)
-        results["observations"].append(observations)
+    results["positions"].append(positions)
+    results["observations"].append(observations)
 
-    results["time-track"].policy_finish(results)
-    results["im_resolution_count"] += 1
-    if results["im_resolution_count"] == results["im_resolution"] or timestep + 1 == results["timesteps-per-day"]:
-        results["estimator-CODE"].proceed(results["im_resolution_count"])
-        results["score"] = results["score-code"].score(results["wbfe"], results["estimator-CODE"])
-        if results["score-events"] and results["score-events"][-1]["timestep"] >= timestep:
+    time_track.policy_finish(results)
+    interval_count += 1
+    if interval_count == estimator_interval or timestep + 1 == timesteps:
+        estimator.proceed(interval_count)
+        results["score"] = evaluator.score(environment, estimator)
+        if (results["score-events"] and
+                results["score-events"][-1]["timestep"] >= timestep):
             raise Exception("Score event timestamps must be strictly increasing")
-        results["score-events"].append({"timestep": timestep, "score": results["score"]})
-        results["im_resolution_count"] = 0
+        results["score-events"].append({
+            "timestep": timestep,
+            "score": results["score"],
+        })
+        interval_count = 0
 
     results["simulation-timestep"] = timestep + 1
-    if "hook-after-timestep" in results:
-        results["hook-after-timestep"](results)
-    if results["wbfe"].time != results["environment-time-during-day"]:
+    if after_timestep is not None:
+        after_timestep(results, environment, robots, estimator, evaluator)
+    if environment.time != environment_time:
         raise Exception("Environment time changed during a one-day simulation")
-    results["time-track"].current(timestep, results)
+    time_track.current(timestep, timesteps)
+    return interval_count
+
 
 def save_simulation_results(resultsfile, results):
-    """Saves the results of the simulation to a compressed pickle
-    file. 
-    To allow for the loading under every circumstances, it removes 
-    all fields that are named "xxx-code"
-    Things such as the estimator, which would require more stuff for this, will be named for the time being estimator-CODE
-    """
+    """Save a caller-selected result dictionary as a compressed pickle."""
 
-    results_nc = {}
-    for a in results:
-        if not a.lower().endswith("-code"):
-            results_nc[a]=results[a]
     print(f"Saving results to: {resultsfile}")
-    with compress.open(resultsfile, "wb") as f:
-        pickle.dump(results_nc, f)    
-
-def run_1robot1day(exp):
-    """Take an experiment of type 1robot1day, set up the results
-    based on the description in it, which includes the policy description. 
-    Then runs simulate1day, and saves it to the experiment. """
-
-    resultsfile = pathlib.Path(exp.data_dir(), "results.pickle")
-    if resultsfile.exists():
-        print(f"Results file already exists:\n{resultsfile}")
-        print(f"Delete this file if re-running is desired.")
-        return
-
-    # the exp for the environment
-    exp_env = Config().get_experiment(exp["exp_environment"], exp["run_environment"])
-    pprint(exp_env)
-    results = {}
-
-    #
-    # Setting the policy based on the exp for policy
-    #
-    exp_policy = Config().get_experiment(exp["exp_policy"], exp["run_policy"])
-    # if extra parameters were passed on, add them to the exp value
-    if "exp-policy-extra-parameters" in exp:
-        extra = exp["exp-policy-extra-parameters"]
-        for val in extra:
-            print(val)
-            exp_policy[val] = extra[val]
-
-    pprint(exp_policy)
-    if exp_policy["policy-code"] == "-":
-        # the policy is created through a policy generator which takes the policy exp and the environment exp
-        # this is for new code models
-        # The generator function should be visible from the code where the run_1robot1day is called
-        generator = exp_policy["policy-code-generator"]
-        frame= inspect.currentframe().f_back
-        caller_globals= frame.f_globals     
-        policy = eval(generator, caller_globals)(exp_policy, exp_env)
-    else:
-        policy = create_policy(exp_policy, exp_env)
-    results["policy-code"] = policy
-    results["policy-name"] = results["policy-code"].name
-    #
-    # End of setting the policy
-    #
-
-    #
-    # Setting the estimator code based on the exp for estimator
-    #
-    exp_estimator = Config().get_experiment(exp["exp_estimator"], exp["run_estimator"])
-    pprint(exp_estimator)
-    results["estimator-CODE"] = create_estimator(exp_estimator, exp_env)
-    results["estimator-name"] = results["estimator-CODE"].name
-    #
-    # End of setting the estimator
-    #
-
-    #
-    # Setting the score code based on the exp for the score
-    #
-    exp_score = Config().get_experiment(exp["exp_score"], exp["run_score"])
-    pprint(exp_score)
-    results["score-code"] = create_score(exp_score, exp_env)
-    results["score-name"] = results["score-code"].name
-    #
-    # End of setting the score 
-    #
-    results["velocity"] = exp["velocity"]
-    results["time-start-environment"] = exp["time-start-environment"]
-    results["im_resolution"] = exp["im_resolution"]
-    results["results-basedir"] = exp["data_dir"]
-    results["action"] = "run-one-day"
-    results["typename"] = exp_env["typename"]
-    wbf, wbfe = create_wbfe(exp_env)
-    # move ahead to the starting point of the environment
-    wbfe.proceed(results["time-start-environment"])
-    results["wbf"] = wbf
-    results["wbfe"] = wbfe
-    results["days"] = 1
-    get_geometry(results["typename"], results)
-    results["timesteps-per-day"] = exp["timesteps-per-day"]
-    # create the robot and set the policy
-    results["robot"] = Robot("Rob", 0, 0, 0, env=None, im=None)
-    results["robot"].assign_policy(results["policy-code"])
-    # 
-    # This is where we actually calling the simulation
-    #
-    simulate_1day(results)
-    save_simulation_results(resultsfile, results)
-    exp.done()
-
-
-def run_nrobot1day(exp):
-    """Take an experiment of type 1robot1day, set up the results
-    based on the description in it, which includes the policy description. 
-    Then runs simulate1day, and saves it to the experiment."""
-
-    from papers.y2025_mrmr.epmarket import EPM
-    EPM().reset()
-
-    resultsfile = pathlib.Path(exp["data_dir"], "results.pickle")
-    if resultsfile.exists():
-        print(f"Results file already exists:\n{resultsfile}")
-        # print(f"Delete this file if re-running is desired.")
-        return 
-
-    # the exp for the environment
-    exp_env = Config().get_experiment(exp["exp_environment"], exp["run_environment"])
-    # pprint(exp_env)
-    # the exp for estimator
-    exp_estimator = Config().get_experiment(exp["exp_estimator"], exp["run_estimator"])
-    # pprint(exp_estimator)
-    # the exp for the score
-    exp_score = Config().get_experiment(exp["exp_score"], exp["run_score"])
-    # pprint(exp_score)
-
-    # extract the sub policies for the individual robots
-    robotspecs = []
-    for values in exp["robots"]:
-        robotspec = {}
-        robotspec["name"] = values["name"]
-        exp_policy = Config().get_experiment(values["exp-policy"], values["run-policy"]) 
-        # if extra parameters were passed on, add them to the exp value
-        if "exp-policy-extra-parameters" in values:
-            extra = values["exp-policy-extra-parameters"]
-            for val in extra:
-                print(val)
-                exp_policy[val] = extra[val]
-        robotspec["exp-policy"] = exp_policy
-        robotspecs.append(robotspec)
-    # pprint(robotspecs)
-
-    results = {}
-    results["estimator-CODE"] = create_estimator(exp_estimator, exp_env)
-    results["estimator-name"] = results["estimator-CODE"].name
-    results["score-code"] = create_score(exp_score, exp_env)
-    results["score-name"] = results["score-code"].name
-
-    results["velocity"] = exp["velocity"]
-    # results["timesteps-per-day-override"] = exp["timesteps-per-day-override"]
-    results["time-start-environment"] = exp["time-start-environment"]
-    results["im_resolution"] = exp["im_resolution"]
-    results["results-basedir"] = exp["data_dir"]
-    results["action"] = "run-one-day"
-    results["typename"] = exp_env["typename"]
-    wbf, wbfe = create_wbfe(exp_env)
-    # move ahead to the starting point of the environment
-    wbfe.proceed(results["time-start-environment"])
-    results["wbf"] = wbf
-    results["wbfe"] = wbfe
-    results["days"] = 1
-    com = PerfectCommunicationMedium(wbfe)
-    results["communication"] = com
-    results["communication-rounds"] = 5
-    get_geometry(results["typename"], results)
-    # overwrite the timesteps per day set by get_geometry with the ones specified by the environment
-    results["timesteps-per-day"] = exp["timesteps-per-day"]
-
-    robots = []
-    for robotspec in robotspecs:
-        # create the robot and set the policy
-        robot = Robot(robotspec["name"], 0, 0, 0, env=None, im=None)
-        robot.com = results["communication"]
-        if robotspec["exp-policy"]["policy-code"] == "-":
-            # the policy is created through a policy generator which takes the policy exp and the environment exp
-            # this is for new code models
-            # The generator function should be visible from the code where the run_nrobot1day is called
-            generator = robotspec["exp-policy"]["policy-code-generator"]        
-            frame= inspect.currentframe().f_back
-            caller_globals= frame.f_globals     
-            policy = eval(generator, caller_globals)(robotspec["exp-policy"], exp_env)
-        else:
-            policy = create_policy(robotspec["exp-policy"], exp_env)
-        robot.assign_policy(policy)
-        robots.append(robot)
-        com.add_robot(robot)
-    results["robots"] = robots
-
-    # 
-    # This is where we actually calling the simulation
-    #
-    simulate_1day_multirobot(results)
-    #print(f"Saving results to: {resultsfile}")
-    #with compress.open(resultsfile, "wb") as f:
-    #    pickle.dump(results, f)
-    save_simulation_results(resultsfile, results)
+    with compress.open(resultsfile, "wb") as output:
+        pickle.dump(results, output)

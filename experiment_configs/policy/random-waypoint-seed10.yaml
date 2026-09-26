@@ -1,3 +1,2 @@
 policy-name: "RandomWaypointPolicy-seed10"
-policy-code: "RandomWaypointPolicy"
 seed: 10

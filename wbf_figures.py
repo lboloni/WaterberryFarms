@@ -226,11 +226,12 @@ def end_of_day_scores(results, graphfilename = "EndOfDayGraph.pdf", title = None
     plt.savefig(pathlib.Path(results["results-basedir"], graphfilename))
 
 
-def hook_create_pictures(results, figsize = (3,3), draw_robot_path = True):
+def hook_create_pictures(results, environment, robots, estimator, evaluator,
+                         figsize=(3, 3), draw_robot_path=True):
     """Hook for after day which generates the pictures of the graphs, for instance, for a movie. This works for the single robot setting."""
 
-    wbfe, wbf = results["wbfe"], results["wbf"]
-    wbfim = results["estimator-CODE"]
+    wbfe = environment
+    wbfim = estimator
     path = results["results-path"]
     pnew = pathlib.Path(path.parent, "dir_" + path.name[4:])
     pnew.mkdir(exist_ok = True)
@@ -505,20 +506,16 @@ def show_unc_soil(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_detections(results, ax, field = "TYLCV", detection_color="Blue", radius=0.5):
     """Shows the detections for all robots"""
-    if "robot" in results: # single robot
-        show_individual_robot_detections(results, ax, -1, field, detection_color=detection_color, radius=radius)
-    else: # multiple robots
-        for i, robot in enumerate(results["robots"]):
-            color = ROBOT_COLORS[i % len(results["robots"])]
-            show_individual_robot_detections(results, ax, robotno=i, field=field, detection_color=color, radius=radius)
+    for i, robot in enumerate(results["robots"]):
+        color = ROBOT_COLORS[i % len(ROBOT_COLORS)]
+        show_individual_robot_detections(
+            results, ax, robotno=i, field=field,
+            detection_color=color, radius=radius)
 
-def show_individual_robot_detections(results, ax, robotno=1, field = "TYLCV", detection_color="Blue", radius=0.5):
-    """Shows the detections for one specific robot. 
+def show_individual_robot_detections(results, ax, robotno=0, field = "TYLCV", detection_color="Blue", radius=0.5):
+    """Shows the detections for one specific robot.
     """
-    if robotno == -1:
-        obs = np.array(results["observations"])[:]
-    else:
-        obs = np.array(results["observations"])[:, robotno]
+    obs = np.array(results["observations"])[:, robotno]
     detections = [[a[StoredObservationIM.X], a[StoredObservationIM.Y]] for a in obs if a[field][StoredObservationIM.VALUE] == 0.0]
      
     for point in detections:
@@ -535,16 +532,14 @@ def show_robot_path(results, ax, draw_it = True, pathcolor="blue",
         return
     
     if robot_number == -1: # all robots
-        if "robot" in results: # single robot
-            observations = results["observations"]
-            robot = results["robot"]
-            show_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)
-        else: # paint all robots
-            for i, robot in enumerate(results["robots"]):
-                color = ROBOT_COLORS[i % len(results["robots"])]
-                observations = [o[i] for o in results["observations"]]
-                show_individual_robot_path(results, ax, robot, observations, pathcolor = color, pathwidth = pathwidth, robotcolor = color, draw_robot=draw_robot, from_obs=from_obs, to_obs = to_obs)                             
-    else: # we assume there are multiple robots and we want one
+        for i, robot in enumerate(results["robots"]):
+            color = ROBOT_COLORS[i % len(ROBOT_COLORS)]
+            observations = [o[i] for o in results["observations"]]
+            show_individual_robot_path(
+                results, ax, robot, observations, pathcolor=color,
+                pathwidth=pathwidth, robotcolor=color,
+                draw_robot=draw_robot, from_obs=from_obs, to_obs=to_obs)
+    else:
         observations = [o[robot_number] for o in results["observations"]]
         robot = results["robots"][robot_number]
         show_individual_robot_path(results, ax, robot, observations, pathcolor, pathwidth, robotcolor, draw_robot, from_obs, to_obs)

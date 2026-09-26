@@ -81,6 +81,32 @@ class TestConfig(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "Missing experiment file"):
             self.config.get_experiment("sample", "missing")
 
+    def test_supported_configuration_contains_parameters_not_code_selectors(self):
+        repository = pathlib.Path(__file__).resolve().parents[1]
+        configuration_roots = [
+            repository / "experiment_configs",
+            repository / "papers" / "y2025_mrmr" / "experiment_configs",
+        ]
+        code_selectors = {
+            "policy-code", "policy-code-generator",
+            "estimator-code", "score-code",
+        }
+
+        def keys(value):
+            if isinstance(value, dict):
+                for key, nested in value.items():
+                    yield key
+                    yield from keys(nested)
+            elif isinstance(value, list):
+                for nested in value:
+                    yield from keys(nested)
+
+        for root in configuration_roots:
+            for path in root.rglob("*.yaml"):
+                with path.open() as handle:
+                    values = yaml.safe_load(handle)
+                self.assertFalse(code_selectors.intersection(keys(values)))
+
 
 if __name__ == "__main__":
     unittest.main()
