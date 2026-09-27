@@ -14,7 +14,7 @@ from wbf_helper import create_wbfe
 
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPERIMENT_ROOT = REPOSITORY_ROOT / "experiment_configs"
+EXPERIMENT_ROOT = REPOSITORY_ROOT / "data" / "expruns"
 FLOW_NOTEBOOKS = [
     REPOSITORY_ROOT / "notebooks" / name
     for name in (
@@ -32,8 +32,8 @@ FLOW_NOTEBOOKS = [
 
 
 class FlowConfig:
-    def __init__(self, experiment_path, flows_path, results_path):
-        self.experiment_path = experiment_path
+    def __init__(self, exprun_path, flows_path, results_path):
+        self.exprun_path = exprun_path
         self.values = {
             "flows_path": flows_path,
             "experiment_data": results_path,
@@ -42,13 +42,13 @@ class FlowConfig:
     def __getitem__(self, key):
         return self.values[key]
 
-    def get_experiment_path(self):
-        return self.experiment_path
+    def get_exprun_path(self):
+        return self.exprun_path
 
-    def set_experiment_path(self, path):
-        self.experiment_path = path
+    def set_exprun_path(self, path):
+        self.exprun_path = path
 
-    def set_experiment_data(self, path):
+    def set_results_path(self, path):
         self.values["experiment_data"] = path
 
 
@@ -119,11 +119,11 @@ class TestFlowHelpers(unittest.TestCase):
     def tearDown(self):
         self.temporary_directory.cleanup()
 
-    def test_setup_flow_copies_from_active_experiment_path(self):
+    def test_setup_flow_copies_from_active_exprun_path(self):
         expruns, results, notebooks = setup_flow(
             "sample-flow", ["sample"], config=self.config)
         self.assertTrue((expruns / "sample" / "run.yaml").is_file())
-        self.assertEqual(self.config.experiment_path, expruns)
+        self.assertEqual(self.config.exprun_path, expruns)
         self.assertEqual(self.config.values["experiment_data"], results)
         self.assertTrue(notebooks.is_dir())
 

@@ -64,6 +64,8 @@ The optional `after_timestep` and `after_day` hooks both receive `(results, envi
 
 ## Experiment flows
 
+Built-in exp/run templates are organized by family under `data/expruns`.
+
 The two supported flow notebooks are:
 
 - `notebooks/Flow-1Robot1Day.ipynb` for the single-robot benchmark.
@@ -79,5 +81,6 @@ stored in the external workspace rather than this checkout.
 python -m pip install -r requirements-flow.txt
 ```
 
-See `FLOW-DESIGN.md` for the exp/run notebook metadata contract, workspace
-layout, creation-style behavior, and procedure for changing flow membership.
+The companion settings workspace documents the exp/run notebook contract,
+workspace layout, creation-style behavior, and flow-membership procedure in
+`PackageTracking/DESIGN-EXPRUN-FLOWS.md`.

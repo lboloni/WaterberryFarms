@@ -33,8 +33,8 @@ class TestConfig(unittest.TestCase):
             "experiment_data": self.data,
             "experiment_system_dependent_dir": self.system,
         }
-        self.config.experiment_path = self.experiments
-        self.config.experiment_path_internal = self.experiments
+        self.config.exprun_path = self.experiments
+        self.config.exprun_path_internal = self.experiments
 
     def tearDown(self):
         self.temporary_directory.cleanup()
@@ -87,11 +87,23 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(exp["run-only"], 2)
         self.assertFalse(exp.data_dir().exists())
 
+    def test_exprun_and_results_path_api(self):
+        expruns = self.root / "external-expruns"
+        results = self.root / "external-results"
+        expruns.mkdir()
+        results.mkdir()
+        self.config.set_exprun_path(expruns)
+        self.config.set_results_path(results)
+        self.assertEqual(self.config.get_exprun_path(), expruns)
+        self.assertEqual(self.config.get_results_path(), results)
+        self.assertFalse(hasattr(self.config, "set_experiment_path"))
+        self.assertFalse(hasattr(self.config, "set_experiment_data"))
+
     def test_supported_configuration_contains_parameters_not_code_selectors(self):
         repository = pathlib.Path(__file__).resolve().parents[1]
         configuration_roots = [
-            repository / "experiment_configs",
-            repository / "papers" / "y2025_mrmr" / "experiment_configs",
+            repository / "data" / "expruns",
+            repository / "papers" / "y2025_mrmr" / "data" / "expruns",
         ]
         code_selectors = {
             "policy-code", "policy-code-generator",

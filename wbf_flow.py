@@ -71,7 +71,7 @@ def setup_flow(flow_name, experiment_families, flows_path=None, config=None):
     if flows_path is None:
         flows_path = config["flows_path"]
 
-    source_path = pathlib.Path(config.get_experiment_path())
+    source_path = pathlib.Path(config.get_exprun_path())
     flow_path = pathlib.Path(flows_path).expanduser() / flow_name
     expruns_path = flow_path / "expruns"
     results_path = flow_path / "results"
@@ -87,8 +87,8 @@ def setup_flow(flow_name, experiment_families, flows_path=None, config=None):
             dirs_exist_ok=True,
         )
 
-    config.set_experiment_path(expruns_path)
-    config.set_experiment_data(results_path)
+    config.set_exprun_path(expruns_path)
+    config.set_results_path(results_path)
     return expruns_path, results_path, notebooks_path
 
 

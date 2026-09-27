@@ -159,10 +159,11 @@ class Config:
                 cls._instance.values = yaml.safe_load(handle)
             cls._instance.values["configpath"] = configpath
             cls._instance.values["main_config"] = main_config
-            # experiment path 
-            current_directory = pathlib.Path(__file__).resolve().parent    
-            cls._instance.experiment_path_internal = pathlib.Path(current_directory, "experiment_configs")
-            cls._instance.experiment_path = cls._instance.experiment_path_internal
+            # exp/run path
+            current_directory = pathlib.Path(__file__).resolve().parent
+            cls._instance.exprun_path_internal = pathlib.Path(
+                current_directory, "data", "expruns")
+            cls._instance.exprun_path = cls._instance.exprun_path_internal
 
         return cls._instance
 
@@ -178,23 +179,26 @@ class Config:
     def list_experiments(self):
         """List the experiment directories as strings that are present 
         in the current locations."""
-        subdirs = [p.name for p in self.experiment_path.iterdir() if p.is_dir()]
+        subdirs = [p.name for p in self.exprun_path.iterdir() if p.is_dir()]
         return subdirs
 
-    def set_experiment_path(self, path: pathlib.Path):
-        """Sets the experiment config directories to be an external directory"""
+    def set_exprun_path(self, path: pathlib.Path):
+        """Sets the exp/run configuration directory."""
         assert path.exists()
-        self.experiment_path = path
-        self.__log(f"Experiment config path changed to {self.experiment_path}")
-    
-    def get_experiment_path(self):
-        return self.experiment_path
+        self.exprun_path = path
+        self.__log(f"Exp/run path changed to {self.exprun_path}")
 
-    def set_experiment_data(self, path: pathlib.Path):
-        """Sets the experiment data to be an external directory"""
+    def get_exprun_path(self):
+        return self.exprun_path
+
+    def set_results_path(self, path: pathlib.Path):
+        """Sets the experiment results directory."""
         assert path.exists()
         self.values["experiment_data"] = path
-        self.__log(f"Experiment data path changed to {self.values['experiment_data']}")
+        self.__log(f"Results path changed to {self.values['experiment_data']}")
+
+    def get_results_path(self):
+        return self.values["experiment_data"]
 
     def copy_experiment(self, exp_name, run_name = None):
         """Copy an experiment run, or all the runs, from an internal
@@ -202,31 +206,31 @@ class Config:
         FIXME Use list runs
         """
         # we cannot do this in the internal domain
-        assert self.experiment_path != self.experiment_path_internal
+        assert self.exprun_path != self.exprun_path_internal
         if run_name:
-            source_path = pathlib.Path(self.experiment_path_internal, exp_name, run_name + ".yaml")
+            source_path = pathlib.Path(self.exprun_path_internal, exp_name, run_name + ".yaml")
             assert source_path.exists()
-            target_path = pathlib.Path(self.experiment_path, exp_name, run_name + ".yaml")
+            target_path = pathlib.Path(self.exprun_path, exp_name, run_name + ".yaml")
             shutil.copy2(source_path, target_path)
             self.__log(f"Exp/run {exp_name}/{run_name} copied to {target_path}")
         else: # copy the full directory
-            source_path = pathlib.Path(self.experiment_path_internal, exp_name)
+            source_path = pathlib.Path(self.exprun_path_internal, exp_name)
             assert source_path.exists()
-            target_path = pathlib.Path(self.experiment_path, exp_name)
+            target_path = pathlib.Path(self.exprun_path, exp_name)
             shutil.copytree(source_path, target_path,  dirs_exist_ok=True)
             self.__log(f"Experiment {exp_name} copied to {target_path}")
 
     def create_exprun_variant(self, exp_name, run_name, changes = {}, new_run_name=None):
         """Creates a variation of the experiment"""
         # we cannot do this in the internal domain
-        assert self.experiment_path != self.experiment_path_internal
+        assert self.exprun_path != self.exprun_path_internal
         exp = self.get_experiment(exp_name, run_name)
         for key in changes:
             exp.values[key] = changes[key]
         if not new_run_name:
             now = datetime.now()
             new_run_name =  run_name + "_" + now.strftime("%Y-%m-%d-%H-%M-%S")
-        target_path = pathlib.Path(self.experiment_path, exp_name, new_run_name + ".yaml")
+        target_path = pathlib.Path(self.exprun_path, exp_name, new_run_name + ".yaml")
         with open(target_path, "w") as f:
             yaml.dump(exp.values, f)
         self.__log(f"Exp/run variant {exp_name}/{new_run_name} created in {target_path}")
@@ -238,7 +242,7 @@ class Config:
         """
         if not done_only:
             current_directory = pathlib.Path(__file__).resolve().parent    
-            runs = pathlib.Path(self.experiment_path, exp_name)
+            runs = pathlib.Path(self.exprun_path, exp_name)
             if not runs.exists():
                 raise Exception("No experiment named {exp_name} in the current context")
             runs = [p.stem for p in runs.iterdir() if p.is_file() and p.suffix == ".yaml"]
@@ -277,7 +281,7 @@ class Config:
         #
         # Load the system independent defaults configuration
         #
-        experiment_group_indep = pathlib.Path(self.experiment_path, experiment_name, "_defaults_" + experiment_name + ".yaml")
+        experiment_group_indep = pathlib.Path(self.exprun_path, experiment_name, "_defaults_" + experiment_name + ".yaml")
         if not experiment_group_indep.exists():
             raise Exception(f"Missing experiment default config {experiment_group_indep}")
         with experiment_group_indep.open("rt") as handle:
@@ -289,7 +293,7 @@ class Config:
         #
         # Load the system independent run configuration
         #
-        experiment_run_indep = pathlib.Path(self.experiment_path, experiment_name, run_name + ".yaml")
+        experiment_run_indep = pathlib.Path(self.exprun_path, experiment_name, run_name + ".yaml")
         if not experiment_run_indep.exists():
             raise Exception(f"Missing experiment file\n {experiment_run_indep}")
         with experiment_run_indep.open("rt") as handle:
