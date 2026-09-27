@@ -257,7 +257,9 @@ class Config:
         subdirs = [p.name for p in data_dir.iterdir() if p.is_dir()]
         return subdirs
 
-    def get_experiment(self, experiment_name, run_name, subrun_name=None, creation_style="exist-ok"):
+    def get_experiment(
+            self, experiment_name, run_name, subrun_name=None,
+            creation_style="exist-ok", create_data_dir=True):
         """Returns an experiment configuration, which is the 
         mixture between the system-dependent configuration and the system independent configuration.
         
@@ -266,7 +268,10 @@ class Config:
             "version" - move the existing directory to a timestamped backup
                         and start fresh
             "discard-old" - delete the existing directory and start fresh
-        
+
+        If create_data_dir is false, resolve and return the exp/run without
+        creating or changing its data directory.
+
         """
         current_directory = pathlib.Path(__file__).resolve().parent
         #
@@ -330,6 +335,9 @@ class Config:
             data_dir = pathlib.Path(self.values["experiment_data"], experiment_name, run_name, subrun_name).expanduser()
         exp_config[Config.DATA_DIR] = str(data_dir)
         exp_config[Config.SUBRUN_NAME] = subrun_name
+
+        if not create_data_dir:
+            return Experiment(exp_config)
 
         if creation_style == "exist-ok":
             # it is ok if the directory exists, but then we don't measure time 

@@ -1,6 +1,9 @@
 # Specify the comparison for the MRMR paper
 name: "comp_mrmr"
 
+input-to-notebook:
+  - notebooks/nRobot1Day-Compare.ipynb
+
 tocompare:
   - "mrmr-3random"
   - "mrmr-3lawnmowers"

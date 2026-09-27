@@ -1,7 +1,10 @@
 name: "all"
 comment: "all-experiments"
 
-allruns:
+input-to-notebook:
+  - notebooks/nRobot1Day-Compare.ipynb
+
+tocompare:
   - "mrmr-clustered-3random"
   - "mrmr-clustered-3lawnmowers"
   - "mrmr-clustered-1pio-2con"

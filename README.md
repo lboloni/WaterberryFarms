@@ -61,3 +61,23 @@ External components require no registration and need not inherit from a Waterber
 - A communication medium provides `robots`, `add_robot(robot)`, `send(...)`, and `receive(robot)`.
 
 The optional `after_timestep` and `after_day` hooks both receive `(results, environment, robots, estimator, evaluator)`. See `examples/external_components.py` for a complete external policy and evaluator.
+
+## Experiment flows
+
+The two supported flow notebooks are:
+
+- `notebooks/Flow-1Robot1Day.ipynb` for the single-robot benchmark.
+- `notebooks/Flow-nRobot1Day.ipynb` for the MRMR multi-robot benchmark.
+
+Each flow creates an external workspace below the configured `flows_path`,
+precomputes every referenced environment once, runs the selected algorithms,
+visualizes them individually, and compares them. Papermill must be installed in
+the environment running the flow. Executed notebooks and generated results are
+stored in the external workspace rather than this checkout.
+
+```shell
+python -m pip install -r requirements-flow.txt
+```
+
+See `FLOW-DESIGN.md` for the exp/run notebook metadata contract, workspace
+layout, creation-style behavior, and procedure for changing flow membership.

@@ -81,6 +81,12 @@ class TestConfig(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "Missing experiment file"):
             self.config.get_experiment("sample", "missing")
 
+    def test_configuration_can_be_resolved_without_creating_data(self):
+        exp = self.config.get_experiment(
+            "sample", "run", create_data_dir=False)
+        self.assertEqual(exp["run-only"], 2)
+        self.assertFalse(exp.data_dir().exists())
+
     def test_supported_configuration_contains_parameters_not_code_selectors(self):
         repository = pathlib.Path(__file__).resolve().parents[1]
         configuration_roots = [

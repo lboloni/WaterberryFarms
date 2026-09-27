@@ -5,3 +5,5 @@ tocompare:
   - "mrmr-3random"
   - "mrmr-3lawnmowers"
   - "mrmr-1pioneer-2contractors"
+input-to-notebook:
+  - notebooks/nRobot1Day-Compare.ipynb

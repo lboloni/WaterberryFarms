@@ -1,0 +1,14 @@
+name: "All supported single-robot algorithms"
+
+input-to-notebook:
+  - notebooks/1Robot1Day-Compare.ipynb
+
+tocompare:
+  - rwp-ad-30
+  - fblm-ad-30
+  - fblm-gp-30
+  - fblm-generator-gp-30
+  - confidence-guided-ipp-01
+  - glr-eop-ad
+  - glr-sd-ad
+  - glr-ca-ad

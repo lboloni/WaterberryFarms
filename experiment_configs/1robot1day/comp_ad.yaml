@@ -1,6 +1,9 @@
 # Compare the various models with the AD estimator
 name: "comp_ad"
 
+input-to-notebook:
+  - notebooks/1Robot1Day-Compare.ipynb
+
 tocompare:
   - "fblm-ad-30"
   - "rwp-ad-30"

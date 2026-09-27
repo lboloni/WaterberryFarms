@@ -1,5 +1,8 @@
 
 velocity: 1
-timesteps-per-day: 500 
+timesteps-per-day: 500
 time-start-environment: 6
 im_resolution: 10
+input-to-notebook:
+  - notebooks/nRobot1Day-Run.ipynb
+  - notebooks/nRobot1Day-Visualize.ipynb

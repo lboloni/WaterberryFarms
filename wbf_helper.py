@@ -37,9 +37,9 @@ def create_wbfe(exp):
     path_geometry = pathlib.Path(exp["data_dir"], "farm_geometry")
     path_environment = pathlib.Path(exp["data_dir"], "farm_environment")
 
-    # caching: if it already exists, return it. Only works for non custom
-    # TO BE DEBUGGED: it should work for custom
-    if path_geometry.exists() and "custom-tylcv" not in exp:
+    # The cached geometry identifies a fully initialized standard or custom
+    # environment. Subsequent runs replay its precalculated field values.
+    if path_geometry.exists():
         print("loading the geometry and environment from saved data")
         with compress.open(path_geometry, "rb") as f:
             wbf = pickle.load(f)

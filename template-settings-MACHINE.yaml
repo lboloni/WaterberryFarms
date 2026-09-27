@@ -1,3 +1,5 @@
+flows_path: '\a\b\c\WBF-Flows'
+
 WBF:
   # Directory for the checkout of the WaterBerryFarms
   code_dir: '\a\b\c\WaterBerryFarms\'
