@@ -85,4 +85,4 @@ python -m pip install -r requirements-flow.txt
 
 The companion settings workspace documents the exp/run notebook contract,
 workspace layout, creation-style behavior, and flow-membership procedure in
-`PackageTracking/DESIGN-EXPRUN-FLOWS.md`.
+`design/DESIGN-EXPRUN-FLOWS.md`.

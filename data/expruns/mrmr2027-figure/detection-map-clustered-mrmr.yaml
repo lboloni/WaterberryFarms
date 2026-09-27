@@ -1,0 +1,7 @@
+name: Detection map for clustered-mrmr
+source-runs:
+  - clustered-mrmr
+title: MRMR
+output-filename: detections-map-clustered-mrmr.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-DetectionMap.ipynb

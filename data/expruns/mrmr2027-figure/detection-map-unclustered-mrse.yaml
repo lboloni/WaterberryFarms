@@ -1,0 +1,7 @@
+name: Detection map for unclustered-mrse
+source-runs:
+  - unclustered-mrse
+title: MRSE
+output-filename: detections-map-unclustered-mrse.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-DetectionMap.ipynb

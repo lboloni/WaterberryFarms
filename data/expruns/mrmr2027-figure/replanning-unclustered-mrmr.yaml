@@ -1,0 +1,7 @@
+name: Replanning snapshots for unclustered-mrmr
+source-runs:
+  - unclustered-mrmr
+robot-name-prefix: con-
+output-filename-prefix: plans_unclustered-mrmr
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Replanning.ipynb

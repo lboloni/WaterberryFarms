@@ -1,0 +1,13 @@
+name: Optimal exploration-package path
+source-runs: []
+start: [60, 70]
+end: [70, 50]
+max-search-time: 30.0
+exploration-packages:
+  - {x-min: 20, x-max: 60, y-min: 20, y-max: 40, step: 2}
+  - {x-min: 70, x-max: 90, y-min: 60, y-max: 80, step: 2}
+  - {x-min: 75, x-max: 95, y-min: 20, y-max: 50, step: 3}
+  - {x-min: 20, x-max: 50, y-min: 60, y-max: 90, step: 3}
+output-filename: ep_path.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-OptimalEPPath.ipynb

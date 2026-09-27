@@ -1,5 +1,6 @@
 import json
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -10,7 +11,13 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from wbf_flow import build_flow_entries, run_flow, run_notebook, setup_flow
+from wbf_flow import (
+    build_flow_entries,
+    build_mrmr_2027_flow_entries,
+    run_flow,
+    run_notebook,
+    setup_flow,
+)
 from wbf_helper import create_wbfe
 
 
@@ -30,6 +37,19 @@ FLOW_NOTEBOOKS = [
         "Flow-nRobot1Day.ipynb",
     )
 ]
+MRMR_2027_NOTEBOOKS = [
+    REPOSITORY_ROOT / "papers" / "y2027_mrmr" / name
+    for name in (
+        "MRMR-Run.ipynb",
+        "MRMR-Visualize-DetectionMap.ipynb",
+        "MRMR-Visualize-AgentDetections.ipynb",
+        "MRMR-Visualize-Replanning.ipynb",
+        "MRMR-Visualize-Comparison.ipynb",
+        "MRMR-Visualize-OptimalEPPath.ipynb",
+        "MRMR-Flow.ipynb",
+    )
+]
+FLOW_NOTEBOOKS += MRMR_2027_NOTEBOOKS
 
 
 class FlowConfig:
@@ -91,7 +111,7 @@ class TestFlowMetadata(unittest.TestCase):
             "experiment", "run", "creation_style",
             "expruns_path", "results_path",
         }
-        for path in FLOW_NOTEBOOKS[:7]:
+        for path in FLOW_NOTEBOOKS[:7] + MRMR_2027_NOTEBOOKS:
             with path.open() as handle:
                 notebook = json.load(handle)
             parameter_cells = [
@@ -102,6 +122,50 @@ class TestFlowMetadata(unittest.TestCase):
             source = "".join(parameter_cells[0]["source"])
             for name in required:
                 self.assertIn(f"{name} =", source, f"{path.name}: {name}")
+
+    def test_mrmr_2027_notebooks_list_every_compatible_exprun(self):
+        expected = {}
+        for family in (
+                "mrmr2027-run", "mrmr2027-figure", "mrmr2027-flow"):
+            family_path = EXPERIMENT_ROOT / family
+            defaults_path = family_path / f"_defaults_{family}.yaml"
+            with defaults_path.open() as handle:
+                defaults = yaml.safe_load(handle) or {}
+            for run_path in family_path.glob("*.yaml"):
+                if run_path == defaults_path:
+                    continue
+                with run_path.open() as handle:
+                    values = defaults | (yaml.safe_load(handle) or {})
+                notebook = values["input-to-notebook"][0]
+                expected.setdefault(notebook, set()).add(run_path.stem)
+
+        for path in MRMR_2027_NOTEBOOKS:
+            relative_path = path.relative_to(REPOSITORY_ROOT).as_posix()
+            with path.open() as handle:
+                notebook = json.load(handle)
+            parameter_cell = next(
+                cell for cell in notebook["cells"]
+                if "parameters" in cell["metadata"].get("tags", []))
+            source = "".join(parameter_cell["source"])
+            listed = set(re.findall(
+                r'^\s*#?\s*run = "([^"]+)"', source, re.MULTILINE))
+            self.assertEqual(listed, expected[relative_path], path.name)
+
+    def test_mrmr_2027_flow_declares_optimal_ep_figure(self):
+        path = EXPERIMENT_ROOT / "mrmr2027-flow" / "icc-2027-all.yaml"
+        with path.open() as handle:
+            collection = yaml.safe_load(handle)
+        self.assertEqual(len(collection["figures"]), 17)
+        self.assertIn("optimal-ep-path", collection["figures"])
+
+        path = (EXPERIMENT_ROOT / "mrmr2027-figure" /
+                "optimal-ep-path.yaml")
+        with path.open() as handle:
+            figure = yaml.safe_load(handle)
+        self.assertEqual(figure["source-runs"], [])
+        self.assertEqual(figure["input-to-notebook"], [
+            "papers/y2027_mrmr/MRMR-Visualize-OptimalEPPath.ipynb",
+        ])
 
 
 class TestFlowHelpers(unittest.TestCase):
@@ -300,6 +364,97 @@ class TestFlowHelpers(unittest.TestCase):
                 ("Visualize.ipynb", "b", "exist-ok"),
                 ("Compare.ipynb", "all", "discard-old"),
             ])
+
+    def test_build_mrmr_2027_flow_entries_has_exact_phase_order(self):
+        experiments = {
+            ("paper-flow", "all"): {
+                "run-experiment": "paper-run",
+                "runs": ["a", "b"],
+                "figure-experiment": "paper-figure",
+                "figures": ["map-a", "optimal"],
+            },
+            ("paper-run", "a"): {
+                "exp_environment": "environment",
+                "run_environment": "shared",
+                "input-to-notebook": ["Run.ipynb"],
+            },
+            ("paper-run", "b"): {
+                "exp_environment": "environment",
+                "run_environment": "shared",
+                "input-to-notebook": ["Run.ipynb"],
+            },
+            ("environment", "shared"): {
+                "input-to-notebook": ["Precompute.ipynb"],
+            },
+            ("paper-figure", "map-a"): {
+                "source-experiment": "paper-run",
+                "source-runs": ["a"],
+                "input-to-notebook": ["Map.ipynb"],
+            },
+            ("paper-figure", "optimal"): {
+                "source-experiment": "paper-run",
+                "source-runs": [],
+                "input-to-notebook": ["Optimal.ipynb"],
+            },
+        }
+
+        class RecordingConfig:
+            def __init__(self):
+                self.create_data_dir_values = []
+
+            def get_experiment(
+                    self, experiment, run, create_data_dir=True):
+                self.create_data_dir_values.append(create_data_dir)
+                return experiments[(experiment, run)]
+
+        config = RecordingConfig()
+        entries = build_mrmr_2027_flow_entries(
+            "paper-flow", "all", "discard-old", config)
+
+        self.assertFalse(any(config.create_data_dir_values))
+        self.assertEqual(
+            [(entry["notebook"], entry["experiment"], entry["run"])
+             for entry in entries],
+            [
+                ("Precompute.ipynb", "environment", "shared"),
+                ("Run.ipynb", "paper-run", "a"),
+                ("Run.ipynb", "paper-run", "b"),
+                ("Map.ipynb", "paper-figure", "map-a"),
+                ("Optimal.ipynb", "paper-figure", "optimal"),
+            ])
+
+    def test_build_mrmr_2027_flow_rejects_undeclared_source(self):
+        experiments = {
+            ("paper-flow", "all"): {
+                "run-experiment": "paper-run",
+                "runs": ["a"],
+                "figure-experiment": "paper-figure",
+                "figures": ["bad"],
+            },
+            ("paper-run", "a"): {
+                "exp_environment": "environment",
+                "run_environment": "shared",
+                "input-to-notebook": ["Run.ipynb"],
+            },
+            ("environment", "shared"): {
+                "input-to-notebook": ["Precompute.ipynb"],
+            },
+            ("paper-figure", "bad"): {
+                "source-experiment": "paper-run",
+                "source-runs": ["missing"],
+                "input-to-notebook": ["Figure.ipynb"],
+            },
+        }
+
+        class ConfigWithBadSource:
+            def get_experiment(
+                    self, experiment, run, create_data_dir=True):
+                return experiments[(experiment, run)]
+
+        with self.assertRaisesRegex(Exception, "undeclared run missing"):
+            build_mrmr_2027_flow_entries(
+                "paper-flow", "all", "exist-ok",
+                ConfigWithBadSource())
 
     def test_custom_environment_reuses_precalculated_cache(self):
         data_dir = self.root / "custom-environment"

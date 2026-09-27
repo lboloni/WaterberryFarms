@@ -1,0 +1,6 @@
+name: Agent detections for unclustered-mrse
+source-runs:
+  - unclustered-mrse
+output-filename: detections-bar-unclustered-mrse.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-AgentDetections.ipynb

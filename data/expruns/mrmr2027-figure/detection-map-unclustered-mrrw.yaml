@@ -1,0 +1,7 @@
+name: Detection map for unclustered-mrrw
+source-runs:
+  - unclustered-mrrw
+title: MRRW
+output-filename: detections-map-unclustered-mrrw.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-DetectionMap.ipynb

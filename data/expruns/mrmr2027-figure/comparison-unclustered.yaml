@@ -1,0 +1,12 @@
+name: unclustered comparison
+source-runs:
+  - unclustered-mrrw
+  - unclustered-mrse
+  - unclustered-mrmr
+labels:
+  unclustered-mrrw: MRRW
+  unclustered-mrse: MRSE
+  unclustered-mrmr: MRMR
+output-filename: comparative-bar-comparison-unclustered.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Comparison.ipynb

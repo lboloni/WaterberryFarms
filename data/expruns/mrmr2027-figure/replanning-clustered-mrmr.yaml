@@ -1,0 +1,7 @@
+name: Replanning snapshots for clustered-mrmr
+source-runs:
+  - clustered-mrmr
+robot-name-prefix: con-
+output-filename-prefix: plans_clustered-mrmr
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Replanning.ipynb
