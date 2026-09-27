@@ -118,3 +118,33 @@ def run_notebook(
         parameters=parameters,
     )
     return output_path
+
+
+def run_flow(
+        entries, expruns_path, results_path, notebooks_path,
+        notebook_runner=run_notebook, progress_factory=None):
+    """Run an ordered notebook queue with one overall progress bar."""
+    def notebooks_left(count):
+        unit = "notebook" if count == 1 else "notebooks"
+        return f"{count} {unit} left"
+
+    if progress_factory is None:
+        from tqdm import tqdm
+        progress_factory = tqdm
+
+    progress = progress_factory(
+        total=len(entries), desc="Overall flow", unit="notebook")
+    progress.set_postfix_str(notebooks_left(len(entries)))
+    try:
+        for entry in entries:
+            remaining = len(entries) - progress.n
+            progress.set_postfix_str(
+                f"{notebooks_left(remaining)}; current: {entry['name']}")
+            print(f"*** {entry['name']}", flush=True)
+            notebook_runner(
+                entry, expruns_path, results_path, notebooks_path)
+            progress.update(1)
+            progress.set_postfix_str(notebooks_left(
+                len(entries) - progress.n))
+    finally:
+        progress.close()

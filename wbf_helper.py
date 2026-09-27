@@ -6,6 +6,7 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 """
 
 from exp_run_config import Experiment
+from environment import ScalarFieldEnvironment
 from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment
 from policy import FollowPathPolicy
 from path_generators import find_fixed_budget_lawnmower
@@ -49,23 +50,35 @@ def create_wbfe(exp):
     
     # in this case, we assume that we need to create the whole thing
     wbf = create_wbf(exp)
+    if "custom-tylcv" in exp:
+        customize_geometry(wbf)
     wbf.create_type_map()
     wbfe = WaterberryFarmEnvironment(wbf, use_saved=False, seed=10, savedir=exp["data_dir"])
-    if "custom-tylcv" in exp:    
-        customize_environment(wbf, wbfe, exp)
+    if "custom-tylcv" in exp:
+        customize_environment(wbfe, exp)
     with compress.open(path_geometry, "wb") as f:
         pickle.dump(wbf, f)
     with compress.open(path_environment, "wb") as f:
         pickle.dump(wbfe, f)
     return wbf, wbfe
 
-def customize_environment(wbf, wbfe, exp_env):
+def customize_geometry(wbf):
+    """Make the existing farm area one tomato patch without changing its size."""
+    width, height = wbf.width, wbf.height
+    wbf.patches = []
+    area = [
+        [0, 0], [width - 1, 0],
+        [width - 1, height - 1], [0, height - 1],
+    ]
+    wbf.add_patch("all-tylcv", type="tomato", area=area, color="blue")
+
+
+def customize_environment(wbfe, exp_env):
     """Creates a custom WBFE for the TYLCV. It creates the specified png file
     if it does not exist. Use some image editor, such as GIMP to edit the 
     values. 
     FIXME: extend to the CCR and soil fields. This is experimental stuff. 
     """
-    wbfe.proceed(1)
     exp_filename = exp_env["exp_run_sys_indep_file"]
     exp_path = pathlib.Path(exp_filename).parent
     custom_env_file = pathlib.Path(exp_path, exp_env["custom-tylcv"])
@@ -77,16 +90,15 @@ def customize_environment(wbf, wbfe, exp_env):
             one_channel = loaded_array[:, :, 0]  # 0=Red, 1=Green, 2=Blue
         else:
             one_channel = loaded_array  # already grayscale
-        # overwrite the field
-        wbfe.tylcv.value = one_channel / 255.0
-        # changes the environment to all tomato
-        wbf.patches = []
-        area = [[0,0], [wbfe.width,0], [wbfe.width, wbfe.height], [0, wbfe.height]]
-        wbf.add_patch("all-tylcv", type="tomato", area = area, color="blue")
+        custom_value = one_channel / 255.0
+        wbfe.tylcv.environment = ScalarFieldEnvironment(
+            "TYLCV", wbfe.width, wbfe.height, seed=0, value=custom_value)
+        wbfe.proceed(1)
     else:
-        print(f"custom env. file {custom_env_file} does not exist")            
+        wbfe.proceed(1)
+        print(f"custom env. file {custom_env_file} does not exist")
         plt.imsave(custom_env_file, wbfe.tylcv.value, cmap='gray')
-    return wbf, wbfe
+    return wbfe
 
 def get_geometry(typename, geo = None):
     """Returns an object with the geometry for the different types (or adds it into the passed dictionary). 

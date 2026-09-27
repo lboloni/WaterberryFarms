@@ -5,11 +5,12 @@ import tempfile
 import unittest
 from unittest import mock
 
+import numpy as np
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from wbf_flow import build_flow_entries, run_notebook, setup_flow
+from wbf_flow import build_flow_entries, run_flow, run_notebook, setup_flow
 from wbf_helper import create_wbfe
 
 
@@ -179,6 +180,80 @@ class TestFlowHelpers(unittest.TestCase):
                 entry, self.source, self.root / "results", self.root,
                 notebook_root=self.root, executor=executor)
 
+    def test_run_flow_reports_completed_and_remaining_notebooks(self):
+        entries = [{"name": "first"}, {"name": "second"}]
+        calls = []
+
+        class RecordingProgress:
+            def __init__(self, **kwargs):
+                self.n = 0
+                self.options = kwargs
+                self.labels = []
+                self.closed = False
+
+            def set_postfix_str(self, label):
+                self.labels.append(label)
+
+            def update(self, count):
+                self.n += count
+
+            def close(self):
+                self.closed = True
+
+        progress = RecordingProgress()
+
+        def run(entry, expruns, results, notebooks):
+            calls.append((entry, expruns, results, notebooks))
+
+        def progress_factory(**options):
+            progress.options = options
+            return progress
+
+        run_flow(
+            entries, self.source, self.root / "results", self.root,
+            notebook_runner=run,
+            progress_factory=progress_factory,
+        )
+
+        self.assertEqual([call[0] for call in calls], entries)
+        self.assertEqual(progress.options, {
+            "total": 2,
+            "desc": "Overall flow",
+            "unit": "notebook",
+        })
+        self.assertEqual(progress.n, 2)
+        self.assertEqual(progress.labels[-1], "0 notebooks left")
+        self.assertTrue(progress.closed)
+
+    def test_run_flow_closes_progress_and_propagates_failure(self):
+        class RecordingProgress:
+            n = 0
+            closed = False
+
+            def set_postfix_str(self, label):
+                pass
+
+            def update(self, count):
+                self.n += count
+
+            def close(self):
+                self.closed = True
+
+        progress = RecordingProgress()
+
+        def fail(*args):
+            raise RuntimeError("failed")
+
+        with self.assertRaisesRegex(RuntimeError, "failed"):
+            run_flow(
+                [{"name": "failing"}], self.source,
+                self.root / "results", self.root,
+                notebook_runner=fail,
+                progress_factory=lambda **kwargs: progress,
+            )
+        self.assertEqual(progress.n, 0)
+        self.assertTrue(progress.closed)
+
     def test_build_flow_entries_has_exact_phase_order(self):
         experiments = {
             ("benchmark", "all"): {
@@ -246,6 +321,47 @@ class TestFlowHelpers(unittest.TestCase):
         self.assertIs(loaded_environment, environment)
         constructor.assert_called_once_with(
             farm, use_saved=True, seed=10, savedir=str(data_dir))
+
+    def test_custom_environment_cache_has_consistent_geometry(self):
+        data_dir = self.root / "custom-environment"
+        data_dir.mkdir()
+        exprun_dir = self.root / "expruns" / "environment"
+        exprun_dir.mkdir(parents=True)
+        exprun_path = exprun_dir / "custom.yaml"
+        exprun_path.write_text("custom\n")
+        (exprun_dir / "custom.png").touch()
+        exp = {
+            "typename": "Miniberry-10",
+            "data_dir": str(data_dir),
+            "exp_run_sys_indep_file": str(exprun_path),
+            "custom-tylcv": "custom.png",
+        }
+
+        with mock.patch(
+                "wbf_helper.imageio.imread",
+                return_value=np.zeros((11, 11))):
+            farm, environment = create_wbfe(exp)
+
+        self.assertEqual(
+            farm.type_map.shape, (farm.width, farm.height))
+        self.assertEqual(
+            environment.my_owner_mask.shape, farm.type_map.shape)
+        self.assertFalse(environment.my_strawberry_mask.any())
+        self.assertTrue(np.array_equal(
+            environment.my_tomato_mask, environment.my_owner_mask))
+        np.testing.assert_array_equal(
+            environment.tylcv.value, np.zeros((11, 11)))
+        environment.proceed(1)
+        np.testing.assert_array_equal(
+            environment.tylcv.value, np.zeros((11, 11)))
+
+        cached_farm, cached_environment = create_wbfe(exp)
+        cached_environment.proceed(1)
+        self.assertEqual(
+            cached_farm.type_map.shape,
+            (cached_environment.width, cached_environment.height))
+        np.testing.assert_array_equal(
+            cached_environment.tylcv.value, np.zeros((11, 11)))
 
 
 if __name__ == "__main__":

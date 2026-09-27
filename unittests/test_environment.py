@@ -67,6 +67,7 @@ class TestEnvironment(unittest.TestCase):
             source = IncrementEnvironment("source", 3, 3, seed=0)
             writer = PrecalculatedEnvironment(3, 3, source, savedir)
             writer.proceed(1)
+            np.testing.assert_array_equal(writer.value, source.value)
 
             reader = PrecalculatedEnvironment(3, 3, None, savedir)
             reader.proceed(1)

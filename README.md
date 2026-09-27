@@ -74,8 +74,10 @@ The two supported flow notebooks are:
 Each flow creates an external workspace below the configured `flows_path`,
 precomputes every referenced environment once, runs the selected algorithms,
 visualizes them individually, and compares them. Papermill must be installed in
-the environment running the flow. Executed notebooks and generated results are
-stored in the external workspace rather than this checkout.
+the environment running the flow. One overall progress bar reports the current
+notebook, completed/total count, and number of notebooks left. Executed
+notebooks and generated results are stored in the external workspace rather
+than this checkout.
 
 ```shell
 python -m pip install -r requirements-flow.txt

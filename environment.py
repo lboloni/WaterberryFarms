@@ -266,12 +266,13 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
                 return
         # assume that the environment is passed:
         self.environment.proceed(delta_t)
+        self.value = np.copy(self.environment.value)
 
         #with open(file_value, "wb") as f:
         logging.info(f"Saving to {compress_ext}")
         with compress.open(file_value, "wb") as f:
         #with bz2.open(file_value, "wb") as f:
-            pickle.dump(self.environment.value, f)
+            pickle.dump(self.value, f)
         logging.info(f"Saving to {compress_ext} done")
         # create a jpg file that shows stuff
         plt.ioff()
