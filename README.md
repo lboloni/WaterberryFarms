@@ -42,7 +42,7 @@ results = simulate_1day(
 )
 ```
 
-The same function handles any number of robots. Positions and observations are always indexed as `[timestep][robot]`, including for a one-robot run. The simulator does not load configuration, advance the environment to an experiment start time, save results, or mark an experiment complete.
+The same function handles any number of robots. Positions and observations are always indexed as `[timestep][robot]`, including for a one-robot run. The returned `results["estimator"]` is the final caller-supplied estimator, giving plotting and analysis code one standard field. The simulator does not load configuration, advance the environment to an experiment start time, save results, or mark an experiment complete.
 
 An experiment using a generated policy calls that generator visibly:
 

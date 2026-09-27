@@ -153,7 +153,7 @@ def end_of_day_graphs(results, graphfilename = "EndOfDayGraph.pdf", title = None
     """
     #print(results)
     wbfe = results["wbfe"]
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
 
     if ground_truth == "est+gt": # estimate and ground truth inline
         if plot_uncertainty:
@@ -218,7 +218,7 @@ def end_of_day_scores(results, graphfilename = "EndOfDayGraph.pdf", title = None
     """
     #print(results)
     wbfe = results["wbfe"]
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     scores = WBF_MultiScore.score_components()
     fig, axes = plt.subplots(1, len(scores), figsize=(3*len(scores),3))
     for i, scorename in enumerate(scores):
@@ -328,8 +328,8 @@ def graph_gt_and_results(allresults, labels, metric="tylcv", horizontal=False):
     firstax[0].axis('off')
     firstax[2].axis('off')
 
-    # graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator-CODE"], ax_env_tylcv=axes[0][1])
-    graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator-CODE"], **{f"ax_env_{metric}":firstax[1]})
+    # graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator"], ax_env_tylcv=axes[0][1])
+    graph_env_im(allresults[labels[0]]["wbfe"], allresults[labels[0]]["estimator"], **{f"ax_env_{metric}":firstax[1]})
     axes[1][0].set_title(f"Ground truth {metric}")
     filename = f"gt-{metric}-"
     for i, label in enumerate(labels):        
@@ -344,10 +344,10 @@ def graph_gt_and_results(allresults, labels, metric="tylcv", horizontal=False):
         empty = np.ones_like(vars(results["wbfe"])[metric].value.T)
         image_env = axrow[0].imshow(empty, vmin=0, vmax=1, origin="lower", cmap="gray")    
         show_robot_path(results, axrow[0], draw_robot = False)
-        # graph_env_im(results["wbfe"], results["estimator-CODE"], ax_im_tylcv=axrow[1])
-        graph_env_im(results["wbfe"], results["estimator-CODE"], **{f"ax_im_{metric}" : axrow[1]})
-        # graph_env_im(results["wbfe"], results["estimator-CODE"], ax_unc_tylcv = axrow[2], cmap=uncmap)
-        graph_env_im(results["wbfe"], results["estimator-CODE"], cmap=uncmap, **{f"ax_unc_{metric}": axrow[2]})
+        # graph_env_im(results["wbfe"], results["estimator"], ax_im_tylcv=axrow[1])
+        graph_env_im(results["wbfe"], results["estimator"], **{f"ax_im_{metric}" : axrow[1]})
+        # graph_env_im(results["wbfe"], results["estimator"], ax_unc_tylcv = axrow[2], cmap=uncmap)
+        graph_env_im(results["wbfe"], results["estimator"], cmap=uncmap, **{f"ax_unc_{metric}": axrow[2]})
         axrow[0].set_title(f"{label} path")
         axrow[1].set_title(f"{label} estimate")
         axrow[2].set_title(f"{label} uncertainty")
@@ -434,7 +434,7 @@ def show_env_tylcv(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_im_tylcv(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the information model for tylcv"""
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     image = ax.imshow(wbfim.im_tylcv.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "TYLCV IM."
     evalstring = f"f'{title_string}'"
@@ -443,7 +443,7 @@ def show_im_tylcv(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_unc_tylcv(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the uncertainty of the information model for tylcv"""
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     image = ax.imshow(wbfim.im_tylcv.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "TYLCV Uncertainty"
     evalstring = f"f'{title_string}'"
@@ -461,7 +461,7 @@ def show_env_ccr(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_im_ccr(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the information model for ccr"""
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     image = ax.imshow(wbfim.im_ccr.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "CCR IM."
     evalstring = f"f'{title_string}'"
@@ -470,7 +470,7 @@ def show_im_ccr(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_unc_ccr(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the uncertainty of the information model for ccr"""
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     image = ax.imshow(wbfim.im_ccr.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "CCR Uncertainty"
     evalstring = f"f'{title_string}'"
@@ -488,7 +488,7 @@ def show_env_soil(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_im_soil(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the information model for ccr"""
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     image = ax.imshow(wbfim.im_soil.value.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "Soil IM."
     evalstring = f"f'{title_string}'"
@@ -497,7 +497,7 @@ def show_im_soil(results, ax, title_string = "{label}", cmap="gray"):
 
 def show_unc_soil(results, ax, title_string = "{label}", cmap="gray"):
     """visualize the uncertainty of the information model for ccr"""
-    wbfim = results["estimator-CODE"]
+    wbfim = results["estimator"]
     image = ax.imshow(wbfim.im_soil.uncertainty.T, vmin=0, vmax=1, origin="lower", cmap=cmap)
     label = "Soil Uncertainty"
     evalstring = f"f'{title_string}'"

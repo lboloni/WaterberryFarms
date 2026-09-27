@@ -40,6 +40,7 @@ The simulator treats one robot timestep as one unit for policy and movement call
 - `robot-names` records that canonical order.
 - Observation and position timestamps are zero-based absolute robot timesteps.
 - `score-events` contains only estimator-update events in the form `{"timestep": t, "score": score}`. `scores` is an alias retained for result-field compatibility; it is not a dense per-timestep series.
+- `estimator` is the final caller-supplied estimator used by visualization and other post-run analysis.
 - `simulation-timestep` is the number of completed robot timesteps.
 - `computation-cost-policy` contains one elapsed-time measurement per completed timestep.
 
@@ -49,7 +50,7 @@ Tests define policies, estimators, evaluators, environments, and robots outside 
 
 Communication is capability-based. When `communication_rounds` is nonzero, every supplied policy must implement `act_send(round)` and `act_receive(round, messages)`. The lifecycle does not use an `isinstance` check to decide whether an external policy may communicate.
 
-Both hooks have the signature `hook(results, environment, robots, estimator, evaluator)`. The simulation function returns results but performs no persistence. `save_simulation_results` saves exactly the dictionary selected by its caller.
+Both hooks have the signature `hook(results, environment, robots, estimator, evaluator)`. The simulation function returns results but performs no persistence. `save_simulation_results` saves exactly the dictionary selected by its caller. A caller that removes `estimator` before saving is intentionally producing a result that cannot support estimator-map visualization.
 
 Visualization code plots score events at their recorded timestamps. It does not backfill scores into earlier timesteps.
 

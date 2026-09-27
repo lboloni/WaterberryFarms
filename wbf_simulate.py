@@ -49,6 +49,7 @@ def simulate_1day(*, environment, robots, estimator, evaluator, timesteps,
         robot.im = estimator
 
     results = {
+        "estimator": estimator,
         "robots": robots,
         "robot-names": names,
         "score-events": [],

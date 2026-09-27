@@ -261,10 +261,11 @@ class Config:
         """Returns an experiment configuration, which is the 
         mixture between the system-dependent configuration and the system independent configuration.
         
-        creation_style can be 
-            "exist-ok" - reuse the cached values
-            "discard-old" - discard the old values, start from scratch
-            "version" - create a new version
+        creation_style can be
+            "exist-ok" - reuse the existing directory, creating it if absent
+            "version" - move the existing directory to a timestamped backup
+                        and start fresh
+            "discard-old" - delete the existing directory and start fresh
         
         """
         current_directory = pathlib.Path(__file__).resolve().parent

@@ -20,7 +20,12 @@ from water_berry_farm import (
     WBF_Score_WeightedAsymmetric,
 )
 from wbf_simulate import save_simulation_results, simulate_1day
-from wbf_figures import show_detections, show_robot_path
+from wbf_figures import (
+    end_of_day_graphs,
+    show_detections,
+    show_im_tylcv,
+    show_robot_path,
+)
 
 
 class RecordingEstimator:
@@ -77,6 +82,7 @@ class TestSimulation(unittest.TestCase):
             {"timestep": 2, "score": 3},
             {"timestep": 3, "score": 4},
         ])
+        self.assertIs(results["estimator"], estimator)
         self.assertIs(results["scores"], results["score-events"])
 
     def test_repeated_runs_are_identical(self):
@@ -210,14 +216,16 @@ class TestSimulation(unittest.TestCase):
             farm.create_type_map()
             environment = WaterberryFarmEnvironment(
                 farm, use_saved=False, seed=10, savedir=directory)
+            estimator = WBF_IM_DiskEstimator(11, 11)
             results = simulate_1day(
                 environment=environment,
                 robots=[robot_with_path("robot")],
-                estimator=WBF_IM_DiskEstimator(11, 11),
+                estimator=estimator,
                 evaluator=WBF_Score_WeightedAsymmetric(),
                 timesteps=2,
                 estimator_interval=2,
             )
+            self.assertIs(results["estimator"], estimator)
             self.assertEqual(len(results["observations"]), 2)
             self.assertEqual(results["score-events"][0]["timestep"], 1)
 
@@ -225,6 +233,26 @@ class TestSimulation(unittest.TestCase):
             show_robot_path(results, axes, draw_robot=False)
             show_detections(results, axes)
             plt.close(figure)
+
+            results.update({
+                "wbfe": environment,
+                "policy-name": "path",
+                "estimator-name": estimator.name,
+                "results-basedir": directory,
+            })
+            path = pathlib.Path(directory) / "results.pickle"
+            save_simulation_results(path, results)
+            with gzip.open(path, "rb") as handle:
+                saved = pickle.load(handle)
+            self.assertIsInstance(saved["estimator"], WBF_IM_DiskEstimator)
+            end_of_day_graphs(
+                saved, "daily-summary.pdf", plot_uncertainty=False)
+            self.assertTrue(
+                (pathlib.Path(directory) / "daily-summary.pdf").exists())
+            figure, axes = plt.subplots()
+            show_im_tylcv(saved, axes)
+            plt.close(figure)
+            plt.close("all")
 
     def test_persistence_saves_the_caller_selected_results(self):
         with tempfile.TemporaryDirectory() as directory:

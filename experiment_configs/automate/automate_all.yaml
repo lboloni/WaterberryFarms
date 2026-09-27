@@ -3,7 +3,11 @@
 
 defaults: &defaults
   epochs: 10
+  # Reuse the existing experiment directory, creating it only when absent.
   creation_style: 'exist-ok'
+  # Move the existing experiment directory to a timestamped backup, then start fresh.
+  # creation_style: 'version'
+  # Delete the existing experiment directory, then start fresh.
   # creation_style: 'discard-old'
   
 exps_to_run:
