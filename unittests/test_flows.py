@@ -14,6 +14,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from wbf_flow import (
     build_flow_entries,
     build_mrmr_2027_flow_entries,
+    get_flow_report,
     run_flow,
     run_notebook,
     setup_flow,
@@ -50,6 +51,11 @@ MRMR_2027_NOTEBOOKS = [
     )
 ]
 FLOW_NOTEBOOKS += MRMR_2027_NOTEBOOKS
+TOP_LEVEL_FLOW_NOTEBOOKS = [
+    REPOSITORY_ROOT / "notebooks" / "Flow-1Robot1Day.ipynb",
+    REPOSITORY_ROOT / "notebooks" / "Flow-nRobot1Day.ipynb",
+    REPOSITORY_ROOT / "papers" / "y2027_mrmr" / "MRMR-Flow.ipynb",
+]
 
 
 class FlowConfig:
@@ -166,6 +172,25 @@ class TestFlowMetadata(unittest.TestCase):
         self.assertEqual(figure["input-to-notebook"], [
             "papers/y2027_mrmr/MRMR-Visualize-OptimalEPPath.ipynb",
         ])
+
+    def test_flow_notebooks_finish_with_result_report(self):
+        for path in TOP_LEVEL_FLOW_NOTEBOOKS:
+            with path.open() as handle:
+                notebook = json.load(handle)
+            final_cell = notebook["cells"][-1]
+            self.assertEqual(final_cell["id"], "flow-report", path.name)
+            source = "".join(final_cell["source"])
+            self.assertIn("display_flow_report(", source, path.name)
+            self.assertIn("raise flow_error", source, path.name)
+
+    def test_mrmr_flow_embeds_all_generated_figure_previews(self):
+        path = (REPOSITORY_ROOT / "papers" / "y2027_mrmr" /
+                "MRMR-Flow.ipynb")
+        with path.open() as handle:
+            notebook = json.load(handle)
+        source = "".join(notebook["cells"][-1]["source"])
+        self.assertIn("build_figure_previews(", source)
+        self.assertIn('flow_exp["figures"]', source)
 
 
 class TestFlowHelpers(unittest.TestCase):
@@ -317,6 +342,42 @@ class TestFlowHelpers(unittest.TestCase):
             )
         self.assertEqual(progress.n, 0)
         self.assertTrue(progress.closed)
+
+    def test_flow_report_distinguishes_complete_and_partial_results(self):
+        results = self.root / "results"
+        complete = results / "sample" / "complete"
+        complete.mkdir(parents=True)
+        (complete / "exprun.yaml").write_text(
+            "time_done: '2026-09-27 12:00:00.000000'\n")
+        entries = [
+            {
+                "name": "complete",
+                "experiment": "sample",
+                "run": "complete",
+            },
+            {
+                "name": "missing",
+                "experiment": "sample",
+                "run": "missing",
+            },
+        ]
+
+        report = get_flow_report(entries, results)
+        self.assertFalse(report["successful"])
+        self.assertFalse(report["all-results-present"])
+        self.assertEqual(
+            [stage["name"] for stage in report["completed"]],
+            ["complete"])
+        self.assertEqual(
+            [stage["name"] for stage in report["missing"]],
+            ["missing"])
+
+        (results / "sample" / "missing").mkdir()
+        (results / "sample" / "missing" / "exprun.yaml").write_text(
+            "time_done: '2026-09-27 12:01:00.000000'\n")
+        report = get_flow_report(entries, results)
+        self.assertTrue(report["successful"])
+        self.assertTrue(report["all-results-present"])
 
     def test_build_flow_entries_has_exact_phase_order(self):
         experiments = {

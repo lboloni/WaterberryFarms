@@ -3,6 +3,8 @@
 import pathlib
 import shutil
 
+import yaml
+
 from exp_run_config import Config
 
 
@@ -212,3 +214,107 @@ def run_flow(
                 len(entries) - progress.n))
     finally:
         progress.close()
+
+
+def get_flow_report(entries, results_path, flow_error=None):
+    """Return completion information for an executed notebook flow."""
+    results_path = pathlib.Path(results_path).resolve()
+    stages = []
+    for entry in entries:
+        directory = results_path / entry["experiment"] / entry["run"]
+        provenance = directory / "exprun.yaml"
+        complete = False
+        if provenance.exists():
+            with provenance.open() as handle:
+                values = yaml.safe_load(handle)
+            complete = Config.TIME_DONE in values
+        stages.append({
+            "name": entry["name"],
+            "directory": directory,
+            "complete": complete,
+        })
+    completed = [stage for stage in stages if stage["complete"]]
+    missing = [stage for stage in stages if not stage["complete"]]
+    return {
+        "successful": flow_error is None and not missing,
+        "all-results-present": not missing,
+        "completed": completed,
+        "missing": missing,
+        "flow-directory": results_path.parent,
+        "results-directory": results_path,
+        "error": flow_error,
+    }
+
+
+def display_flow_report(
+        entries, results_path, final_results_path, flow_error=None,
+        preview_files=()):
+    """Display flow status, artifact links, and selected PNG previews."""
+    from html import escape
+    from IPython.display import HTML, Image, display, display_pdf
+
+    report = get_flow_report(entries, results_path, flow_error)
+    final_results_path = pathlib.Path(final_results_path).resolve()
+
+    def directory_link(label, path):
+        path = pathlib.Path(path).resolve()
+        return (
+            f'<p><strong>{escape(label)}:</strong> '
+            f'<a href="{path.as_uri()}">{escape(str(path))}</a></p>')
+
+    if report["successful"]:
+        status = "Flow successfully executed."
+    elif report["completed"]:
+        status = (
+            f'Flow has partial results: {len(report["completed"])} of '
+            f'{len(entries)} stages completed.')
+    else:
+        status = "Flow did not produce any completed stage results."
+
+    details = [f"<h2>Flow result</h2><p><strong>{escape(status)}</strong></p>"]
+    if flow_error is not None:
+        details.append(
+            f'<p><strong>Error:</strong> {escape(repr(flow_error))}</p>')
+    details.append(directory_link(
+        "Flow data directory", report["flow-directory"]))
+    details.append(directory_link(
+        "All results", report["results-directory"]))
+    details.append(directory_link("Final results", final_results_path))
+    if report["missing"]:
+        items = "".join(
+            f'<li>{escape(stage["name"])} — '
+            f'<a href="{stage["directory"].as_uri()}">'
+            f'{escape(str(stage["directory"]))}</a></li>'
+            for stage in report["missing"])
+        details.append(
+            f"<details><summary>Incomplete stages</summary><ul>"
+            f"{items}</ul></details>")
+    display(HTML("".join(details)))
+
+    pdfs = sorted(final_results_path.rglob("*.pdf")) \
+        if final_results_path.exists() else []
+    if pdfs:
+        links = "".join(
+            f'<li><a href="{path.as_uri()}">'
+            f'{escape(str(path.relative_to(final_results_path)))}</a></li>'
+            for path in pdfs)
+        display(HTML(
+            f"<h3>Generated figures</h3><ul>{links}</ul>"))
+
+    for preview in preview_files:
+        if isinstance(preview, dict):
+            path = pathlib.Path(preview["path"]).resolve()
+            description = preview["description"]
+        else:
+            path = pathlib.Path(preview).resolve()
+            description = None
+        if path.exists():
+            heading = f"<h3>{escape(path.name)}</h3>"
+            if description is not None:
+                heading += f"<p>{escape(description)}</p>"
+            display(HTML(heading))
+            if path.suffix.lower() == ".png":
+                display(Image(filename=str(path)))
+            else:
+                display_pdf(path.read_bytes(), raw=True)
+    return report

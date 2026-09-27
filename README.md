@@ -79,6 +79,12 @@ notebook, completed/total count, and number of notebooks left. Executed
 notebooks and generated results are stored in the external workspace rather
 than this checkout.
 
+Each flow ends with a result report. It states whether every stage completed,
+identifies partial results after a failure, links the flow and final-results
+directories, lists generated PDF figures, and previews selected final figures
+inside the notebook. A failed stage is re-raised after the report is shown, so
+Papermill still records the flow as failed.
+
 ```shell
 python -m pip install -r requirements-flow.txt
 ```

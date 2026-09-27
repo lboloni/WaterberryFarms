@@ -24,6 +24,64 @@ from information_model import StoredObservationIM
 logging.getLogger("fontTools").setLevel(logging.WARNING)
 
 
+def figure_paths(output_filename):
+    """Return the publication PDF and notebook-preview PNG paths."""
+    pdf_path = pathlib.Path(output_filename)
+    return pdf_path, pdf_path.with_suffix(".png")
+
+
+def save_figure(fig, output_filename):
+    """Save a figure as a publication PDF and an inline-preview PNG."""
+    pdf_path, png_path = figure_paths(output_filename)
+    fig.savefig(pdf_path)
+    fig.savefig(png_path)
+    print(f"Done saving to {pdf_path} and {png_path}")
+
+
+def build_figure_previews(figure_experiment, figure_runs, config=None):
+    """Describe every generated PNG for the MRMR flow report."""
+    if config is None:
+        config = Config()
+    previews = []
+    for run in figure_runs:
+        exp = config.get_experiment(
+            figure_experiment, run, create_data_dir=False)
+        sources = [
+            f'{exp["source-experiment"]}/{source}'
+            for source in exp["source-runs"]]
+        if sources:
+            origin = f'Source: {", ".join(sources)}.'
+        else:
+            origin = f'Source: geometry declared by {figure_experiment}/{run}.'
+        for path in sorted(pathlib.Path(exp["data_dir"]).glob("*.png")):
+            description = exp["name"]
+            if run.startswith("detection-map-"):
+                description = (
+                    "Robot trajectories and detection locations for "
+                    f'{exp["source-runs"][0]}')
+            elif run.startswith("agent-detections-"):
+                description = (
+                    "Per-agent and total detection-count bar graph for "
+                    f'{exp["source-runs"][0]}')
+            elif run.startswith("comparison-"):
+                description = (
+                    "Total-detection comparison bar graph for the "
+                    f'{run.removeprefix("comparison-")} environment')
+            elif "output-filename-prefix" in exp:
+                suffix = path.stem.removeprefix(
+                    f'{exp["output-filename-prefix"]}_')
+                robot, time = suffix.rsplit("_", 1)
+                description = (
+                    f'Replanning snapshot for robot {robot} at t={time}')
+            previews.append({
+                "path": path,
+                "description": (
+                    f'{description}. {origin} '
+                    f'Figure: {figure_experiment}/{run}.'),
+            })
+    return previews
+
+
 def load_back_results(experiment, listruns):
     """Loads back all the results of the experiment runs specified into a list"""
     all_results = {}
@@ -83,8 +141,8 @@ def show_robot_with_plan(
 
     ax.set_title(f"{robot.name} at t={int(t)}")
     filepath = pathlib.Path(expall.data_dir(), output_filename)
-    plt.savefig(filepath)
-    print(f"Done saving to {filepath}")
+    save_figure(fig, filepath)
+    plt.close(fig)
 
 def show_robot_trajectories_and_detections(
         exp_dest, name, results, robot_colors, lookup,
@@ -95,8 +153,9 @@ def show_robot_trajectories_and_detections(
     if output_filename is None:
         output_filename = f"detections-map-{name}.pdf"
     fig_file = pathlib.Path(exp_dest.data_dir(), output_filename)
-    if fig_file.exists():
-        print(f"{fig_file} exists, skipping.")
+    figure_files = figure_paths(fig_file)
+    if all(path.exists() for path in figure_files):
+        print(f"{fig_file} and its PNG preview exist, skipping.")
         return
     fig, ax = plt.subplots(1,1, figsize=(3, 3))
     wbf_figures.show_env_tylcv(results, ax)
@@ -125,8 +184,8 @@ def show_robot_trajectories_and_detections(
     # fig.legend(handles, labels, ncol=len(exps)+1,
     #        bbox_to_anchor=(0.5, 0), loc="upper center")
 
-    plt.savefig(fig_file)
-    plt.close()
+    save_figure(fig, fig_file)
+    plt.close(fig)
 
 def count_detections(results, robotno, field = "TYLCV"):
     """Returns the number of detections for the specified robot, adapted from wbf_figures.show_detections"""
@@ -142,10 +201,11 @@ def show_agentwise_detections(
     if output_filename is None:
         output_filename = f"detections-bar-{name}.pdf"
     fig_file = pathlib.Path(exp_dest.data_dir(), output_filename)
-    if fig_file.exists():
-        print(f"{fig_file} exists, skipping.")
+    figure_files = figure_paths(fig_file)
+    if all(path.exists() for path in figure_files):
+        print(f"{fig_file} and its PNG preview exist, skipping.")
         return
-    _, ax = plt.subplots(1,1, figsize=(3, 1.4))
+    fig, ax = plt.subplots(1,1, figsize=(3, 1.4))
     # ax.set_title(lookup[name])
     total = 0
     if "unclustered" in name:
@@ -157,8 +217,8 @@ def show_agentwise_detections(
         total += detections
         br = ax.bar(robot.name, detections, color=robot_colors[i])
     ax.bar("Total", total, color="gray")
-    plt.savefig(fig_file)
-    plt.close()
+    save_figure(fig, fig_file)
+    plt.close(fig)
 
 def show_comparative_detections(
         exp_dest, filename, values, lookup, name_colors,
@@ -179,5 +239,6 @@ def show_comparative_detections(
         tick.set_rotation(90)
     if output_filename is None:
         output_filename = f"comparative-bar-{filename}.pdf"
-    plt.savefig(pathlib.Path(exp_dest.data_dir(), output_filename))
-    plt.close()
+    save_figure(
+        fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
