@@ -89,6 +89,6 @@ Papermill still records the flow as failed.
 python -m pip install -r requirements-flow.txt
 ```
 
-The companion settings workspace documents the exp/run notebook contract,
-workspace layout, creation-style behavior, and flow-membership procedure in
-`design/DESIGN-EXPRUN-FLOWS.md`.
+The companion settings workspace documents the exp/run contract in
+`design/DESIGN-EXPRUN.md` and the workspace, execution, reporting, and
+flow-membership behavior in `design/DESIGN-FLOWS.md`.
