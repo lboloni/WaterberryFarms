@@ -14,6 +14,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from wbf_flow import (
     build_flow_entries,
     build_mrmr_2027_flow_entries,
+    executed_notebook_path,
+    format_duration,
     get_flow_report,
     run_flow,
     run_notebook,
@@ -270,7 +272,10 @@ class TestFlowHelpers(unittest.TestCase):
                 notebook_root=self.root, executor=executor)
 
     def test_run_flow_reports_completed_and_remaining_notebooks(self):
-        entries = [{"name": "first"}, {"name": "second"}]
+        entries = [
+            {"name": name, "notebook": "notebooks/Run.ipynb",
+             "experiment": "sample", "run": name}
+            for name in ("first", "second")]
         calls = []
 
         class RecordingProgress:
@@ -335,7 +340,8 @@ class TestFlowHelpers(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "failed"):
             run_flow(
-                [{"name": "failing"}], self.source,
+                [{"name": "failing", "notebook": "notebooks/Run.ipynb",
+                  "experiment": "sample", "run": "failing"}], self.source,
                 self.root / "results", self.root,
                 notebook_runner=fail,
                 progress_factory=lambda **kwargs: progress,
@@ -352,17 +358,19 @@ class TestFlowHelpers(unittest.TestCase):
         entries = [
             {
                 "name": "complete",
+                "notebook": "notebooks/Run.ipynb",
                 "experiment": "sample",
                 "run": "complete",
             },
             {
                 "name": "missing",
+                "notebook": "notebooks/Run.ipynb",
                 "experiment": "sample",
                 "run": "missing",
             },
         ]
 
-        report = get_flow_report(entries, results)
+        report = get_flow_report(entries, results, self.root)
         self.assertFalse(report["successful"])
         self.assertFalse(report["all-results-present"])
         self.assertEqual(
@@ -375,9 +383,48 @@ class TestFlowHelpers(unittest.TestCase):
         (results / "sample" / "missing").mkdir()
         (results / "sample" / "missing" / "exprun.yaml").write_text(
             "time_done: '2026-09-27 12:01:00.000000'\n")
-        report = get_flow_report(entries, results)
+        report = get_flow_report(entries, results, self.root)
         self.assertTrue(report["successful"])
         self.assertTrue(report["all-results-present"])
+
+    def test_flow_report_reads_executed_notebooks(self):
+        notebooks = self.root / "executed"
+        notebooks.mkdir()
+        entries = [
+            {"name": name, "notebook": "notebooks/Run.ipynb",
+             "experiment": "sample", "run": name}
+            for name in ("succeeded", "failed", "never")]
+
+        def write_notebook(entry, duration, failing_cell):
+            cells = [{"cell_type": "code", "metadata": {"papermill": {
+                "exception": failing_cell}}, "outputs": []}]
+            if failing_cell:
+                cells[0]["outputs"].append({
+                    "output_type": "error", "ename": "ValueError",
+                    "evalue": "bad value", "traceback": []})
+            executed_notebook_path(entry, notebooks).write_text(json.dumps({
+                "cells": cells,
+                "metadata": {"papermill": {"duration": duration}}}))
+
+        write_notebook(entries[0], 108.4, False)
+        write_notebook(entries[1], 6.0, True)
+
+        stages = get_flow_report(
+            entries, self.root / "results", notebooks)["stages"]
+        self.assertEqual(
+            [stage["notebook"] for stage in stages],
+            [notebooks / "Run_sample_succeeded.ipynb",
+             notebooks / "Run_sample_failed.ipynb", None])
+        self.assertEqual(
+            [stage["duration"] for stage in stages], [108.4, 6.0, None])
+        self.assertEqual(
+            [stage["error"] for stage in stages],
+            [None, "ValueError: bad value", None])
+
+    def test_format_duration(self):
+        self.assertEqual(format_duration(6.4), "6 s")
+        self.assertEqual(format_duration(108.4), "1 min 48 s")
+        self.assertEqual(format_duration(7500), "2 h 5 min")
 
     def test_build_flow_entries_has_exact_phase_order(self):
         experiments = {

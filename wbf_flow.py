@@ -1,5 +1,6 @@
 """Small helpers shared by Waterberry Farms experiment-flow notebooks."""
 
+import json
 import pathlib
 import shutil
 
@@ -158,6 +159,13 @@ def setup_flow(flow_name, experiment_families, flows_path=None, config=None):
     return expruns_path, results_path, notebooks_path
 
 
+def executed_notebook_path(entry, notebooks_path, notebook_root=REPOSITORY_ROOT):
+    """Return where run_notebook retains the executed copy of an entry."""
+    stem = (pathlib.Path(notebook_root) / entry["notebook"]).stem
+    return (pathlib.Path(notebooks_path)
+            / f"{stem}_{entry['experiment']}_{entry['run']}.ipynb")
+
+
 def run_notebook(
         entry, expruns_path, results_path, notebooks_path,
         notebook_root=REPOSITORY_ROOT, executor=None):
@@ -167,9 +175,7 @@ def run_notebook(
         executor = papermill.execute_notebook
 
     notebook_path = pathlib.Path(notebook_root) / entry["notebook"]
-    output_name = (
-        f"{notebook_path.stem}_{entry['experiment']}_{entry['run']}.ipynb")
-    output_path = pathlib.Path(notebooks_path) / output_name
+    output_path = executed_notebook_path(entry, notebooks_path, notebook_root)
     parameters = {
         "experiment": entry["experiment"],
         "run": entry["run"],
@@ -189,7 +195,12 @@ def run_notebook(
 def run_flow(
         entries, expruns_path, results_path, notebooks_path,
         notebook_runner=run_notebook, progress_factory=None):
-    """Run an ordered notebook queue with one overall progress bar."""
+    """Run an ordered notebook queue with one overall progress bar. Before
+    each stage it displays a link to the stage's executed notebook, which
+    papermill updates while the stage runs."""
+    from html import escape
+    from IPython.display import HTML, display
+
     def notebooks_left(count):
         unit = "notebook" if count == 1 else "notebooks"
         return f"{count} {unit} left"
@@ -206,7 +217,10 @@ def run_flow(
             remaining = len(entries) - progress.n
             progress.set_postfix_str(
                 f"{notebooks_left(remaining)}; current: {entry['name']}")
-            print(f"*** {entry['name']}", flush=True)
+            notebook = executed_notebook_path(entry, notebooks_path).resolve()
+            display(HTML(
+                f"<p>*** {escape(entry['name'])}: "
+                f'<a href="{notebook.as_uri()}">{escape(str(notebook))}</a></p>'))
             notebook_runner(
                 entry, expruns_path, results_path, notebooks_path)
             progress.update(1)
@@ -216,8 +230,23 @@ def run_flow(
         progress.close()
 
 
-def get_flow_report(entries, results_path, flow_error=None):
-    """Return completion information for an executed notebook flow."""
+def read_executed_notebook(path):
+    """Return the papermill duration and error of an executed notebook."""
+    with pathlib.Path(path).open() as handle:
+        notebook = json.load(handle)
+    error = None
+    for cell in notebook["cells"]:
+        if cell.get("metadata", {}).get("papermill", {}).get("exception"):
+            for output in cell.get("outputs", []):
+                if output["output_type"] == "error":
+                    error = f'{output["ename"]}: {output["evalue"]}'
+    return notebook["metadata"]["papermill"].get("duration"), error
+
+
+def get_flow_report(entries, results_path, notebooks_path, flow_error=None):
+    """Return completion information for an executed notebook flow. A stage
+    is complete if its exprun.yaml contains time_done. The duration and error
+    of a stage come from the papermill metadata of its executed notebook."""
     results_path = pathlib.Path(results_path).resolve()
     stages = []
     for entry in entries:
@@ -228,16 +257,26 @@ def get_flow_report(entries, results_path, flow_error=None):
             with provenance.open() as handle:
                 values = yaml.safe_load(handle)
             complete = Config.TIME_DONE in values
+        notebook = executed_notebook_path(entry, notebooks_path)
+        duration, error = None, None
+        if notebook.exists():
+            duration, error = read_executed_notebook(notebook)
+        else:
+            notebook = None
         stages.append({
             "name": entry["name"],
             "directory": directory,
             "complete": complete,
+            "notebook": notebook,
+            "duration": duration,
+            "error": error,
         })
     completed = [stage for stage in stages if stage["complete"]]
     missing = [stage for stage in stages if not stage["complete"]]
     return {
         "successful": flow_error is None and not missing,
         "all-results-present": not missing,
+        "stages": stages,
         "completed": completed,
         "missing": missing,
         "flow-directory": results_path.parent,
@@ -246,14 +285,26 @@ def get_flow_report(entries, results_path, flow_error=None):
     }
 
 
+def format_duration(seconds):
+    """Format a duration in seconds as e.g. '1 min 48 s'."""
+    minutes, seconds = divmod(round(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours} h {minutes} min"
+    if minutes:
+        return f"{minutes} min {seconds} s"
+    return f"{seconds} s"
+
+
 def display_flow_report(
-        entries, results_path, final_results_path, flow_error=None,
-        preview_files=()):
-    """Display flow status, artifact links, and selected PNG previews."""
+        entries, results_path, notebooks_path, final_results_path,
+        flow_error=None, preview_files=()):
+    """Display flow status, a per-stage table, artifact links, and selected
+    PNG previews."""
     from html import escape
     from IPython.display import HTML, Image, display, display_pdf
 
-    report = get_flow_report(entries, results_path, flow_error)
+    report = get_flow_report(entries, results_path, notebooks_path, flow_error)
     final_results_path = pathlib.Path(final_results_path).resolve()
 
     def directory_link(label, path):
@@ -280,15 +331,36 @@ def display_flow_report(
     details.append(directory_link(
         "All results", report["results-directory"]))
     details.append(directory_link("Final results", final_results_path))
-    if report["missing"]:
-        items = "".join(
-            f'<li>{escape(stage["name"])} — '
-            f'<a href="{stage["directory"].as_uri()}">'
-            f'{escape(str(stage["directory"]))}</a></li>'
-            for stage in report["missing"])
-        details.append(
-            f"<details><summary>Incomplete stages</summary><ul>"
-            f"{items}</ul></details>")
+
+    rows = []
+    for stage in report["stages"]:
+        if stage["complete"]:
+            stage_status = "complete"
+        elif stage["error"] is not None:
+            stage_status = "failed"
+        elif stage["notebook"] is not None:
+            stage_status = "incomplete"
+        else:
+            stage_status = "not run"
+        duration = "" if stage["duration"] is None \
+            else format_duration(stage["duration"])
+        notebook = "" if stage["notebook"] is None else (
+            f'<a href="{stage["notebook"].as_uri()}">'
+            f'{escape(stage["notebook"].name)}</a>')
+        name = escape(stage["name"])
+        if stage["error"] is not None:
+            name += f'<br><small>{escape(stage["error"])}</small>'
+        rows.append(
+            f"<tr><td>{name}</td><td>{stage_status}</td>"
+            f"<td>{duration}</td><td>{notebook}</td>"
+            f'<td><a href="{stage["directory"].as_uri()}">results</a></td></tr>')
+    total = sum(stage["duration"] for stage in report["stages"]
+                if stage["duration"] is not None)
+    details.append(
+        "<h3>Stages</h3><table><tr><th>Stage</th><th>Status</th>"
+        "<th>Duration</th><th>Executed notebook</th><th>Results</th></tr>"
+        f'{"".join(rows)}</table>'
+        f"<p><strong>Total stage time:</strong> {format_duration(total)}</p>")
     display(HTML("".join(details)))
 
     pdfs = sorted(final_results_path.rglob("*.pdf")) \
