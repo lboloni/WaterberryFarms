@@ -7,8 +7,9 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 from exp_run_config import Experiment
 from environment import ScalarFieldEnvironment
-from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment
+from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess
 from policy import FollowPathPolicy
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from path_generators import find_fixed_budget_lawnmower
 
 import gzip as compress
@@ -30,6 +31,32 @@ def create_wbf(exp):
         return WaterberryFarm()
     else:
         raise Exception(f"Unknown type {exp['typename']}")
+
+
+def create_estimator(exp_estimator, geometry):
+    """Factory function for creating a WBF estimator from an estimator exp"""
+    if exp_estimator["estimator-type"] == "disk":
+        estimator = WBF_IM_DiskEstimator(
+            geometry["width"], geometry["height"],
+            disk_radius=exp_estimator["disk-radius"],
+            default_tylcv=exp_estimator["default-tylcv"],
+            default_ccr=exp_estimator["default-ccr"],
+            default_soil=exp_estimator["default-soil"])
+    elif exp_estimator["estimator-type"] == "gaussian-process":
+        kernel = RBF(length_scale=[exp_estimator["gp-length-scale"]] * 2,
+                     length_scale_bounds=exp_estimator["gp-length-scale-bounds"]) \
+            + WhiteKernel(noise_level=exp_estimator["gp-noise"])
+        estimator = WBF_IM_GaussianProcess(
+            geometry["width"], geometry["height"], gp_kernel=kernel,
+            gp_restarts=exp_estimator["gp-restarts"],
+            gp_normalize_y=exp_estimator["gp-normalize-y"],
+            default_tylcv=exp_estimator["default-tylcv"],
+            default_ccr=exp_estimator["default-ccr"],
+            default_soil=exp_estimator["default-soil"])
+    else:
+        raise Exception(f"Unknown estimator type {exp_estimator['estimator-type']}")
+    estimator.name = exp_estimator["estimator-name"]
+    return estimator
 
 
 def create_wbfe(exp):

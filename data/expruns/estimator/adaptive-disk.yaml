@@ -1,1 +1,3 @@
 estimator-name: "AD"
+estimator-type: "disk"
+disk-radius: null    # null = adaptive radius

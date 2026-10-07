@@ -6,8 +6,8 @@ from communication import PerfectCommunicationMedium
 from exp_run_config import Config
 from policy import RandomWaypointPolicy
 from robot import Robot
-from water_berry_farm import WBF_IM_DiskEstimator, WBF_Score_WeightedAsymmetric
-from wbf_helper import create_wbfe, generate_fixed_budget_lawnmower, get_geometry
+from water_berry_farm import WBF_Score_WeightedAsymmetric
+from wbf_helper import create_estimator, create_wbfe, generate_fixed_budget_lawnmower, get_geometry
 from wbf_simulate import save_simulation_results, simulate_1day
 
 from .epmarket import EPM
@@ -27,9 +27,7 @@ def run_mrmr_experiment(exp):
     farm, environment = create_wbfe(exp_env)
     environment.proceed(exp["time-start-environment"])
 
-    estimator = WBF_IM_DiskEstimator(
-        geometry["width"], geometry["height"])
-    estimator.name = exp_estimator["estimator-name"]
+    estimator = create_estimator(exp_estimator, geometry)
     evaluator = WBF_Score_WeightedAsymmetric()
     evaluator.name = exp_score["score-name"]
 

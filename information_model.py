@@ -105,9 +105,11 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
     using a GaussianProcess
     """
 
-    def __init__(self, width, height, gp_kernel = None, default_value = 0.0):
+    def __init__(self, width, height, gp_kernel = None, default_value = 0.0, n_restarts_optimizer = 5, normalize_y = False):
         super().__init__(width, height, default_value)
         self.gp_kernel = gp_kernel
+        self.n_restarts_optimizer = n_restarts_optimizer
+        self.normalize_y = normalize_y
 
     def estimate(self, observations, prior_value, prior_uncertainty):
         # calculate the estimate for each gaussian process
@@ -129,7 +131,7 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
             kernel = RBF(length_scale = [2.0, 2.0], length_scale_bounds = [1, 10]) + WhiteKernel(noise_level=0.5)
 
         # rbf = RBF(length_scale = [2.0, 2.0], length_scale_bounds = "fixed")
-        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=5, random_state=0)
+        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=self.n_restarts_optimizer, normalize_y=self.normalize_y, random_state=0)
         gpr.fit(X,Y)
         x = []
         X = np.array(list(itertools.product(range(self.width), range(self.height))))

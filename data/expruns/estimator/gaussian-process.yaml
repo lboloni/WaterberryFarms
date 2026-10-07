@@ -1,1 +1,7 @@
 estimator-name: "GP"
+estimator-type: "gaussian-process"
+gp-length-scale: 2.0
+gp-length-scale-bounds: [1, 10]
+gp-noise: 0.5
+gp-restarts: 5
+gp-normalize-y: false

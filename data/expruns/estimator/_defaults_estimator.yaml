@@ -1,1 +1,4 @@
 input-to-notebook: []
+default-tylcv: 1.0   # healthy
+default-ccr: 1.0     # healthy
+default-soil: 0.0

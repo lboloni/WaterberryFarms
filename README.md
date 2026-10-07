@@ -29,7 +29,7 @@ It contains the following major components:
 
 ## Explicit simulation API
 
-Waterberry Farms runs caller-constructed components. Configuration files contain parameters; they do not select or load Python implementations. Experiment code imports and calls the policy generator or constructor it intends to use, constructs the remaining components, and passes them to `simulate_1day`:
+Waterberry Farms runs caller-constructed components. Configuration files contain parameters; they do not select or load Python implementations. Experiment code imports and calls the policy generator or constructor it intends to use, constructs the remaining components, and passes them to `simulate_1day`. The one exception is the estimator: `wbf_helper.create_estimator(exp_estimator, geometry)` builds the built-in estimator named by the `estimator-type` field of the estimator exp/run, configured with its parameters (see `design/DESIGN-Estimators.md`):
 
 ```python
 results = simulate_1day(
