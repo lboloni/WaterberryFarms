@@ -22,7 +22,12 @@ logging.getLogger().setLevel(logging.INFO)
 
 
 class FarmGeometry:
-    """Patches should be added in decreasing order"""
+    """A farm as a list of patches, added from the bottom up (later patches cover earlier ones). 
+    Coordinates are continuous: the cell (x, y) of the grid is the unit square [x, x+1) x [y, y+1), so the 
+    polygon vertices are on cell boundaries, and a farm whose patches reach x = 10 is 10 cells wide."""
+
+    # incremented when create_type_map changes the type map of existing geometries (invalidates the caches)
+    RASTERIZATION_VERSION = 3
 
     def __init__(self):
         self.patches = []
@@ -41,11 +46,11 @@ class FarmGeometry:
         patch["color"] = color
         patch["polygon"] = Polygon(area, color=color)
         self.patches.append(patch)
-        # update the width and height
-        self.width = int(
-            np.max([np.max(p["polygon"].get_xy()[:, 0]) for p in self.patches])) + 1
-        self.height = int(
-            np.max([np.max(p["polygon"].get_xy()[:, 1]) for p in self.patches])) + 1
+        # update the width and height: the number of cells covered by the patches
+        self.width = int(math.ceil(
+            np.max([np.max(p["polygon"].get_xy()[:, 0]) for p in self.patches])))
+        self.height = int(math.ceil(
+            np.max([np.max(p["polygon"].get_xy()[:, 1]) for p in self.patches])))
 
     def visualize(self, ax):
         """Visualizes the farm geometry in an axis"""
@@ -70,20 +75,24 @@ class FarmGeometry:
                     return False
         return False
 
+    PLANTINGS = {"standard": {}, "tomato-only": {"strawberry": "tomato"}, "strawberry-only": {"tomato": "strawberry"}}
+
+    def replant(self, planting):
+        """Changes the crops of the patches according to the planting (standard, tomato-only or 
+        strawberry-only). Must be called before create_type_map."""
+        for patch in self.patches:
+            patch["type"] = self.PLANTINGS[planting].get(patch["type"], patch["type"])
+
     def create_type_map(self):
-        """Calculates a map where each point shows what type of land is there."""
+        """Calculates a map where each cell shows what type of land is there: the type of the last patch 
+        that contains the center of the cell (0 if none)."""
         self.type_map = np.zeros(self.width * self.height, dtype=np.int16)
         logging.info(f"create_type_map shape={self.type_map.shape}")
-        Xpts = np.arange(0, self.width, 1, dtype=np.int16)
-        Ypts = np.arange(0, self.height, 1, dtype=np.int16)
-        X2D, Y2D = np.meshgrid(Xpts, Ypts, indexing="ij")
-        points = np.column_stack((X2D.ravel(), Y2D.ravel()))
+        X2D, Y2D = np.meshgrid(np.arange(self.width), np.arange(self.height), indexing="ij")
+        centers = np.column_stack((X2D.ravel(), Y2D.ravel())) + 0.5
         for p in self.patches:
-            path = p["polygon"].get_path()
-            type_value = self.types[p["type"]]
-            # this radius thing apparently is necessary to deal with the uncertainty at the border
-            marked = np.array(path.contains_points(points, radius=+0.5))
-            self.type_map[marked] = type_value
+            marked = np.array(p["polygon"].get_path().contains_points(centers))
+            self.type_map[marked] = self.types[p["type"]]
         self.type_map = np.reshape(self.type_map, (self.width, self.height))
 
     def path_in_component(self, path, name):
@@ -136,7 +145,7 @@ class WaterberryFarm(FarmGeometry):
 
 
 class MiniberryFarm(FarmGeometry):
-    """Implements the geometry of a small farm, for testing. Scalable size for testing performance. At scale 1, the size is 10x10"""
+    """Implements the geometry of a small farm, for testing. Scalable size for testing performance. At scale 1, the size is 10x10 cells"""
 
     def __init__(self, scale=1):
         super().__init__()
@@ -153,97 +162,46 @@ class MiniberryFarm(FarmGeometry):
                        [0, 5*scale], [0, 10*scale], [10*scale, 10*scale], [10*scale, 5*scale]], color="lightcoral")
 
 
+def default_infection_seeds(width):
+    """The number of initial infections of an epidemic, scaled with the width of the grid"""
+    return 3 * max(int(width / 30), 1)
+
+
+def default_spread_dimension(width):
+    """The size of the neighborhood through which an epidemic spreads, scaled with the width of the grid"""
+    return min(11, int(math.sqrt(width) / 6) * 2 + 3)
+
+
 class WaterberryFarmEnvironment(Environment):
     """An environment that describes the status of the soil and plant diseases on the Waterberry Farm"""
 
-    def __init__(self, geometry, use_saved: bool,  seed, savedir):
+    def __init__(self, geometry, use_saved: bool, seed, savedir, tylcv = None, ccr = None, soil = None):
         """Create the environment. 
-        saved: [I think that this] if this is false, we calculate and cache. If true, we should run the first. So it should be called use_saved"""
+        use_saved: if true, the fields are replayed from the values precomputed into savedir. If false, 
+        the field models are run, and their values are saved into savedir, or not saved if savedir is None.
+        tylcv, ccr, soil: the parameters of the field models; the default values were calibrated in 
+        ScenarioDesignWaterberryFarm. A None infection_seeds or spread_dimension is scaled with the grid."""
         super().__init__(geometry.width, geometry.height, seed)
         self.geometry = geometry
         self.use_saved = use_saved
-        #
-        # Tomato yellow leaf curl virus: epidemic spreading disease which spreads only on tomatoes
-        #
         if self.use_saved:
-            self.tylcv = PrecalculatedEnvironment(
-                geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_tylcv"))
+            self.tylcv = self.field("tylcv", None, savedir)
+            self.ccr = self.field("ccr", None, savedir)
+            self.soil = self.field("soil", None, savedir)
         else:
-            # these are the parameters found in the ScenarioDesignWaterberryFarm
-            parameters = {
-                "infection_count": 3,
-                "infection_value": 5,
-                # "proceed_count": 25,
-                "p_transmission": 0.25,
-                "infection_duration": 5,
-                "infection_seeds": 3 * max(int(geometry.width / 30), 1),
-                "spread_dimension": min(11, int(math.sqrt(geometry.width) / 6) * 2 + 3)}
-
-            # create the immunity mask: by default, all areas are immune
-            immunity_mask = np.full([geometry.width, geometry.height], -2)
-            # the areas that have tomatoes are susceptible
-            typecode = self.geometry.types["tomato"]
-            mask = self.geometry.type_map == typecode
-            immunity_mask[mask] = 0
-
-            tylcv = EpidemicSpreadEnvironment("TYLCV", geometry.width, geometry.height, seed, p_transmission=parameters["p_transmission"], infection_duration=parameters["infection_duration"],
-                                              spread_dimension=parameters["spread_dimension"],
-                                              infection_seeds=parameters["infection_seeds"], immunity_mask=immunity_mask)
-
-            # some susceptible areas are infected
-            #cnt = 0
-            # while cnt < parameters["infection_count"]:
-            #    locationx = int( tylcv.random.random(1) * tylcv.width )
-            #    locationy = int ( tylcv.random.random(1) * tylcv.height )
-            #    if tylcv.status[locationx, locationy] == 0:
-            #        tylcv.status[locationx, locationy] = int(parameters["infection_value"])
-            #        cnt = cnt + 1
-            
-            self.tylcv = PrecalculatedEnvironment(
-                geometry.width, geometry.height, tylcv, pathlib.Path(savedir, "precalc_tylcv"))
-        #
-        # Charcoal Rot: epidemic spreading disease that spreads only on
-        #    strawberries
-        #
-        if self.use_saved:
-            self.ccr = PrecalculatedEnvironment(
-                geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_ccr"))
-        else:
-
-            parameters = {"infection_count": 5,
-                          "infection_value": 10,
-                          "p_transmission": 0.15,
-                          "infection_duration": 10,
-                          "infection_seeds": 3 * max(int(geometry.width / 30), 1),
-                          "spread_dimension": min(11, int(math.sqrt(geometry.width) / 6) * 2 + 3)
-                          }
-
-            # create the immunity mask: by default, all areas are immune
-            immunity_mask = np.full([geometry.width, geometry.height], -2)
-            # the areas that have tomatoes are susceptible
-            typecode = self.geometry.types["strawberry"]
-            mask = self.geometry.type_map == typecode
-            immunity_mask[mask] = 0
-
-            ccr = EpidemicSpreadEnvironment("CCR", geometry.width, geometry.height, seed, p_transmission=parameters["p_transmission"], infection_duration=parameters["infection_duration"],
-                                            spread_dimension=parameters["spread_dimension"],
-                                            infection_seeds=parameters["infection_seeds"], immunity_mask=immunity_mask)
-
-            self.ccr = PrecalculatedEnvironment(
-                geometry.width, geometry.height, ccr, pathlib.Path(savedir, "precalc_ccr"))
-
-        #
-        # Soil moisture model
-        #
-        if self.use_saved:
-            self.soil = PrecalculatedEnvironment(
-                geometry.width, geometry.height, None, pathlib.Path(savedir, "precalc_soil"))
-        else:
-            soil = SoilMoistureEnvironment("soil", geometry.width,
-                                           geometry.height, seed=1,
-                                           evaporation=0.04, rainfall=0.06, rain_likelihood=0.8)
-            self.soil = PrecalculatedEnvironment(
-                geometry.width, geometry.height, soil, pathlib.Path(savedir, "precalc_soil"))
+            # Tomato yellow leaf curl virus: epidemic spreading disease which spreads only on tomatoes
+            self.tylcv = self.field("tylcv", self.create_epidemic("TYLCV", "tomato", seed,
+                {"p_transmission": 0.25, "infection_duration": 5, "infection_seeds": None, 
+                 "spread_dimension": None} | (tylcv or {})), savedir)
+            # Charcoal Rot: epidemic spreading disease that spreads only on strawberries
+            self.ccr = self.field("ccr", self.create_epidemic("CCR", "strawberry", seed,
+                {"p_transmission": 0.15, "infection_duration": 10, "infection_seeds": None, 
+                 "spread_dimension": None} | (ccr or {})), savedir)
+            # Soil moisture model
+            soil = {"seed": 1, "evaporation": 0.04, "rainfall": 0.06, "rain_likelihood": 0.8} | (soil or {})
+            self.soil = self.field("soil", SoilMoistureEnvironment("soil", geometry.width, geometry.height, 
+                seed=soil["seed"], evaporation=soil["evaporation"], rainfall=soil["rainfall"], 
+                rain_likelihood=soil["rain_likelihood"]), savedir)
 
         self.my_owner_mask = np.full((self.width, self.height), False)
         self.my_owner_mask[self.geometry.owner_area[0]:self.geometry.owner_area[2],
@@ -260,6 +218,26 @@ class WaterberryFarmEnvironment(Environment):
         self.my_soil_mask = np.ones((self.width, self.height))
         self.my_soil_mask = np.logical_and(
             self.my_soil_mask, self.my_owner_mask)
+
+    def field(self, name, model, savedir):
+        """A field: the model replayed (model None) or run, with the values saved into savedir/precalc_<name>, 
+        or not saved if savedir is None"""
+        return PrecalculatedEnvironment(self.width, self.height, model, 
+            None if savedir is None else pathlib.Path(savedir, f"precalc_{name}"))
+
+    def create_epidemic(self, name, crop, seed, parameters):
+        """An epidemic which spreads only on the cells planted with the crop"""
+        immunity_mask = np.full([self.width, self.height], -2)
+        immunity_mask[self.geometry.type_map == self.geometry.types[crop]] = 0
+        infection_seeds = parameters["infection_seeds"]
+        if infection_seeds is None:
+            infection_seeds = default_infection_seeds(self.width)
+        spread_dimension = parameters["spread_dimension"]
+        if spread_dimension is None:
+            spread_dimension = default_spread_dimension(self.width)
+        return EpidemicSpreadEnvironment(name, self.width, self.height, seed, 
+            p_transmission=parameters["p_transmission"], infection_duration=parameters["infection_duration"],
+            spread_dimension=spread_dimension, infection_seeds=infection_seeds, immunity_mask=immunity_mask)
 
     def inner_proceed(self, delta_t=1.0):
         self.tylcv.proceed(delta_t)

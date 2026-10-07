@@ -230,7 +230,7 @@ class TestSimulation(unittest.TestCase):
             farm.create_type_map()
             environment = WaterberryFarmEnvironment(
                 farm, use_saved=False, seed=10, savedir=directory)
-            estimator = WBF_IM_DiskEstimator(11, 11)
+            estimator = WBF_IM_DiskEstimator(10, 10)
             results = simulate_1day(
                 environment=environment,
                 robots=[robot_with_path("robot")],

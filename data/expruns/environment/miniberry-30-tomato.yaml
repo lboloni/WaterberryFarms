@@ -1,0 +1,4 @@
+# A Miniberry-30 farm planted entirely with tomatoes: TYLCV spreads over the whole farm, there is no CCR
+typename: "Miniberry-30"
+planting: "tomato-only"
+precompute-time: 10

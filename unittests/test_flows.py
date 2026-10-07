@@ -60,6 +60,13 @@ TOP_LEVEL_FLOW_NOTEBOOKS = [
 ]
 
 
+
+def environment_defaults():
+    """The defaults of the environment exp/runs, as shipped"""
+    path = pathlib.Path(__file__).resolve().parents[1] / "data" / "expruns" / "environment" / "_defaults_environment.yaml"
+    with open(path) as f:
+        return yaml.safe_load(f)
+
 class FlowConfig:
     def __init__(self, exprun_path, flows_path, results_path):
         self.exprun_path = exprun_path
@@ -568,9 +575,11 @@ class TestFlowHelpers(unittest.TestCase):
         data_dir = self.root / "custom-environment"
         data_dir.mkdir()
         (data_dir / "farm_geometry").write_bytes(b"cached")
-        exp = {
+        exp = environment_defaults() | {
+            "typename": "Miniberry-10",
             "data_dir": str(data_dir),
-            "custom-tylcv": "custom.png",
+            "planting": "tomato-only",
+            "tylcv-picture": "custom.png",
         }
         farm = object()
         environment = object()
@@ -593,16 +602,17 @@ class TestFlowHelpers(unittest.TestCase):
         exprun_path = exprun_dir / "custom.yaml"
         exprun_path.write_text("custom\n")
         (exprun_dir / "custom.png").touch()
-        exp = {
+        exp = environment_defaults() | {
             "typename": "Miniberry-10",
             "data_dir": str(data_dir),
             "exp_run_sys_indep_file": str(exprun_path),
-            "custom-tylcv": "custom.png",
+            "planting": "tomato-only",
+            "tylcv-picture": "custom.png",
         }
 
         with mock.patch(
                 "wbf_helper.imageio.imread",
-                return_value=np.zeros((11, 11))):
+                return_value=np.zeros((10, 10))):
             farm, environment = create_wbfe(exp)
 
         self.assertEqual(
@@ -613,10 +623,10 @@ class TestFlowHelpers(unittest.TestCase):
         self.assertTrue(np.array_equal(
             environment.my_tomato_mask, environment.my_owner_mask))
         np.testing.assert_array_equal(
-            environment.tylcv.value, np.zeros((11, 11)))
+            environment.tylcv.value, np.zeros((10, 10)))
         environment.proceed(1)
         np.testing.assert_array_equal(
-            environment.tylcv.value, np.zeros((11, 11)))
+            environment.tylcv.value, np.zeros((10, 10)))
 
         cached_farm, cached_environment = create_wbfe(exp)
         cached_environment.proceed(1)
@@ -624,7 +634,7 @@ class TestFlowHelpers(unittest.TestCase):
             cached_farm.type_map.shape,
             (cached_environment.width, cached_environment.height))
         np.testing.assert_array_equal(
-            cached_environment.tylcv.value, np.zeros((11, 11)))
+            cached_environment.tylcv.value, np.zeros((10, 10)))
 
 
 if __name__ == "__main__":

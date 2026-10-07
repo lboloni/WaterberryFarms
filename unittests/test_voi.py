@@ -57,13 +57,13 @@ class TestVoI(unittest.TestCase):
             environment = WaterberryFarmEnvironment(farm, use_saved=False, seed=10, savedir=directory)
             environment.proceed(6)
             robots = []
-            for name, path in {"alpha": [[0, 5], [10, 5], [2, 5]], "beta": [[5, 0], [5, 10]],
-                               "gamma": [[0, 1], [10, 9]]}.items():
+            for name, path in {"alpha": [[0, 5], [9, 5], [2, 5]], "beta": [[5, 0], [5, 9]],
+                               "gamma": [[0, 1], [9, 9]]}.items():
                 robot = Robot(name, path[0][0], path[0][1], 0)
                 robot.assign_policy(FollowPathPolicy(1, path))
                 robots.append(robot)
-            estimator = WBF_IM_DiskEstimator(11, 11)
-            baseline = WBF_Score_VoI().score(environment, WBF_IM_DiskEstimator(11, 11))
+            estimator = WBF_IM_DiskEstimator(10, 10)
+            baseline = WBF_Score_VoI().score(environment, WBF_IM_DiskEstimator(10, 10))
             results = simulate_1day(environment=environment, robots=robots, estimator=estimator,
                                     evaluator=WBF_Score_VoI(), timesteps=20, estimator_interval=3)
 

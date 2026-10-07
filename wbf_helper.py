@@ -7,12 +7,13 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 from exp_run_config import Config, Experiment
 from environment import ScalarFieldEnvironment
-from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess
+from water_berry_farm import FarmGeometry, WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess
 from policy import FollowPathPolicy
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from path_generators import find_fixed_budget_lawnmower
 
 import gzip as compress
+import hashlib
 import pickle
 import pathlib
 import yaml
@@ -60,115 +61,154 @@ def create_estimator(exp_estimator, geometry):
     return estimator
 
 
-def create_wbfe(exp):
-    """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulations."""
+FIELDS = ["tylcv", "ccr", "soil"]
 
+
+def uses_cache(exp_env):
+    """Whether the environment of the exp/run is cached. By default (cache: null) every environment
+    is cached, except the full Waterberry farm, whose cache would be too large."""
+    if exp_env["cache"] is None:
+        return exp_env["typename"] != "Waterberry"
+    return exp_env["cache"]
+
+
+def field_parameters(exp_env):
+    """The parameters of the field models of WaterberryFarmEnvironment, from the environment exp/run"""
+    epidemic = lambda name: {
+        "p_transmission": exp_env[f"{name}-p-transmission"],
+        "infection_duration": exp_env[f"{name}-infection-duration"],
+        "infection_seeds": exp_env[f"{name}-infection-seeds"],
+        "spread_dimension": exp_env[f"{name}-spread-dimension"]}
+    soil = {"seed": exp_env["soil-seed"], "evaporation": exp_env["soil-evaporation"],
+            "rainfall": exp_env["soil-rainfall"], "rain_likelihood": exp_env["soil-rain-likelihood"]}
+    return {"tylcv": epidemic("tylcv"), "ccr": epidemic("ccr"), "soil": soil}
+
+
+def create_wbfe(exp):
+    """Creates the waterberry farm geometry and environment of an environment exp/run. A cached 
+    environment is replayed if its geometry was already saved, otherwise it is created and saved; 
+    an environment without cache is created, and computed live, every time."""
+    cache = uses_cache(exp)
     path_geometry = pathlib.Path(exp["data_dir"], "farm_geometry")
     path_environment = pathlib.Path(exp["data_dir"], "farm_environment")
 
-    # The cached geometry identifies a fully initialized standard or custom
-    # environment. Subsequent runs replay its precalculated field values.
-    if path_geometry.exists():
+    # The cached geometry identifies a fully initialized environment. 
+    # Subsequent runs replay its precalculated field values.
+    if cache and path_geometry.exists():
         print("loading the geometry and environment from saved data")
         with compress.open(path_geometry, "rb") as f:
             wbf = pickle.load(f)
         print("loading done")
-        wbfe = WaterberryFarmEnvironment(wbf, use_saved=True, seed=10, savedir=exp["data_dir"])
+        wbfe = WaterberryFarmEnvironment(wbf, use_saved=True, seed=exp["seed"], savedir=exp["data_dir"])
         return wbf, wbfe
-    
-    # in this case, we assume that we need to create the whole thing
+
     wbf = create_wbf(exp)
-    if "custom-tylcv" in exp:
-        customize_geometry(wbf)
+    wbf.replant(exp["planting"])
     wbf.create_type_map()
-    wbfe = WaterberryFarmEnvironment(wbf, use_saved=False, seed=10, savedir=exp["data_dir"])
-    if "custom-tylcv" in exp:
-        customize_environment(wbfe, exp)
-    with compress.open(path_geometry, "wb") as f:
-        pickle.dump(wbf, f)
-    with compress.open(path_environment, "wb") as f:
-        pickle.dump(wbfe, f)
+    wbfe = WaterberryFarmEnvironment(wbf, use_saved=False, seed=exp["seed"],
+        savedir=exp["data_dir"] if cache else None, **field_parameters(exp))
+    apply_pictures(wbfe, exp)
+    if cache:
+        with compress.open(path_geometry, "wb") as f:
+            pickle.dump(wbf, f)
+        with compress.open(path_environment, "wb") as f:
+            pickle.dump(wbfe, f)
     return wbf, wbfe
 
+
+def picture_path(exp_env, name):
+    """The picture of a field, which is next to the exp/run file"""
+    return pathlib.Path(pathlib.Path(exp_env["exp_run_sys_indep_file"]).parent, exp_env[f"{name}-picture"])
+
+
+def apply_pictures(wbfe, exp_env):
+    """Sets the fields that have a picture (<field>-picture) in the exp/run. The red (or gray) channel of 
+    the picture, divided by 255, is indexed as [x, y]. In static mode, the picture is the value of the 
+    field on every day; in initial mode (epidemics only), it is the initial status of the epidemic.
+    If the picture does not exist, the model's field is written as a template to edit, and an exception 
+    is raised."""
+    for name in FIELDS:
+        if exp_env[f"{name}-picture"] is None:
+            continue
+        path = picture_path(exp_env, name)
+        field = getattr(wbfe, name)
+        if not path.exists():
+            model = field.environment
+            value = model.value if name == "soil" else model.create_value()
+            plt.imsave(path, value, cmap="gray", vmin=0, vmax=1)
+            raise Exception(f"The picture {path} did not exist: a template was written there, edit it and create the environment again")
+        loaded = imageio.imread(path)
+        value = (loaded[:, :, 0] if loaded.ndim == 3 else loaded) / 255.0
+        mode = "static" if name == "soil" else exp_env[f"{name}-picture-mode"]
+        if mode == "static":
+            field.environment = ScalarFieldEnvironment(field.environment.name, wbfe.width, wbfe.height, seed=0, value=value)
+        elif mode == "initial":
+            field.environment.set_initial_status(value)
+        else:
+            raise Exception(f"Unknown picture mode {mode}")
+
+
+def environment_configuration(exp_env):
+    """The values of the environment exp/run that determine its precomputed fields, including a 
+    hash of the content of its existing pictures"""
+    keys = ["typename", "planting", "precompute-time", "seed", "cache"]
+    configuration = {key: value for key, value in exp_env.values.items() if key in keys or key.startswith(tuple(f"{name}-" for name in FIELDS))}
+    configuration["geometry-version"] = FarmGeometry.RASTERIZATION_VERSION
+    for name in FIELDS:
+        if exp_env[f"{name}-picture"] is not None and picture_path(exp_env, name).exists():
+            configuration[f"{name}-picture-sha1"] = hashlib.sha1(picture_path(exp_env, name).read_bytes()).hexdigest()
+    return configuration
+
+
+def cache_is_current(exp_env, saved):
+    """Whether the saved exprun.yaml of the environment records a completed precomputation with the 
+    same configuration as the environment exp/run"""
+    return Config.TIME_DONE in saved and all(
+        key in saved and saved[key] == value for key, value in environment_configuration(exp_env).items())
+
+
 def precompute_environment(run):
-    """Precomputes the environment exp/run for its precompute-time, unless an earlier precomputation 
-    completed (its exprun.yaml contains time_done). Returns the environment exp."""
+    """Precomputes the environment exp/run for its precompute-time. Skipped if the environment has no 
+    cache, or if an earlier precomputation completed (its exprun.yaml contains time_done) with the same 
+    configuration. Returns the environment exp."""
     exp_env = Config().get_experiment("environment", run)
+    if not uses_cache(exp_env):
+        return exp_env
     with open(pathlib.Path(exp_env["data_dir"], "exprun.yaml")) as f:
-        if Config.TIME_DONE in yaml.safe_load(f):
-            return exp_env
+        saved = yaml.safe_load(f)
+    if cache_is_current(exp_env, saved):
+        return exp_env
     exp_env = Config().get_experiment("environment", run, creation_style="discard-old")
-    wbf, wbfe = create_wbfe(exp_env)
-    for _ in range(exp_env["precompute-time"]):
-        wbfe.proceed()
-    exp_env.done()
+    precompute(exp_env)
     return exp_env
 
-def customize_geometry(wbf):
-    """Make the existing farm area one tomato patch without changing its size."""
-    width, height = wbf.width, wbf.height
-    wbf.patches = []
-    area = [
-        [0, 0], [width - 1, 0],
-        [width - 1, height - 1], [0, height - 1],
-    ]
-    wbf.add_patch("all-tylcv", type="tomato", area=area, color="blue")
 
+def precompute(exp_env):
+    """Evolves the cached environment of a freshly created exp/run for its precompute-time, records 
+    its configuration in exprun.yaml and marks the exp/run done. An environment without cache is 
+    only marked done, as there is nothing to precompute."""
+    if uses_cache(exp_env):
+        wbf, wbfe = create_wbfe(exp_env)
+        for _ in range(exp_env["precompute-time"]):
+            wbfe.proceed()
+        exp_env.values.update(environment_configuration(exp_env))  # recorded with the picture hashes
+    exp_env.done()
 
-def customize_environment(wbfe, exp_env):
-    """Creates a custom WBFE for the TYLCV. It creates the specified png file
-    if it does not exist. Use some image editor, such as GIMP to edit the 
-    values. 
-    FIXME: extend to the CCR and soil fields. This is experimental stuff. 
-    """
-    exp_filename = exp_env["exp_run_sys_indep_file"]
-    exp_path = pathlib.Path(exp_filename).parent
-    custom_env_file = pathlib.Path(exp_path, exp_env["custom-tylcv"])
-    if custom_env_file.exists():
-        print(f"loading from {custom_env_file}")
-        loaded_array = imageio.imread(custom_env_file)
-        print(loaded_array)
-        if loaded_array.ndim == 3:
-            one_channel = loaded_array[:, :, 0]  # 0=Red, 1=Green, 2=Blue
-        else:
-            one_channel = loaded_array  # already grayscale
-        custom_value = one_channel / 255.0
-        wbfe.tylcv.environment = ScalarFieldEnvironment(
-            "TYLCV", wbfe.width, wbfe.height, seed=0, value=custom_value)
-        wbfe.proceed(1)
-    else:
-        wbfe.proceed(1)
-        print(f"custom env. file {custom_env_file} does not exist")
-        plt.imsave(custom_env_file, wbfe.tylcv.value, cmap='gray')
-    return wbfe
 
 def get_geometry(typename, geo = None):
-    """Returns an object with the geometry for the different types (or adds it into the passed dictionary). 
-    FIXME: It calculates a specific timesteps per day for each size. I think that this was used to calculate the fixed budget lawnmower, but it is not appropriate to do it here!"""
+    """Returns the dimensions of the geometry type (or adds them into the passed dictionary): the grid size 
+    (width, height), the owner's area as the inclusive range of its cells (xmin..xmax, ymin..ymax), the 
+    velocity, and a nominal timesteps-per-day.
+    FIXME: the timesteps per day were used to calculate the fixed budget lawnmower, they do not belong here."""
     if geo == None:
         geo = {}
+    farm = create_wbf({"typename": typename})
     geo["velocity"] = 1
-
-    if typename == "Miniberry-10":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 0, 10, 0, 10
-        geo["width"], geo["height"] = 11, 11
-        geo["timesteps-per-day"] = 0.4 * 100 
-    elif typename == "Miniberry-30":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 0, 30, 0, 30
-        geo["width"], geo["height"] = 31, 31
-        geo["timesteps-per-day"] = 0.4 * 900
-    elif typename == "Miniberry-100":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 0, 100, 0, 100
-        geo["width"], geo["height"] = 101, 101
-        geo["timesteps-per-day"] = 0.4 * 10000
-    elif typename == "Waterberry":
-        geo["xmin"], geo[
-            "xmax"], geo["ymin"], geo["ymax"] = 1000, 5000, 1000, 4000
-        geo["width"], geo["height"] = 5001, 4001
-        geo["timesteps-per-day"] = 0.4 * 12000000
+    geo["width"], geo["height"] = farm.width, farm.height
+    geo["xmin"], geo["ymin"] = farm.owner_area[0], farm.owner_area[1]
+    geo["xmax"], geo["ymax"] = farm.owner_area[2] - 1, farm.owner_area[3] - 1
+    geo["timesteps-per-day"] = {"Miniberry-10": 0.4 * 100, "Miniberry-30": 0.4 * 900,
+        "Miniberry-100": 0.4 * 10000, "Waterberry": 0.4 * 12000000}[typename]
     return geo
 
 

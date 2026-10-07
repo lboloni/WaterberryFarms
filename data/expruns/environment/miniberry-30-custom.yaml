@@ -1,4 +1,6 @@
 # A custom environment of Miniberry-30 size
 typename: "Miniberry-30"
 precompute-time: 10
-"custom-tylcv": "custom-tylcv-30.png"
+planting: "tomato-only"
+tylcv-picture: "custom-tylcv-30.png"
+tylcv-picture-mode: "static"

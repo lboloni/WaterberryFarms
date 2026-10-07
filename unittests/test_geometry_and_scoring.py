@@ -21,9 +21,20 @@ class TestGeometry(unittest.TestCase):
     def test_miniberry_type_map(self):
         farm = MiniberryFarm(scale=1)
         farm.create_type_map()
-        self.assertEqual((farm.width, farm.height), (11, 11))
+        self.assertEqual((farm.width, farm.height), (10, 10))
         self.assertEqual(farm.type_map[2, 2], farm.types["strawberry"])
         self.assertEqual(farm.type_map[2, 8], farm.types["tomato"])
+
+    def test_get_geometry_agrees_with_the_farm(self):
+        from wbf_helper import create_wbf, get_geometry
+        for typename, size in [("Miniberry-10", (10, 10)), ("Miniberry-30", (30, 30)),
+                               ("Miniberry-100", (100, 100)), ("Waterberry", (6000, 5000))]:
+            farm, geo = create_wbf({"typename": typename}), get_geometry(typename)
+            self.assertEqual((farm.width, farm.height), size)
+            self.assertEqual((geo["width"], geo["height"]), size)
+            # the owner's cells are an inclusive range inside the grid
+            self.assertTrue(0 <= geo["xmin"] <= geo["xmax"] < geo["width"])
+            self.assertTrue(0 <= geo["ymin"] <= geo["ymax"] < geo["height"])
 
     def test_waterberry_representative_components(self):
         farm = WaterberryFarm()

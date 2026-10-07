@@ -1,0 +1,5 @@
+# The full Waterberry farm planted entirely with tomatoes (the owner's land and the neighbors);
+# the pond and the wetland are kept. Computed live: the full farm is not cached by default.
+typename: "Waterberry"
+planting: "tomato-only"
+precompute-time: 50

@@ -298,6 +298,9 @@ def im_score_rmse(im, env):
     return -np.sqrt(np.mean(se))
 
 def im_score_rmse_weighted(im, env, weightmap):
+    """An empty area of interest (e.g. a crop that is not planted) has no error."""
+    if np.sum(weightmap) == 0:
+        return 0.0
     se = (env.value - im.value) ** 2
     weightedse = np.multiply(weightmap, se)
     weightedval= np.sqrt(np.sum(weightedse) / np.sum(weightmap)) 
@@ -305,7 +308,10 @@ def im_score_rmse_weighted(im, env, weightmap):
 
 def im_score_weighted(im, env, weightmap):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
-    The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested)"""
+    The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested).
+    An empty area of interest (e.g. a crop that is not planted) has no error."""
+    if np.sum(weightmap) == 0:
+        return 0.0
     wm = weightmap / np.mean(weightmap)
     abserror = np.abs(env.value - im.value)
     weightederror = np.multiply(wm, abserror)
@@ -314,7 +320,10 @@ def im_score_weighted(im, env, weightmap):
 def im_score_weighted_asymmetric(im, env, weight_positive, weight_negative, weightmap):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
     The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested)
-    Weights differently positive errors (when the im is larger than env) and negative errors (when env is larger than im)"""
+    Weights differently positive errors (when the im is larger than env) and negative errors (when env is larger than im).
+    An empty area of interest (e.g. a crop that is not planted) has no error."""
+    if np.sum(weightmap) == 0:
+        return 0.0
     wm = weightmap / np.mean(weightmap)
     error_positive = np.multiply(wm * weight_positive, np.maximum(im.value - env.value, 0))
     error_negative = np.multiply(wm * weight_negative, np.maximum(env.value - im.value, 0))

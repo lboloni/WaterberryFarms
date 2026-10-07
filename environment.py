@@ -129,8 +129,9 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
        -2 - Natural immunity - the epidemic cannot touch this location (eg. different plants). It can be used to set a filter.
 
     The "value" field is created from the status field and it will have the values:
-        0.0 - Healthy
+        1.0 - Healthy (or immune)
         0.5 - Infected
+        0.0 - Destroyed
 
     The immunity mask must be a map of the same size as the environment, but the values that are immune need to be set to -2 
 
@@ -159,6 +160,16 @@ class EpidemicSpreadEnvironment(ScalarFieldEnvironment):
             y = self.random.integers(0, self.height)
             if self.status[x,y] != -2.0:
                 self.status[x, y] = self.infection_seeds_initial
+
+    def set_initial_status(self, value):
+        """Sets the status from a value map such as a picture (1.0 healthy, 0.5 infected, 0.0 destroyed), 
+        replacing the random initial infection. The immune locations stay immune."""
+        status = np.zeros(value.shape)
+        status[value < 0.75] = self.infection_duration
+        status[value < 0.25] = -1
+        status[self.status == -2] = -2
+        self.status = status
+        self.create_value()
 
     def change_p_transmission(self, p_transmission):
         self.p_transmission = p_transmission 
@@ -223,14 +234,14 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
     """An environment for which the values are pre-calculated and saved on a location. This is useful for simulations where the values do not depend on the rest of the simulation."""
     
     def __init__(self, width, height, environment, savedir):
-        """If the environment is None, we are replaying a pre-calculated one from ../__Temporary/current-dir/savedir
-        If the environment not None, we run that environment and save it into the save dir."""
+        """If the environment is None, we are replaying a pre-calculated one from savedir.
+        If the environment is not None, we run that environment and save it into savedir, or, 
+        if savedir is None, we only run it, without saving (no cache)."""
         super().__init__("precalculated", width, height, seed=0)
         self.environment = environment
-        # p = pathlib.Path.cwd()
         self.savedir = savedir
-        self.savedir.mkdir(parents=True, exist_ok = True)
-        self.previous_loaded = -1 # timestamp of previously loaded env if any
+        if self.savedir is not None:
+            self.savedir.mkdir(parents=True, exist_ok = True)
         
     def get_filenames(self, timestamp):
         """"""
@@ -241,23 +252,17 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
     def inner_proceed(self, delta_t):
         timestamp = int(self.time)
         logging.info(f"PrecalculatedEnvironment at timestamp {timestamp}")
+        if self.savedir is None: # no cache: only run the environment
+            self.environment.proceed(delta_t)
+            self.value = np.copy(self.environment.value)
+            return
         file_value, jpg_value = self.get_filenames(timestamp)
         if self.environment == None: # loading
-            # search for the previous existing
-            while not file_value.exists() and timestamp > self.previous_loaded:
-                timestamp = timestamp - 1
-                file_value, _ = self.get_filenames(timestamp)                
             if not file_value.exists():
-                # raise Exception(f"Saved value {file_value} does not exist")
-                logging.info(f"Saved value {file_value} does not exist - assuming no change.")
-                return
-            # with open(file_value, "rb") as f:
+                raise Exception(f"The environment in {self.savedir} was not precomputed for day {timestamp}")
             logging.info(f"Loading from {compress_ext} {file_value}")
-            #with bz2.open(file_value, "rb") as f:
             with compress.open(file_value, "rb") as f:
                  self.value = pickle.load(f)
-            self.previous_loaded = timestamp
-            logging.info(f"Loading from {compress_ext} {file_value} done")                 
             return
         else:
             if file_value.exists():

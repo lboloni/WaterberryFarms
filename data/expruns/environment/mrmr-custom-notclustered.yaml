@@ -1,4 +1,6 @@
 # A custom environment of Miniberry-100 size, used in the MRMR paper
 typename: "Miniberry-100"
 precompute-time: 30
-custom-tylcv: "mrmr-notclustered-100.png"
+planting: "tomato-only"
+tylcv-picture: "mrmr-notclustered-100.png"
+tylcv-picture-mode: "static"
