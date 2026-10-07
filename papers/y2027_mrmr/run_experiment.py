@@ -6,7 +6,7 @@ from communication import PerfectCommunicationMedium
 from exp_run_config import Config
 from policy import RandomWaypointPolicy
 from robot import Robot
-from water_berry_farm import WBF_Score_WeightedAsymmetric
+from water_berry_farm import WBF_Score_VoI, WBF_Score_WeightedAsymmetric
 from wbf_helper import create_estimator, create_wbfe, generate_fixed_budget_lawnmower, get_geometry
 from wbf_simulate import save_simulation_results, simulate_1day
 
@@ -28,7 +28,10 @@ def run_mrmr_experiment(exp):
     environment.proceed(exp["time-start-environment"])
 
     estimator = create_estimator(exp_estimator, geometry)
-    evaluator = WBF_Score_WeightedAsymmetric()
+    if exp["run_score"] == "voi":
+        evaluator = WBF_Score_VoI(exp_score["v-pos"], exp_score["v-neg"], exp_score["v-unknown"])
+    else:
+        evaluator = WBF_Score_WeightedAsymmetric()
     evaluator.name = exp_score["score-name"]
 
     EPM().reset()

@@ -465,6 +465,106 @@ class WBF_MultiScore(WBF_Score):
         return retval
 
 
+class WBF_Score_VoI(WBF_Score):
+    """Value of information scores (absolute, expected, cost of ignorance, estimator-based) for the
+    disease fields, together with their attribution to robots and timesteps (voi-credits).
+    Stateful: an object scores exactly one run. See DESIGN-VOI.md"""
+
+    VARIANTS = ["voi-absolute", "voi-expected", "voi-ignorance", "voi-estimator"]
+
+    def __init__(self, v_pos = 100.0, # knowing it is infected: cost of damage
+                 v_neg = 1.0, # knowing it is not infected: cost of verification
+                 v_unknown = -3.0): # cost of ignorance
+        self.v_pos = v_pos
+        self.v_neg = v_neg
+        self.v_unknown = v_unknown
+        self.previous = {} # field name -> (expect, voi_est) at the previous scoring event
+        self.last_time = -1 # the latest first-observation time already credited
+
+    def __str__(self):
+        return f"VoI: v_pos {self.v_pos} v_neg {self.v_neg} v_unknown {self.v_unknown}"
+
+    @staticmethod
+    def score_components():
+        return WBF_Score_VoI.VARIANTS + ["voi"]
+
+    def expect(self, value):
+        """Expected value of knowing the cells with the estimated value"""
+        p_pos = np.clip(2.0 * (1.0 - value), 0, 1)
+        return p_pos * self.v_pos + (1 - p_pos) * self.v_neg
+
+    def score(self, env, im):
+        retval = {name: 0.0 for name in self.score_components()}
+        credits = {} # (variant, robot, timestep) -> value
+        xs, ys = im.record.indices(since=self.last_time + 1)
+        new_cells = [(x, y) for x, y in zip(xs, ys)]
+        observed = im.record.mask()
+        for name, envfield, imfield, mask in [("TYLCV", env.tylcv, im.im_tylcv, env.my_tomato_mask),
+                                              ("CCR", env.ccr, im.im_ccr, env.my_strawberry_mask)]:
+            self.field_voi(name, envfield, imfield, mask, observed, new_cells, im.record, retval, credits)
+        retval["voi"] = retval["voi-estimator"]
+        retval["voi-credits"] = [{"variant": variant, "robot": robot, "timestep": timestep, "value": value}
+                                 for (variant, robot, timestep), value in credits.items()]
+        for x, y in new_cells:
+            self.last_time = max(self.last_time, im.record.first(x, y)[1])
+        return retval
+
+    def field_voi(self, name, envfield, imfield, mask, observed, new_cells, record, retval, credits):
+        """Adds the VoI totals of one disease field to retval, and its discovery credits and update terms
+        since the previous scoring event to credits"""
+        truth = np.where(envfield.value < 1.0, self.v_pos, self.v_neg)
+        expect = self.expect(imfield.value)
+        c = np.clip(1.0 - imfield.uncertainty, 0, 1)
+        voi_est = c * expect + (1 - c) * self.v_unknown
+        unobserved = mask & ~observed
+        absolute = np.sum(truth[mask & observed])
+        retval["voi-absolute"] += absolute
+        retval["voi-expected"] += absolute + np.sum(expect[unobserved])
+        retval["voi-ignorance"] += absolute + self.v_unknown * np.sum(unobserved)
+        retval["voi-estimator"] += np.sum(voi_est[mask])
+        # the state before any observation: estimator default value, no confidence
+        if name not in self.previous:
+            self.previous[name] = (np.full(mask.shape, self.expect(imfield.default_value)),
+                                   np.full(mask.shape, self.v_unknown))
+        expect_prev, voi_est_prev = self.previous[name]
+        # discovery credits of the cells first observed since the previous scoring event
+        new_estimator = 0.0
+        for x, y in new_cells:
+            if not mask[x, y]:
+                continue
+            robot, timestep = record.first(x, y)
+            for variant, value in [("voi-absolute", truth[x, y]),
+                                   ("voi-ignorance", truth[x, y] - self.v_unknown),
+                                   ("voi-expected", truth[x, y] - expect_prev[x, y]),
+                                   ("voi-estimator", voi_est[x, y] - voi_est_prev[x, y])]:
+                key = (variant, robot, timestep)
+                credits[key] = credits.get(key, 0.0) + value
+            new_estimator += voi_est[x, y] - voi_est_prev[x, y]
+        # update terms: the changes not attributable to a robot
+        updates = {"voi-absolute": 0.0, "voi-ignorance": 0.0,
+                   "voi-expected": np.sum((expect - expect_prev)[unobserved]),
+                   "voi-estimator": np.sum((voi_est - voi_est_prev)[mask]) - new_estimator}
+        for variant, value in updates.items():
+            key = (variant, None, None)
+            credits[key] = credits.get(key, 0.0) + value
+        self.previous[name] = (expect, voi_est)
+
+
+def voi_credits(results, variant):
+    """The VoI of the given variant added by each robot at each timestep. Returns a dict
+    robot name -> np.array(timesteps), plus None -> the estimator update terms, placed at
+    the timesteps of the scoring events."""
+    timesteps = results["simulation-timestep"]
+    credits = {name: np.zeros(timesteps) for name in results["robot-names"]}
+    credits[None] = np.zeros(timesteps)
+    for event in results["score-events"]:
+        for row in event["score"]["voi-credits"]:
+            if row["variant"] == variant:
+                t = event["timestep"] if row["robot"] is None else row["timestep"]
+                credits[row["robot"]][t] += row["value"]
+    return credits
+
+
 
 def get_datadir():
     """Returns the data directory associated with this project, ensuring that it exists.
