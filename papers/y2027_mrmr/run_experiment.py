@@ -10,7 +10,6 @@ from water_berry_farm import WBF_Score_VoI, WBF_Score_WeightedAsymmetric
 from wbf_helper import create_estimator, create_wbfe, generate_fixed_budget_lawnmower, get_geometry
 from wbf_simulate import save_simulation_results, simulate_1day
 
-from .epmarket import EPM
 from .mrmr_policies import MRMR_Contractor, MRMR_Pioneer
 
 
@@ -34,7 +33,6 @@ def run_mrmr_experiment(exp):
         evaluator = WBF_Score_WeightedAsymmetric()
     evaluator.name = exp_score["score-name"]
 
-    EPM().reset()
     communication = PerfectCommunicationMedium(environment)
     robots = []
     for values in exp["robots"]:
@@ -75,7 +73,7 @@ def run_mrmr_experiment(exp):
         timesteps=exp["timesteps-per-day"],
         estimator_interval=exp["im_resolution"],
         communication=communication,
-        communication_rounds=0,
+        communication_rounds=exp["communication-rounds"],
     )
     results.update({
         "wbf": farm,

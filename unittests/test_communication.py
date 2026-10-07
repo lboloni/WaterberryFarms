@@ -18,17 +18,17 @@ class TestPerfectCommunicationMedium(unittest.TestCase):
             self.medium.add_robot(robot)
 
     def test_broadcast_excludes_sender_and_clears_mailbox(self):
-        self.environment.time = 4
-        self.medium.send(self.robots[0], None, Message("hello"))
+        self.medium.timestep, self.medium.round = 4, 1
+        self.medium.send(self.robots[0], None, Message({"type": "hello"}))
         self.assertEqual(self.medium.receive(self.robots[0]), [])
         for receiver in self.robots[1:]:
             messages = self.medium.receive(receiver)
             self.assertEqual(len(messages), 1)
-            self.assertEqual(messages[0].content, "hello")
+            self.assertEqual(messages[0].content, {"type": "hello"})
             self.assertEqual(messages[0].sender_name, "robot-0")
             self.assertEqual(messages[0].destination_name, receiver.name)
-            self.assertEqual(messages[0].time_sent, 4)
-            self.assertEqual(messages[0].time_received, 4)
+            self.assertEqual(messages[0].time_sent, (4, 1))
+            self.assertEqual(messages[0].time_received, (4, 1))
             self.assertEqual(self.medium.receive(receiver), [])
 
     def test_directed_message_has_one_recipient(self):

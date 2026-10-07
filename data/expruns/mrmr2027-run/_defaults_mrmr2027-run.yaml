@@ -2,5 +2,7 @@ velocity: 1
 timesteps-per-day: 500
 time-start-environment: 6
 im_resolution: 10
+# rounds per timestep; the market completes an auction (offer, bid, award) in 3 rounds
+communication-rounds: 3
 input-to-notebook:
   - papers/y2027_mrmr/MRMR-Run.ipynb

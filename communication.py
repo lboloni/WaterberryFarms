@@ -9,7 +9,9 @@ from robot import Robot
 
 
 class Message:
-    """Implements a message object with a free form content. Keeps track of sender, receiver, time sent and time received. """
+    """Implements a message object. Keeps track of sender, receiver, time sent and time received, the 
+    times being (timestep, round) pairs. By convention, the content is a dict with a "type" key and plain 
+    data values: every recipient receives a deep copy, so shared objects must be identified by ids. """
     def __init__(self, content):
         self.content = content
         self.sender_name = None
@@ -30,6 +32,9 @@ class CommunicationMedium:
         self.mailboxes = {} # the mailboxes
         self.delivered_messages = [] # all the messages that had been delivered
         self.env = env
+        # the current (timestep, round), set by simulate_1day before every communication round
+        self.timestep = None
+        self.round = None
     
     def add_robot(self, robot):
         """Adds a robot to the system and creates the corresponding mailbox"""
@@ -55,7 +60,7 @@ class PerfectCommunicationMedium(CommunicationMedium):
                 msg = copy.deepcopy(message)
                 msg.sender_name = sender.name
                 msg.destination_name = robot_name
-                msg.time_sent = self.env.time
+                msg.time_sent = (self.timestep, self.round)
                 self.mailboxes[robot_name].append(msg)
 
     def receive(self, receiver: Robot):
@@ -65,7 +70,7 @@ class PerfectCommunicationMedium(CommunicationMedium):
         retval = []
         mailbox = self.mailboxes[receiver.name]
         for msg in mailbox:
-            msg.time_received = self.env.time
+            msg.time_received = (self.timestep, self.round)
             retval.append(msg)
         mailbox.clear()
         return retval

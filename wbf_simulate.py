@@ -101,6 +101,7 @@ def _simulate_timestep(*, results, timestep, timesteps, estimator_interval,
 
     time_track.policy_start()
     for round_number in range(communication_rounds):
+        communication.timestep, communication.round = timestep, round_number
         for robot in robots:
             robot.policy.act_send(round_number)
         for robot in robots:

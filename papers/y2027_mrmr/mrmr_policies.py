@@ -10,27 +10,38 @@ import copy
 
 from policy import Policy, AbstractCommunicateAndFollowPath
 from communication import Message
-#from papers.y2027_mrmr.epmarket import EPM, EPAgent, EPOffer
+#from papers.y2027_mrmr.epmarket import EPAgent, EPOffer
 #from papers.y2027_mrmr.exploration_package import ExplorationPackage, ExplorationPackageSet
 #from papers.y2027_mrmr.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
-from .epmarket import EPM, EPAgent, EPOffer
+from .epmarket import EPAgent, EPOffer
 from .exploration_package import ExplorationPackage, ExplorationPackageSet
 from .xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
 
 
+def ep_to_content(ep):
+    """The exploration package as plain data, for sending in a message"""
+    return {"x_min": ep.x_min, "x_max": ep.x_max, "y_min": ep.y_min, "y_max": ep.y_max, "step": ep.step}
+
+
+def ep_from_content(content):
+    """Reconstruct an exploration package from a message"""
+    return ExplorationPackage(content["x_min"], content["x_max"], content["y_min"], content["y_max"], content["step"])
+
+
 class MRMR_Policy(Policy):
-    """Implements the common ancestor of the MRMR (multiresolution multirobot models)"""
+    """Implements the common ancestor of the MRMR (multiresolution multirobot models). The agents 
+    interact only through messages: ep-offer, ep-bid, ep-award and ep-completed 
+    (DESIGN-COMMUNICATION.md)."""
 
     def __init__(self, exp_policy, exp_env):
         self.exp_policy = exp_policy
         self.exp_env = exp_env
         self.name = exp_policy["policy-name"]
         self.timestep = -1 # local way to keep track of time, based on act calls
-        # create the corresponding epagent and join the market
+        # the robot-local ledger of the market
         self.epagent = EPAgent(self.name)
-        self.epagent.policy = self
-        self.epm = EPM().epm
-        self.epm.join(self.epagent)
+        self.outbox = [] # (destination, content) pairs to send in the next communication round
+        self.rounds = 0 # the communication rounds seen so far, counted across timesteps
         self.observations = []
         # initializing the agent's random generator
         seed = self.exp_policy["seed"]
@@ -52,6 +63,23 @@ class MRMR_Policy(Policy):
         """MRMR policies collect the observations"""
         obs["name"] = self.name
         self.observations.append(obs)
+
+    def act_send(self, round):
+        """Send the queued messages"""
+        self.rounds += 1
+        self.before_send()
+        for destination, content in self.outbox:
+            self.robot.com.send(self.robot, destination, Message(content))
+        self.outbox = []
+
+    def before_send(self):
+        """Hook for the messages to be decided at the start of a round"""
+        pass
+
+    def act_receive(self, round, messages):
+        """Dispatch the received messages on their type"""
+        for message in messages:
+            getattr(self, "on_" + message.content["type"].replace("-", "_"))(message)
 
 class MRMR_Pioneer(MRMR_Policy):
     """Implements the Pioneer agent for the MRMR paper"""
@@ -104,7 +132,7 @@ class MRMR_Pioneer(MRMR_Policy):
         self.streak = None
         # check if the ep overlaps with any of the other eps.
         overlap = False
-        for epold in self.epagent.agreed_deals:
+        for epold in self.epagent.agreed_deals.values():
             if epold.ep.overlap(ep):
                 overlap = True
                 break
@@ -147,20 +175,35 @@ class MRMR_Pioneer(MRMR_Policy):
         if self.offer_plan is None:
             return
         #
-        # participation in the market, if we decided to make an offer
+        # participation in the market, if we decided to make an offer: it is broadcast 
+        # in the next communication round
         #
-        epoff = self.epagent.offer(self.offer_plan["ep"], self.offer_plan["value"])
+        self.epagent.offer(self.offer_plan["ep"], self.offer_plan["value"])
         self.offer_plan = None
-        for agentname in self.epm.agents:
-            if agentname == self.name: continue
-            agent = self.epm.agents[agentname]
-            policy = agent.policy
-            canbid, underbid = policy.can_bid(epoff)
-            if canbid:
-                # agent.bid(epoff, epoff.prize - underbid) # bid exactly the prize
-                agent.bid(epoff, epoff.prize) # bid exactly the prize
 
-        self.epm.clearing() # this will call agentC.won
+    def before_send(self):
+        """Clear the offers whose bids arrived (two rounds after sending them), then broadcast the new offers"""
+        for epoff in list(self.epagent.outstanding_offers.values()):
+            if epoff.sent_round is not None and self.rounds >= epoff.sent_round + 2:
+                awarded = self.epagent.clear(epoff.offer_id)
+                if awarded is not None:
+                    self.outbox.append((awarded.assigned_to_name, {"type": "ep-award", 
+                        "offer-id": awarded.offer_id, "price": awarded.bid_prize}))
+        for epoff in self.epagent.outstanding_offers.values():
+            if epoff.sent_round is None:
+                epoff.sent_round = self.rounds
+                self.outbox.append((None, {"type": "ep-offer", "offer-id": epoff.offer_id,
+                    "ep": ep_to_content(epoff.ep), "prize": epoff.prize}))
+
+    def on_ep_offer(self, message):
+        """Pioneers do not bid"""
+        pass
+
+    def on_ep_bid(self, message):
+        self.epagent.receive_bid(message.content["offer-id"], message.sender_name, message.content["value"])
+
+    def on_ep_completed(self, message):
+        self.epagent.offer_finished(message.content["offer-id"], message.content["real-value"])
 
 
 
@@ -174,9 +217,23 @@ class MRMR_Contractor(MRMR_Policy):
         self.plan = []
         self.replan_needed = True # set to true if new ep accepted
     
-    def won(self, epoff):
-        """Called by the agent when the agent won the policy"""
+    def on_ep_offer(self, message):
+        """Bid exactly the prize on an offer that fits into the budget"""
+        content = message.content
+        epoff = EPOffer(content["offer-id"], ep_from_content(content["ep"]), message.sender_name, content["prize"])
+        canbid, underbid = self.can_bid(epoff)
+        if canbid:
+            self.epagent.bid(epoff)
+            self.outbox.append((message.sender_name, {"type": "ep-bid", "offer-id": epoff.offer_id, "value": epoff.prize}))
+
+    def on_ep_award(self, message):
+        """We won the offer: it becomes a commitment, which requires a replan"""
+        self.epagent.won(message.content["offer-id"], message.content["price"])
         self.replan_needed = True
+
+    def offer_of(self, ep):
+        """The committed offer of an exploration package of our plan"""
+        return next(epoff for epoff in self.epagent.commitments.values() if epoff.ep is ep)
 
     def plan_ends_at(self):
         """Returns the location and time where the current plan ends - 
@@ -211,6 +268,7 @@ class MRMR_Contractor(MRMR_Policy):
         # part one: copy the remainder of the current ep
         #
         step = None
+        currentep = None
         if oldplan and oldplan[0]["ep"]:
             currentep = oldplan[0]["ep"]
             while True:
@@ -223,12 +281,13 @@ class MRMR_Contractor(MRMR_Policy):
         #
         # part two: create a plan accross the eps remaining
         #
-        if self.epagent.commitments:
+        if any(x.ep is not currentep for x in self.epagent.commitments.values()):
             xcurrent, ycurrent, t = self.plan_ends_at()            
             print(f"Part two first step {xcurrent}, {ycurrent}, {t}")
             epset = ExplorationPackageSet()
             # epset.ep_to_explore += self.epagent.commitments
-            epset.ep_to_explore = [x.ep for x in self.epagent.commitments]
+            # the remainder of the current ep is already in part one
+            epset.ep_to_explore = [x.ep for x in self.epagent.commitments.values() if x.ep is not currentep]
             _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent], maxtime=1.0)
             ep_xyplan = xyplan_from_ep_path(ep_path, t)
             self.plan += ep_xyplan
@@ -270,7 +329,7 @@ class MRMR_Contractor(MRMR_Policy):
         # get all the eps, except the current one
         # eps = copy.copy(self.epagent.commitments)
         eps = ExplorationPackageSet()
-        eps.ep_to_explore = [x.ep for x in self.epagent.commitments if x.ep != currentep]
+        eps.ep_to_explore = [x.ep for x in self.epagent.commitments.values() if x.ep != currentep]
         eps.add_ep(epoffer.ep)
         # create an optimal path 
         current = [self.robot.x, self.robot.y]
@@ -308,11 +367,13 @@ class MRMR_Contractor(MRMR_Policy):
         # FIXME: self.plan[0]["ep"] supposed to fix when we are not in a new ep... but will this finish the last one?
         if self.current_epoffer and self.plan[0]["ep"] and self.current_epoffer.ep != self.plan[0]["ep"]:
             # current ep was terminated             
-            self.epagent.commitment_executed(self.current_epoffer, real_value = self.current_real_value)
+            epoff = self.epagent.commitment_executed(self.current_epoffer.offer_id, real_value = self.current_real_value)
+            self.outbox.append((epoff.offering_agent_name, {"type": "ep-completed", 
+                "offer-id": epoff.offer_id, "real-value": epoff.real_value}))
             self.current_epoffer = None
             self.current_real_value = 0
         # if the new one is the start of a new epoffer, start it
         if self.plan[0]["ep"] is not None: 
-            self.current_epoffer = self.epm.ep_to_offer[self.plan[0]["ep"]]
+            self.current_epoffer = self.offer_of(self.plan[0]["ep"])
         # move on with the plan
         self.plan.pop(0)

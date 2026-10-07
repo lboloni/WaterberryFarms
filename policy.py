@@ -31,6 +31,16 @@ class Policy:
         """A way for the policy to be notified of the observations made by the robot. The default action here is to ignore it."""
         pass
 
+    def act_send(self, round):
+        """Called in every communication round before any robot receives: send messages through
+        self.robot.com. The default is to send nothing."""
+        pass
+
+    def act_receive(self, round, messages):
+        """Called in every communication round with the messages received in this round.
+        The default is to ignore them."""
+        pass
+
     def __str__(self):
         return self.name
     
@@ -107,14 +117,6 @@ class AbstractCommunicateAndFollowPath(FollowPathPolicy):
     def act(self, delta_t):
         """Call the following of the path"""
         super().act(delta_t)
-        
-    def act_send(self, round):
-        """Send messages - overwrite me in actual implementations"""
-        return []
-
-    def act_receive(self, round, messages):
-        """Receive messages""" 
-        pass
 
 class RandomWaypointPolicy(AbstractWaypointPolicy):
     """A policy that makes the robot follow a random waypoint behavior within a 
@@ -156,7 +158,7 @@ class SimpleCommunicator(AbstractCommunicateAndFollowPath):
 
     def act_send(self, round):
         print(f"{self.name} act_send called at round {round}")
-        self.robot.com.send(self.robot, destination=None, message = Message("hello"))
+        self.robot.com.send(self.robot, destination=None, message = Message({"type": "hello"}))
         
     def act_receive(self, round, messages):
         print(f"{self.name} act_receive called at round {round}")

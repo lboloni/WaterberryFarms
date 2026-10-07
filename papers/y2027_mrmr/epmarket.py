@@ -3,40 +3,46 @@ epmarket.py
 
 Classes of the MultiResolutionMultiRobot paper that implement a market for exploration packages.
 
+The market has no shared state: every agent keeps its own ledger (EPAgent), and agents interact only
+by exchanging messages through the communication medium (see mrmr_policies.py and
+DESIGN-COMMUNICATION.md). Offers are identified by their offer id, because every recipient of a
+message works with its own copy of the offer.
+
 """
 import pprint
 import textwrap
 
 class EPOffer:
     """An offer for the execution of an exploration package"""
-    def __init__(self, ep, offering_agent_name, prize):
+    def __init__(self, offer_id, ep, offering_agent_name, prize):
+        self.offer_id = offer_id
         self.ep = ep
         self.offering_agent_name = offering_agent_name
         self.prize = prize
         self.bid_prize = prize
-        self.bids = {} 
+        self.bids = {} # bidder name -> value, kept by the offering agent
         self.assigned_to_name = None # name of the assigned agent
         self.executed = False
         self.real_value = 0
+        self.sent_round = None # the offering agent's round count when the offer was sent
 
     def __repr__(self):
         pretty_str = "EPOffer: " +  pprint.pformat(self.__dict__, indent=4)
-        #print(pretty_str)
         return pretty_str
-    
-class EPAgent: 
-    """An agent participating in the market"""
+
+
+class EPAgent:
+    """The robot-local ledger of an agent participating in the market"""
     def __init__(self, name):
         self.name = name
-        self.epm = None
         self.money = 0
-        self.commitments = [] # list of the offers to which we committed
-        self.outstanding_offers = {}
-        self.outstanding_bids = {}
-        self.agreed_deals = []
+        self.offer_count = 0 # used to create globally unique offer ids
+        self.commitments = {} # offer id -> offer, the deals we won and have to execute
+        self.outstanding_offers = {} # offer id -> offer, our offers waiting for clearing
+        self.outstanding_bids = {} # offer id -> offer, the offers we bid on and were not awarded
+        self.agreed_deals = {} # offer id -> offer, our offers awarded to a contractor
         self.terminated_deals = []
-        self.policy = None
-        
+        self.declined_offers = []
 
     def __repr__(self):
         retval = f"Agent: {self.name}\n"
@@ -47,115 +53,61 @@ class EPAgent:
         retval+= textwrap.indent("Terminated deals: " + pprint.pformat(self.terminated_deals), " " * 4) + "\n"
         return retval
 
-    def join(self, epm):
-        """Join the epm"""
-        self.epm = epm
-        epm.agents[self.name] = self
-
+    #
+    # The offering agent's side
+    #
     def offer(self, ep, prize):
-        """Create an offer and add it to the epm"""
-        epoff = EPOffer(ep, self.name, prize)
-        self.epm.add_offer(epoff)
-        self.outstanding_offers[epoff] = epoff
+        """Create a new offer with a globally unique id, waiting for bids"""
+        epoff = EPOffer(f"{self.name}-{self.offer_count}", ep, self.name, prize)
+        self.offer_count += 1
+        self.outstanding_offers[epoff.offer_id] = epoff
         return epoff
 
-    def bid(self, epoff, value):
-        """Called by the agent to indicate that it made an offer"""
-        epoff.bids[self.name] = value        
-        self.outstanding_bids[epoff] = epoff
+    def receive_bid(self, offer_id, bidder_name, value):
+        """Record a bid received for one of our offers"""
+        self.outstanding_offers[offer_id].bids[bidder_name] = value
 
-    def won(self, epoff):
-        """Called by the epoff during clearing to show that 
-        you now have a commitment"""
-        self.commitments.append(epoff)
-        if self.policy is not None:
-            self.policy.won(epoff)
+    def clear(self, offer_id):
+        """Award our offer to the lowest bidder, ties broken by name order. Returns the
+        awarded offer, or None if the offer received no bids and was declined."""
+        epoff = self.outstanding_offers.pop(offer_id)
+        if not epoff.bids:
+            self.declined_offers.append(epoff)
+            return None
+        winner = min(sorted(epoff.bids), key=lambda name: epoff.bids[name])
+        epoff.assigned_to_name = winner
+        epoff.bid_prize = epoff.bids[winner]
+        self.agreed_deals[offer_id] = epoff
+        return epoff
 
-    def commitment_executed(self, epoff, real_value):
-        """Called by the agent to indicate that the commitment was executed"""
+    def offer_finished(self, offer_id, real_value):
+        """The contractor executed our offer: pay the prize, receive the real value."""
+        epoff = self.agreed_deals.pop(offer_id)
         epoff.real_value = real_value
         epoff.executed = True
-        self.money += epoff.bid_prize
-        # FIXME: this is probably happening after the last ep
-        if epoff in self.commitments:
-            self.commitments.remove(epoff)
-            offering_agent = self.epm.agents[epoff.offering_agent_name]
-            offering_agent.offer_finished(epoff)
-            print(f"commitment_executed called for epoff {epoff}")
-        else:
-            print(f"For some reason, commitment_executed called although epoff {epoff} is not in commitments")
-            
-
-    def offer_accepted(self, epoff):
-        """The offer was accepted"""
-        self.agreed_deals.append(epoff)
-        self.outstanding_offers.pop(epoff)
-
-    def offer_declined(self, epoff):
-        """The offer was not accepted. In a more sophisticated 
-        system there should be some way to repeat the bid..."""
-        self.outstanding_offers.pop(epoff)
-
-    def offer_finished(self, epoff):
-        """Called by the epmarket to indicated that the offer was finished. Pay the prize, receive the real value."""
-        self.agreed_deals.remove(epoff)
         self.terminated_deals.append(epoff)
         self.money += epoff.real_value - epoff.bid_prize
 
-class EPMarket:
-    """A market for ExplorationPackages. The idea is that the agent is offering the exploration package and a prize money for the exploration. The offering agent will keep the value found through the execution of the exploration."""
+    #
+    # The contractor's side
+    #
+    def bid(self, epoff):
+        """Record that we bid on an offer (our own copy of it)"""
+        self.outstanding_bids[epoff.offer_id] = epoff
 
-    def __init__(self):
-        self.agents = {}   
-        self.pending_offers = [] 
-        self.accepted_offers = [] 
-        # dictionary allowing to match the eps to offers
-        self.ep_to_offer = {}
+    def won(self, offer_id, price):
+        """We were awarded the offer at the given price; it becomes a commitment"""
+        epoff = self.outstanding_bids.pop(offer_id)
+        epoff.bid_prize = price
+        epoff.assigned_to_name = self.name
+        self.commitments[offer_id] = epoff
+        return epoff
 
-    def __repr__(self):
-        retval = "EPMarket:\n"
-        retval+= textwrap.indent("Pending offers: " + pprint.pformat(self.pending_offers), " " * 4) + "\n"
-        retval+= textwrap.indent("Accepted offers: " + pprint.pformat(self.accepted_offers), " " * 4) + "\n"
-        # "Agents:    " + pprint.pformat(self.agents, indent=4)
-        return retval    
-
-    def join(self, agent: EPAgent):
-        self.agents[agent.name] = agent
-        agent.epm = self
-
-    def add_offer(self, epoff):
-        self.pending_offers.append(epoff)
-        self.ep_to_offer[epoff.ep] = epoff
-
-    def clearing(self):
-        """Award the the offers to the highest bidder, or reject it."""
-        for epoff in self.pending_offers:
-            minbid = float('inf')
-            offering_agent = self.agents[epoff.offering_agent_name]
-            bestbidder = None
-            for agentname in epoff.bids:
-                if epoff.bids[agentname] < minbid:
-                    minbid = epoff.bids[agentname]
-                    bestbidder = agentname
-            if bestbidder is None:
-                offering_agent.offer_declined(epoff)
-            else:
-                offering_agent.offer_accepted(epoff)
-                bestbidderagent = self.agents[bestbidder]
-                bestbidderagent.won(epoff)
-                self.accepted_offers.append(epoff)
-        self.pending_offers = []
-
-class EPM:
-    """A singleton class for a single market. Simplifies the implementation"""
-    _instance = None  # Class-level attribute to store the instance
-
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(EPM, cls).__new__(cls)
-            cls._instance.epm = EPMarket()
-        return cls._instance
-
-    def reset(self):
-        """Start a new independent exploration-package market."""
-        self.epm = EPMarket()
+    def commitment_executed(self, offer_id, real_value):
+        """We executed a commitment: we receive the prize"""
+        epoff = self.commitments.pop(offer_id)
+        epoff.real_value = real_value
+        epoff.executed = True
+        self.terminated_deals.append(epoff)
+        self.money += epoff.bid_prize
+        return epoff
