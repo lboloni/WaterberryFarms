@@ -68,6 +68,61 @@ class StoredObservationIM(InformationModel):
         self.observations.append(observation)
 
 
+class ObservationRecord:
+    """Records for every observed cell the number of observations and the first observation (robot, time).
+    Sparse: only observed cells are stored. When several robots observe a new cell in the same timestep,
+    the first one added (first in robot name order in simulate_1day) is credited."""
+
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+        self.cells = {}  # (x, y) -> {"count": n, "first-robot": name, "first-time": t}
+
+    def add(self, observation):
+        cell = (observation["x"], observation["y"])
+        if cell in self.cells:
+            self.cells[cell]["count"] += 1
+        else:
+            self.cells[cell] = {"count": 1, "first-robot": observation["robot"],
+                                "first-time": observation["time"]}
+
+    def count(self, x, y):
+        """Number of observations of the cell, 0 if never observed"""
+        return self.cells[(x, y)]["count"] if (x, y) in self.cells else 0
+
+    def first(self, x, y):
+        """(robot, time) of the first observation of the cell, None if never observed"""
+        if (x, y) not in self.cells:
+            return None
+        cell = self.cells[(x, y)]
+        return cell["first-robot"], cell["first-time"]
+
+    def indices(self, robot = None, since = None, min_count = 1):
+        """Index arrays (xs, ys) of the observed cells, usable as array[xs, ys].
+        robot: only cells first observed by this robot
+        since: only cells first observed at time >= since
+        min_count: only cells observed at least this many times (2 = repeated)"""
+        selected = [cell for cell, rec in self.cells.items()
+                    if (robot is None or rec["first-robot"] == robot)
+                    and (since is None or rec["first-time"] >= since)
+                    and rec["count"] >= min_count]
+        xs = np.array([cell[0] for cell in selected], dtype=int)
+        ys = np.array([cell[1] for cell in selected], dtype=int)
+        return xs, ys
+
+    def mask(self, **filters):
+        """Dense boolean (width x height) array of the cells selected by indices(**filters)"""
+        m = np.zeros((self.width, self.height), dtype=bool)
+        m[self.indices(**filters)] = True
+        return m
+
+    def first_counts(self):
+        """Dict robot name -> number of cells that robot observed first"""
+        counts = {}
+        for rec in self.cells.values():
+            counts[rec["first-robot"]] = counts.get(rec["first-robot"], 0) + 1
+        return counts
+
+
 class AbstractScalarFieldIM(StoredObservationIM):
     """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. A default value can be specified. The uncertainty metric is an estimate of the error at any given location. 
     """

@@ -1,0 +1,3 @@
+# Environment of the Waterberry Farms benchmark paper (arXiv 2305.06243)
+typename: "Miniberry-30"
+precompute-time: 50

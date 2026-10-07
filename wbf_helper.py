@@ -5,7 +5,7 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 """
 
-from exp_run_config import Experiment
+from exp_run_config import Config, Experiment
 from environment import ScalarFieldEnvironment
 from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess
 from policy import FollowPathPolicy
@@ -15,6 +15,7 @@ from path_generators import find_fixed_budget_lawnmower
 import gzip as compress
 import pickle
 import pathlib
+import yaml
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 
@@ -88,6 +89,20 @@ def create_wbfe(exp):
     with compress.open(path_environment, "wb") as f:
         pickle.dump(wbfe, f)
     return wbf, wbfe
+
+def precompute_environment(run):
+    """Precomputes the environment exp/run for its precompute-time, unless an earlier precomputation 
+    completed (its exprun.yaml contains time_done). Returns the environment exp."""
+    exp_env = Config().get_experiment("environment", run)
+    with open(pathlib.Path(exp_env["data_dir"], "exprun.yaml")) as f:
+        if Config.TIME_DONE in yaml.safe_load(f):
+            return exp_env
+    exp_env = Config().get_experiment("environment", run, creation_style="discard-old")
+    wbf, wbfe = create_wbfe(exp_env)
+    for _ in range(exp_env["precompute-time"]):
+        wbfe.proceed()
+    exp_env.done()
+    return exp_env
 
 def customize_geometry(wbf):
     """Make the existing farm area one tomato patch without changing its size."""

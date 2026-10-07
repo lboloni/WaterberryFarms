@@ -1,6 +1,6 @@
 from exp_run_config import Config
 from environment import Environment, EpidemicSpreadEnvironment, PrecalculatedEnvironment, SoilMoistureEnvironment
-from information_model import StoredObservationIM, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric, im_score, im_score_rmse
+from information_model import StoredObservationIM, ObservationRecord, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric, im_score, im_score_rmse
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
@@ -327,10 +327,12 @@ class WaterberryFarmInformationModel(StoredObservationIM):
         self.im_tylcv = None
         self.im_ccr = None
         self.im_soil = None
+        self.record = ObservationRecord(width, height)
 
     def add_observation(self, observation: dict):
-        """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity. 
-        This function just distributes the components of the observation to the subcomponents"""
+        """It assumes that the observation is a dictionary with the components being the individual observations for TYLCV, CCR and soil humidity.
+        This function records who observed which cell, and distributes the components of the observation to the subcomponents"""
+        self.record.add(observation)
         self.im_tylcv.add_observation(observation["TYLCV"])
         self.im_ccr.add_observation(observation["CCR"])
         self.im_soil.add_observation(observation["Soil"])

@@ -124,6 +124,8 @@ def _simulate_timestep(*, results, timestep, timesteps, estimator_interval,
     ]
     if len(observations) != len(robots):
         raise Exception("Every robot must produce one observation per timestep")
+    for robot, observation in zip(robots, observations):
+        observation["robot"] = robot.name
 
     for observation in observations:
         estimator.add_observation(observation)

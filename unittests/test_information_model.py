@@ -7,7 +7,7 @@ from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from information_model import DiskEstimateScalarFieldIM, GaussianProcessScalarFieldIM, PointEstimateScalarFieldIM, StoredObservationIM
+from information_model import DiskEstimateScalarFieldIM, GaussianProcessScalarFieldIM, ObservationRecord, PointEstimateScalarFieldIM, StoredObservationIM
 
 
 def observation(x, y, value):
@@ -73,6 +73,23 @@ class TestInformationModels(unittest.TestCase):
         self.assertEqual(uncertainty.shape, (3, 3))
         self.assertLess(value[0, 0], value[2, 2])
         self.assertGreaterEqual(np.min(uncertainty), 0.0)
+
+
+class TestObservationRecord(unittest.TestCase):
+    def test_counts_and_first_observer(self):
+        record = ObservationRecord(4, 4)
+        for x, y, robot, time in [(1, 1, "a", 0), (2, 1, "a", 1), (1, 1, "b", 1), (3, 3, "b", 2), (1, 1, "a", 3)]:
+            record.add({"x": x, "y": y, "robot": robot, "time": time})
+        self.assertEqual(record.count(1, 1), 3)
+        self.assertEqual(record.count(0, 0), 0)
+        self.assertEqual(record.first(1, 1), ("a", 0))
+        self.assertIsNone(record.first(0, 0))
+        self.assertEqual(record.first_counts(), {"a": 2, "b": 1})
+        self.assertEqual(sorted(zip(*record.indices(robot="a"))), [(1, 1), (2, 1)])
+        self.assertEqual(sorted(zip(*record.indices(since=1))), [(2, 1), (3, 3)])
+        self.assertEqual(sorted(zip(*record.indices(min_count=2))), [(1, 1)])
+        self.assertEqual(record.mask().sum(), 3)
+        self.assertTrue(record.mask(robot="b")[3, 3])
 
 
 if __name__ == "__main__":

@@ -210,6 +210,20 @@ class TestSimulation(unittest.TestCase):
                 after_timestep=advance_environment,
             )
 
+    def test_observations_are_tagged_with_their_robot(self):
+        estimator = RecordingEstimator()
+        results = simulate_1day(
+            environment=ObservationEnvironment(),
+            robots=[robot_with_path("beta", y=1), robot_with_path("alpha")],
+            estimator=estimator,
+            evaluator=ObservationCountEvaluator(),
+            timesteps=2,
+            estimator_interval=2,
+        )
+        self.assertEqual([obs["robot"] for obs in estimator.observations],
+                         ["alpha", "beta", "alpha", "beta"])
+        self.assertEqual(results["observations"][0][1]["robot"], "beta")
+
     def test_miniberry_adaptive_disk_integration(self):
         with tempfile.TemporaryDirectory() as directory:
             farm = MiniberryFarm(scale=1)
