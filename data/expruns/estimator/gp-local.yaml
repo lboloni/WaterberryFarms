@@ -1,0 +1,5 @@
+# local GPs on tiles, for large grids
+estimator-name: "LGP"
+estimator-type: "gp-local"
+gp-normalize-y: true
+gp-max-observations: 300

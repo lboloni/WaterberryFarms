@@ -1,0 +1,4 @@
+# a learned inpainting network for the diseases (papers/estimator_cnn), inverse distance weighting for the soil moisture
+estimator-name: "CNN"
+estimator-type: "cnn"
+soil-estimator-type: "idw"

@@ -1,0 +1,5 @@
+# ordinary kriging: a GP with the prior mean at the default value, a calibrated std, and a bounded cost
+estimator-name: "KRG"
+estimator-type: "gaussian-process"
+gp-normalize-y: true
+gp-max-observations: 300

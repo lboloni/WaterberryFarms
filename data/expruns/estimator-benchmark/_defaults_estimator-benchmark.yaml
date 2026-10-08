@@ -1,0 +1,6 @@
+input-to-notebook:
+  - notebooks/EstimatorBenchmark-Run.ipynb
+time-start-environment: 6   # the day of the environment on which the estimators are evaluated
+checkpoints: [10, 20, 50, 100, 200, 500]
+repetitions: 5              # the seeds of the samplers: 0 .. repetitions - 1
+stop-at: 10.0               # an estimator is stopped once a proceed takes longer (seconds)

@@ -1,0 +1,5 @@
+# indicator kriging for the diseases, inverse distance weighting for the soil moisture
+estimator-name: "IGP"
+estimator-type: "gp-indicator"
+soil-estimator-type: "idw"
+gp-max-observations: 300

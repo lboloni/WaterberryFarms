@@ -1,0 +1,4 @@
+# a particle filter over the epidemic model for the diseases, inverse distance weighting for the soil moisture
+estimator-name: "EPF"
+estimator-type: "epidemic-pf"
+soil-estimator-type: "idw"

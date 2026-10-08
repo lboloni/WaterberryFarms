@@ -16,7 +16,9 @@ from wbf_simulate import simulate_1day
 
 
 def field(values, uncertainty):
-    return SimpleNamespace(value=np.array(values), uncertainty=np.array(uncertainty), default_value=1.0)
+    uncertainty = np.array(uncertainty)
+    return SimpleNamespace(value=np.array(values), uncertainty=uncertainty, default_value=1.0,
+                           probability=None, confidence=lambda: 1.0 - uncertainty)
 
 
 def credit(score, variant, robot):

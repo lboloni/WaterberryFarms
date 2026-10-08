@@ -1,0 +1,8 @@
+# All the estimators on three Miniberry scenarios, with random samples and robot trajectories
+environment-runs: ["miniberry-30", "miniberry-30-tomato", "mrmr-custom-clustered"]
+estimator-runs: ["point", "adaptive-disk", "nearest", "idw", "rbf", "gaussian-process", "gp-kriging", "gp-local",
+                 "gp-indicator", "occupancy", "mrf", "epidemic-pf", "cnn"]
+samplers:
+  - {kind: "random", count: 500}
+  - {kind: "random-waypoint", timesteps: 500}
+  - {kind: "lawnmower", timesteps: 500}

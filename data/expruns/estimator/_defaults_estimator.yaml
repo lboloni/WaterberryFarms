@@ -2,3 +2,45 @@ input-to-notebook: []
 default-tylcv: 1.0   # healthy
 default-ccr: 1.0     # healthy
 default-soil: 0.0
+# the estimator of each field; null = estimator-type
+tylcv-estimator-type: null
+ccr-estimator-type: null
+soil-estimator-type: null
+# disk
+disk-radius: null    # null = adaptive radius
+# Gaussian processes (gaussian-process, gp-local, gp-indicator)
+gp-length-scale: 2.0
+gp-length-scale-bounds: [1, 10]
+gp-noise: 0.5
+gp-restarts: 5
+gp-normalize-y: false
+gp-max-observations: null   # null = all observations, with repetitions
+gp-tile-size: 20            # gp-local
+gp-overlap: 5               # gp-local
+# interpolators (nearest, idw, rbf): the distance at which the confidence falls to 1/e
+length-scale: 3.0
+idw-power: 2.0
+idw-k: 8
+rbf-kernel: "linear"        # a kernel with a constant polynomial term: linear, gaussian, multiquadric, ...
+rbf-epsilon: 1.0
+rbf-smoothing: 0.0
+rbf-neighbors: 32
+# disease estimators (occupancy, mrf): the prior probability that a cell is diseased
+disease-prior: 0.1
+occupancy-p-hit: 0.95
+occupancy-p-false-alarm: 0.05
+occupancy-footprint: 2.0
+mrf-coupling: 0.5
+mrf-iterations: 50
+# epidemic particle filter: the epidemic assumed by the estimator
+pf-particles: 200
+pf-p-transmission: 0.25
+pf-infection-duration: 5
+pf-infection-seeds: null    # null = scaled with the grid
+pf-spread-dimension: null   # null = scaled with the grid
+pf-days: 6                  # the age of the epidemic, e.g. the time-start-environment of the experiments
+pf-localization-radius: 5.0
+pf-observation-noise: 0.05
+pf-seed: 0
+# cnn: the weights, relative to the repository
+cnn-model-path: "papers/estimator_cnn/cnn.pt"

@@ -1,0 +1,4 @@
+# an Ising Markov random field for the diseases, inverse distance weighting for the soil moisture
+estimator-name: "MRF"
+estimator-type: "mrf"
+soil-estimator-type: "idw"

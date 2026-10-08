@@ -7,7 +7,11 @@ Helper functions that are using the Experiment/Run configuration framework. Func
 
 from exp_run_config import Config, Experiment
 from environment import ScalarFieldEnvironment
-from water_berry_farm import FarmGeometry, WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_DiskEstimator, WBF_IM_GaussianProcess
+from water_berry_farm import FarmGeometry, WaterberryFarm, MiniberryFarm, WaterberryFarmEnvironment, WBF_IM_Composite
+from information_model import (PointEstimateScalarFieldIM, DiskEstimateScalarFieldIM, GaussianProcessScalarFieldIM,
+    LocalGPScalarFieldIM, IndicatorGPScalarFieldIM, NearestScalarFieldIM, IDWScalarFieldIM, RBFScalarFieldIM,
+    OccupancyGridIM, MRFScalarFieldIM)
+from epidemic_filter import EpidemicParticleFilterIM
 from policy import FollowPathPolicy
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from path_generators import find_fixed_budget_lawnmower
@@ -17,6 +21,8 @@ import hashlib
 import pickle
 import pathlib
 import yaml
+
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 
@@ -35,30 +41,62 @@ def create_wbf(exp):
         raise Exception(f"Unknown type {exp['typename']}")
 
 
+def create_field_estimator(estimator_type, exp_estimator, width, height, default_value):
+    """Factory function for the scalar-field estimator of one field, from the parameters of an estimator exp"""
+    e = exp_estimator
+    if estimator_type == "point":
+        return PointEstimateScalarFieldIM(width, height, default_value=default_value)
+    if estimator_type == "disk":
+        return DiskEstimateScalarFieldIM(width, height, disk_radius=e["disk-radius"], default_value=default_value)
+    if estimator_type in ["gaussian-process", "gp-local", "gp-indicator"]:
+        kernel = RBF(length_scale=[e["gp-length-scale"]] * 2, length_scale_bounds=e["gp-length-scale-bounds"]) \
+            + WhiteKernel(noise_level=e["gp-noise"])
+        gp = {"gp_kernel": kernel, "default_value": default_value, "n_restarts_optimizer": e["gp-restarts"],
+              "normalize_y": e["gp-normalize-y"], "max_observations": e["gp-max-observations"]}
+        if estimator_type == "gp-local":
+            return LocalGPScalarFieldIM(width, height, tile_size=e["gp-tile-size"], overlap=e["gp-overlap"], **gp)
+        if estimator_type == "gp-indicator":
+            return IndicatorGPScalarFieldIM(width, height, **gp)
+        return GaussianProcessScalarFieldIM(width, height, **gp)
+    if estimator_type == "nearest":
+        return NearestScalarFieldIM(width, height, default_value=default_value, length_scale=e["length-scale"])
+    if estimator_type == "idw":
+        return IDWScalarFieldIM(width, height, default_value=default_value, power=e["idw-power"],
+                                k=e["idw-k"], length_scale=e["length-scale"])
+    if estimator_type == "rbf":
+        return RBFScalarFieldIM(width, height, default_value=default_value, kernel=e["rbf-kernel"],
+            epsilon=e["rbf-epsilon"], smoothing=e["rbf-smoothing"], neighbors=e["rbf-neighbors"],
+            length_scale=e["length-scale"])
+    if estimator_type == "occupancy":
+        return OccupancyGridIM(width, height, default_value=default_value, p_hit=e["occupancy-p-hit"],
+            p_false_alarm=e["occupancy-p-false-alarm"], footprint=e["occupancy-footprint"], prior=e["disease-prior"])
+    if estimator_type == "mrf":
+        return MRFScalarFieldIM(width, height, default_value=default_value, coupling=e["mrf-coupling"],
+                                prior=e["disease-prior"], iterations=e["mrf-iterations"])
+    if estimator_type == "epidemic-pf":
+        return EpidemicParticleFilterIM(width, height, default_value=default_value, particles=e["pf-particles"],
+            p_transmission=e["pf-p-transmission"], infection_duration=e["pf-infection-duration"],
+            infection_seeds=e["pf-infection-seeds"], spread_dimension=e["pf-spread-dimension"],
+            days=e["pf-days"], localization_radius=e["pf-localization-radius"],
+            observation_noise=e["pf-observation-noise"], seed=e["pf-seed"])
+    if estimator_type == "cnn":
+        # a paper-specific estimator with an optional dependency (PyTorch), imported only when used
+        from papers.estimator_cnn.cnn_estimator import CNNScalarFieldIM
+        return CNNScalarFieldIM(width, height, default_value=default_value,
+                                model_path=pathlib.Path(REPOSITORY_ROOT, e["cnn-model-path"]))
+    raise Exception(f"Unknown estimator type {estimator_type}")
+
+
 def create_estimator(exp_estimator, geometry):
-    """Factory function for creating a WBF estimator from an estimator exp"""
-    if exp_estimator["estimator-type"] == "disk":
-        estimator = WBF_IM_DiskEstimator(
-            geometry["width"], geometry["height"],
-            disk_radius=exp_estimator["disk-radius"],
-            default_tylcv=exp_estimator["default-tylcv"],
-            default_ccr=exp_estimator["default-ccr"],
-            default_soil=exp_estimator["default-soil"])
-    elif exp_estimator["estimator-type"] == "gaussian-process":
-        kernel = RBF(length_scale=[exp_estimator["gp-length-scale"]] * 2,
-                     length_scale_bounds=exp_estimator["gp-length-scale-bounds"]) \
-            + WhiteKernel(noise_level=exp_estimator["gp-noise"])
-        estimator = WBF_IM_GaussianProcess(
-            geometry["width"], geometry["height"], gp_kernel=kernel,
-            gp_restarts=exp_estimator["gp-restarts"],
-            gp_normalize_y=exp_estimator["gp-normalize-y"],
-            default_tylcv=exp_estimator["default-tylcv"],
-            default_ccr=exp_estimator["default-ccr"],
-            default_soil=exp_estimator["default-soil"])
-    else:
-        raise Exception(f"Unknown estimator type {exp_estimator['estimator-type']}")
-    estimator.name = exp_estimator["estimator-name"]
-    return estimator
+    """Factory function for creating a WBF estimator from an estimator exp. Every field has the estimator 
+    type <field>-estimator-type, which defaults (null) to estimator-type."""
+    fields = {}
+    for name in ["tylcv", "ccr", "soil"]:
+        estimator_type = exp_estimator[f"{name}-estimator-type"] or exp_estimator["estimator-type"]
+        fields[name] = create_field_estimator(estimator_type, exp_estimator, geometry["width"],
+                                              geometry["height"], exp_estimator[f"default-{name}"])
+    return WBF_IM_Composite(geometry["width"], geometry["height"], fields["tylcv"], fields["ccr"],
+                            fields["soil"], name=exp_estimator["estimator-name"])
 
 
 FIELDS = ["tylcv", "ccr", "soil"]

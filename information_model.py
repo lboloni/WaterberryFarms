@@ -12,6 +12,8 @@ from functools import partial
 
 import numpy as np
 from scipy import signal
+from scipy.interpolate import RBFInterpolator
+from scipy.spatial import cKDTree
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from sklearn.metrics import mean_squared_error
@@ -123,17 +125,70 @@ class ObservationRecord:
         return counts
 
 
+DISEASED = 0.75 # the values below this are diseased: infected (0.5) or destroyed (0.0)
+
+
+def latest_per_cell(observations):
+    """The latest observed value of every observed cell, as (cells: n x 2 int array, values: n array)"""
+    latest = {}
+    for obs in observations:
+        latest[(int(obs["x"]), int(obs["y"]))] = obs["value"]
+    cells = np.array(list(latest.keys()), dtype=int).reshape(-1, 2)
+    return cells, np.array(list(latest.values()), dtype=float)
+
+
+def grid_cells(width, height):
+    """The cells of the grid as a (width * height) x 2 array, in the order of reshape(width, height)"""
+    return np.array(list(itertools.product(range(width), range(height))))
+
+
+def distance_uncertainty(distance, length_scale):
+    """The uncertainty of the "distance" kind: 0 at an observation, approaching 1 far from the observations"""
+    return 1.0 - np.exp(-distance / length_scale)
+
+
+def probability_uncertainty(probability):
+    """The uncertainty of the "probability" kind: 0 when certain, 1 when the probability is 0.5"""
+    return 2.0 * np.sqrt(probability * (1.0 - probability))
+
+
+def value_from_probability(probability, observations):
+    """The expected value of a disease field given the probability that a cell is diseased: healthy is 1.0, 
+    diseased the mean of the observed diseased values (0.5 if none). Observed cells keep their observed value."""
+    cells, values = latest_per_cell(observations)
+    diseased = values[values < DISEASED]
+    diseased_value = diseased.mean() if len(diseased) > 0 else 0.5
+    value = 1.0 - probability * (1.0 - diseased_value)
+    value[cells[:, 0], cells[:, 1]] = values
+    return value
+
+
 class AbstractScalarFieldIM(StoredObservationIM):
-    """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. A default value can be specified. The uncertainty metric is an estimate of the error at any given location. 
+    """An abstract information model for scalar fields that keeps for each point the value and an uncertainty metric. A default value can be specified. 
+    UNCERTAINTY states what the uncertainty array means:
+        coverage    - 0 where an observation covers the cell, 1 elsewhere
+        std         - a posterior standard deviation, in value units (prior_std without observations)
+        probability - 2 sqrt(p (1-p)) of the probability p that the cell is diseased
+        distance    - 1 - exp(-d / length_scale) of the distance d to the nearest observation
+        none        - 1 everywhere
+    Disease estimators may also provide probability: the probability that the cell is diseased (value < 0.75).
     """
+    UNCERTAINTY = "none"
     
     def __init__(self, width, height, default_value = 0):
-        """Initializes the value to zero, the uncertainty to one. 
-        FIXME: what exactly the uncertainty measures??? """
+        """Initializes the value to the default value, the uncertainty to one."""
         super().__init__(width, height)
         self.default_value = default_value
         self.value = np.full((self.width, self.height), default_value)
         self.uncertainty = np.ones((self.width, self.height))
+        self.probability = None
+        self.prior_std = 1.0
+
+    def confidence(self):
+        """The confidence in the estimate of every cell, in [0, 1] (1 = certain), comparable across estimators"""
+        if self.UNCERTAINTY == "std":
+            return np.clip(1.0 - self.uncertainty / self.prior_std, 0, 1)
+        return np.clip(1.0 - self.uncertainty, 0, 1)
 
     def proceed(self, delta_t):
         """Proceeds a step in time. At the current point, this basically performs an estimation, based on the observations. 
@@ -157,14 +212,42 @@ class AbstractScalarFieldIM(StoredObservationIM):
 
 class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
     """An information model for scalar fields where the estimation is happening
-    using a GaussianProcess
+    using a GaussianProcess (with normalize_y, this is ordinary kriging). The uncertainty is the posterior 
+    standard deviation; prior_std is the standard deviation of the fitted prior, used by confidence().
+    max_observations: if not None, the observations are reduced to the latest value of every cell, and 
+    at most max_observations of these, chosen evenly in the order of observation
     """
+    UNCERTAINTY = "std"
 
-    def __init__(self, width, height, gp_kernel = None, default_value = 0.0, n_restarts_optimizer = 5, normalize_y = False):
+    def __init__(self, width, height, gp_kernel = None, default_value = 0.0, n_restarts_optimizer = 5, normalize_y = False, max_observations = None):
         super().__init__(width, height, default_value)
         self.gp_kernel = gp_kernel
         self.n_restarts_optimizer = n_restarts_optimizer
         self.normalize_y = normalize_y
+        self.max_observations = max_observations
+
+    def training_data(self, observations):
+        """The training inputs (cells) and targets of the GP"""
+        if self.max_observations is None:
+            # Unclear if this rounding maters matters???
+            X = [[round(obs[self.X]), round(obs[self.Y])] for obs in observations]
+            Y = [[obs[self.VALUE]] for obs in observations]
+            return X, Y
+        cells, values = latest_per_cell(observations)
+        keep = np.unique(np.linspace(0, len(values) - 1, min(len(values), self.max_observations)).astype(int))
+        return cells[keep].tolist(), values[keep].reshape(-1, 1).tolist()
+
+    def fit_predict(self, X, Y, points):
+        """Fits the GP to the training data and predicts the mean and std at the points; sets prior_std"""
+        kernel = self.gp_kernel
+        if kernel is None:
+            kernel = RBF(length_scale = [2.0, 2.0], length_scale_bounds = [1, 10]) + WhiteKernel(noise_level=0.5)
+        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=self.n_restarts_optimizer, normalize_y=self.normalize_y, random_state=0)
+        gpr.fit(X, Y)
+        mean, std = gpr.predict(points, return_std = True)
+        scale = float(np.ravel(gpr._y_train_std)[0]) if self.normalize_y else 1.0
+        self.prior_std = float(np.sqrt(gpr.kernel_.diag(np.zeros((1, 2)))[0])) * scale
+        return np.ravel(mean), np.ravel(std)
 
     def estimate(self, observations, prior_value, prior_uncertainty):
         # calculate the estimate for each gaussian process
@@ -173,33 +256,192 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
         est = np.full([self.width,self.height], self.default_value)
         stdmap = np.ones([self.width,self.height])
         if len(observations) == 0:
+            self.prior_std = 1.0
             return est, stdmap
-        X = []
-        Y = []
-        for obs in observations:
-            # Unclear if this rounding maters matters???
-            X.append([round(obs[self.X]), round(obs[self.Y])])
-            Y.append([obs[self.VALUE]])
-        # fit the gaussian process
-        kernel = self.gp_kernel
-        if kernel is None:
-            kernel = RBF(length_scale = [2.0, 2.0], length_scale_bounds = [1, 10]) + WhiteKernel(noise_level=0.5)
-
-        # rbf = RBF(length_scale = [2.0, 2.0], length_scale_bounds = "fixed")
-        gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=self.n_restarts_optimizer, normalize_y=self.normalize_y, random_state=0)
-        gpr.fit(X,Y)
-        x = []
-        X = np.array(list(itertools.product(range(self.width), range(self.height))))
-        Y, std = gpr.predict(X, return_std = True)
-        for i, idx in enumerate(X):
-            est[idx[0], idx[1]] = Y[i]
-            stdmap[idx[0], idx[1]] = std[i]
-        # print(std.sum())
+        X, Y = self.training_data(observations)
+        points = grid_cells(self.width, self.height)
+        Y, std = self.fit_predict(X, Y, points)
+        est[points[:, 0], points[:, 1]] = Y
+        stdmap[points[:, 0], points[:, 1]] = std
         return est, stdmap
+
+
+class LocalGPScalarFieldIM(GaussianProcessScalarFieldIM):
+    """Local Gaussian processes: the grid is divided into tiles of tile_size, and every tile has its own GP, 
+    trained on the observations within the tile extended by overlap. Tiles without observations keep the 
+    default value and the prior. The cost grows with the observations per tile, not with all observations."""
+
+    def __init__(self, width, height, gp_kernel = None, default_value = 0.0, n_restarts_optimizer = 5, normalize_y = False, max_observations = None, tile_size = 20, overlap = 5):
+        super().__init__(width, height, gp_kernel, default_value, n_restarts_optimizer, normalize_y, max_observations)
+        self.tile_size = tile_size
+        self.overlap = overlap
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        est = np.full([self.width,self.height], self.default_value, dtype=float)
+        stdmap = np.ones([self.width,self.height])
+        X, Y = self.training_data(observations) if observations else ([], [])
+        X, Y = np.array(X).reshape(-1, 2), np.array(Y).reshape(-1, 1)
+        prior_stds = []
+        for x0 in range(0, self.width, self.tile_size):
+            for y0 in range(0, self.height, self.tile_size):
+                x1, y1 = min(x0 + self.tile_size, self.width), min(y0 + self.tile_size, self.height)
+                inside = ((X[:, 0] >= x0 - self.overlap) & (X[:, 0] < x1 + self.overlap) &
+                          (X[:, 1] >= y0 - self.overlap) & (X[:, 1] < y1 + self.overlap))
+                if not inside.any():
+                    continue
+                points = np.array(list(itertools.product(range(x0, x1), range(y0, y1))))
+                mean, std = self.fit_predict(X[inside], Y[inside], points)
+                prior_stds.append(self.prior_std)
+                est[points[:, 0], points[:, 1]] = mean
+                stdmap[points[:, 0], points[:, 1]] = std
+        self.prior_std = max(prior_stds) if prior_stds else 1.0
+        return est, stdmap
+
+
+class IndicatorGPScalarFieldIM(GaussianProcessScalarFieldIM):
+    """Indicator kriging for a disease field: a GP regression of the indicator of the diseased cells 
+    (value < 0.75), whose clipped mean is the probability that a cell is diseased. The prior mean of the 
+    indicator is 0, i.e. healthy."""
+    UNCERTAINTY = "probability"
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        indicators = [dict(obs, value=1.0 if obs[self.VALUE] < DISEASED else 0.0) for obs in observations]
+        if indicators:
+            X, Y = self.training_data(indicators)
+            mean, _ = self.fit_predict(X, Y, grid_cells(self.width, self.height))
+            probability = np.clip(mean, 0, 1).reshape(self.width, self.height)
+        else:
+            probability = np.zeros((self.width, self.height))
+        self.probability = probability
+        return value_from_probability(probability, observations), probability_uncertainty(probability)
+
+
+class NearestScalarFieldIM(AbstractScalarFieldIM):
+    """Nearest-neighbor (Voronoi) interpolation: every cell takes the latest value of the nearest observed cell"""
+    UNCERTAINTY = "distance"
+
+    def __init__(self, width, height, default_value = 0.0, length_scale = 3.0):
+        super().__init__(width, height, default_value)
+        self.length_scale = length_scale
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        if not observations:
+            return np.full((self.width, self.height), self.default_value, dtype=float), np.ones((self.width, self.height))
+        cells, values = latest_per_cell(observations)
+        distance, index = cKDTree(cells).query(grid_cells(self.width, self.height))
+        return (values[index].reshape(self.width, self.height),
+                distance_uncertainty(distance, self.length_scale).reshape(self.width, self.height))
+
+
+class IDWScalarFieldIM(AbstractScalarFieldIM):
+    """Inverse distance weighting: every cell is the mean of the k nearest observed cells, weighted by 
+    1 / distance^power; observed cells keep their value"""
+    UNCERTAINTY = "distance"
+
+    def __init__(self, width, height, default_value = 0.0, power = 2.0, k = 8, length_scale = 3.0):
+        super().__init__(width, height, default_value)
+        self.power, self.k, self.length_scale = power, k, length_scale
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        if not observations:
+            return np.full((self.width, self.height), self.default_value, dtype=float), np.ones((self.width, self.height))
+        cells, values = latest_per_cell(observations)
+        grid = grid_cells(self.width, self.height)
+        k = min(self.k, len(values))
+        distance, index = cKDTree(cells).query(grid, k=k)
+        distance, index = distance.reshape(len(grid), k), index.reshape(len(grid), k)
+        weights = 1.0 / np.maximum(distance, 1e-12) ** self.power
+        value = (weights * values[index]).sum(axis=1) / weights.sum(axis=1)
+        exact = distance[:, 0] == 0
+        value[exact] = values[index[exact, 0]]
+        return (value.reshape(self.width, self.height),
+                distance_uncertainty(distance[:, 0], self.length_scale).reshape(self.width, self.height))
+
+
+class RBFScalarFieldIM(AbstractScalarFieldIM):
+    """Radial basis function interpolation (scipy RBFInterpolator, with a constant polynomial term, 
+    so that collinear observations along a trajectory are supported), clipped to [0, 1]. 
+    neighbors: if not None, every cell is interpolated from its nearest observed cells only."""
+    UNCERTAINTY = "distance"
+
+    def __init__(self, width, height, default_value = 0.0, kernel = "linear", epsilon = 1.0, smoothing = 0.0, neighbors = 32, length_scale = 3.0):
+        super().__init__(width, height, default_value)
+        self.kernel, self.epsilon, self.smoothing, self.neighbors, self.length_scale = kernel, epsilon, smoothing, neighbors, length_scale
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        if not observations:
+            return np.full((self.width, self.height), self.default_value, dtype=float), np.ones((self.width, self.height))
+        cells, values = latest_per_cell(observations)
+        grid = grid_cells(self.width, self.height)
+        neighbors = None if self.neighbors is None else min(self.neighbors, len(values))
+        interpolator = RBFInterpolator(cells, values, kernel=self.kernel, epsilon=self.epsilon, 
+                                       smoothing=self.smoothing, neighbors=neighbors, degree=0)
+        value = np.clip(interpolator(grid), 0, 1)
+        distance, _ = cKDTree(cells).query(grid)
+        return (value.reshape(self.width, self.height),
+                distance_uncertainty(distance, self.length_scale).reshape(self.width, self.height))
+
+
+class OccupancyGridIM(AbstractScalarFieldIM):
+    """A Bayesian occupancy grid of the diseased cells (value < 0.75) of a disease field, in log-odds. 
+    The latest observation of every cell is evidence for that cell and, weighted by exp(-d^2 / footprint^2), 
+    for the cells around it; the sensor model is P(observed diseased | diseased) = p_hit and 
+    P(observed diseased | healthy) = p_false_alarm. Every cell counts once, as the simulated sensor is 
+    deterministic (a parked robot gives no new evidence)."""
+    UNCERTAINTY = "probability"
+
+    def __init__(self, width, height, default_value = 1.0, p_hit = 0.95, p_false_alarm = 0.05, footprint = 2.0, prior = 0.1):
+        super().__init__(width, height, default_value)
+        self.p_hit, self.p_false_alarm, self.footprint, self.prior = p_hit, p_false_alarm, footprint, prior
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        logodds = np.full((self.width, self.height), math.log(self.prior / (1 - self.prior)))
+        cells, values = latest_per_cell(observations)
+        radius = int(math.ceil(3 * self.footprint))
+        for (x, y), observed in zip(cells, values):
+            if observed < DISEASED:
+                evidence = math.log(self.p_hit / self.p_false_alarm)
+            else:
+                evidence = math.log((1 - self.p_hit) / (1 - self.p_false_alarm))
+            x0, x1 = max(0, x - radius), min(self.width, x + radius + 1)
+            y0, y1 = max(0, y - radius), min(self.height, y + radius + 1)
+            dx, dy = np.meshgrid(np.arange(x0, x1) - x, np.arange(y0, y1) - y, indexing="ij")
+            weight = np.exp(-(dx**2 + dy**2) / self.footprint**2) if self.footprint > 0 else (dx**2 + dy**2 == 0) * 1.0
+            logodds[x0:x1, y0:y1] += weight * evidence
+        probability = 1.0 / (1.0 + np.exp(-np.clip(logodds, -30, 30)))
+        self.probability = probability
+        return value_from_probability(probability, observations), probability_uncertainty(probability)
+
+
+class MRFScalarFieldIM(AbstractScalarFieldIM):
+    """An Ising Markov random field of the diseased cells of a disease field: spins +1 (diseased) / -1 
+    (healthy), coupled to their 4 neighbors with coupling, biased by the prior probability; the observed 
+    cells are clamped. The marginal probabilities are approximated by mean-field iterations."""
+    UNCERTAINTY = "probability"
+
+    def __init__(self, width, height, default_value = 1.0, coupling = 0.5, prior = 0.1, iterations = 50):
+        super().__init__(width, height, default_value)
+        self.coupling, self.prior, self.iterations = coupling, prior, iterations
+
+    def estimate(self, observations, prior_value, prior_uncertainty):
+        bias = 0.5 * math.log(self.prior / (1 - self.prior))
+        magnetization = np.full((self.width, self.height), 2 * self.prior - 1)
+        cells, values = latest_per_cell(observations)
+        spins = np.where(values < DISEASED, 1.0, -1.0)
+        kernel = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+        for _ in range(self.iterations):
+            magnetization[cells[:, 0], cells[:, 1]] = spins
+            neighbors = signal.convolve2d(magnetization, kernel, mode="same")
+            magnetization = np.tanh(bias + self.coupling * neighbors)
+        magnetization[cells[:, 0], cells[:, 1]] = spins
+        probability = (1 + magnetization) / 2
+        self.probability = probability
+        return value_from_probability(probability, observations), probability_uncertainty(probability)
 
 class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
     """An information model which performs a point based estimation. In the precise point where we have an estimate, out uncertainty is zero, while everywhere else the uncertainty is 1.00
     """
+    UNCERTAINTY = "coverage"
 
     def __init__(self, width, height, default_value = 0.0):
         super().__init__(width, height, default_value)
@@ -226,6 +468,7 @@ class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
 class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
     """An information model which performs a disk based estimation.
     """
+    UNCERTAINTY = "coverage"
 
     def __init__(self, width, height, disk_radius=5, default_value=0):
         super().__init__(width, height, default_value)

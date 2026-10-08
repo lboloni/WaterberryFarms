@@ -24,7 +24,7 @@ It contains the following major components:
 
 ## How to use
 
-* The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, ipywidgets and bokeh. 
+* The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, pandas, ipywidgets and bokeh. The learned estimator in `papers/estimator_cnn` additionally needs PyTorch.
 * In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy.
 
 ## Explicit simulation API

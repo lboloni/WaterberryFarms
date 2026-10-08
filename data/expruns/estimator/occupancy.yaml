@@ -1,0 +1,4 @@
+# a Bayesian occupancy grid for the diseases, inverse distance weighting for the soil moisture
+estimator-name: "OCC"
+estimator-type: "occupancy"
+soil-estimator-type: "idw"

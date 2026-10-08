@@ -325,28 +325,32 @@ class WaterberryFarmInformationModel(StoredObservationIM):
         """Visualize the estimates and the uncertainty models for the three components"""
         pass
 
-class WBF_IM_DiskEstimator(WaterberryFarmInformationModel):
+class WBF_IM_Composite(WaterberryFarmInformationModel):
+    """WBF information model with a separately chosen scalar-field estimator for each of the three fields"""
+    def __init__(self, width, height, im_tylcv, im_ccr, im_soil, name = "composite"):
+        super().__init__(width, height)
+        self.name = name
+        self.im_tylcv, self.im_ccr, self.im_soil = im_tylcv, im_ccr, im_soil
+
+class WBF_IM_DiskEstimator(WBF_IM_Composite):
     """WBF information model using a disk estimator with the specified disk radius for all three measures. For default value, we assume healthy for strawberry and tomato, and zero water for the humidity"""
     def __init__(self, width, height, disk_radius = None,
                  default_tylcv = 1.0, default_ccr = 1.0, default_soil = 0.0):
-        super().__init__(width, height)
-        self.name = "AD"
-        self.im_tylcv = DiskEstimateScalarFieldIM(
-            width, height, disk_radius=disk_radius, default_value=default_tylcv)
-        self.im_ccr = DiskEstimateScalarFieldIM(
-            width, height, disk_radius=disk_radius, default_value=default_ccr)
-        self.im_soil = DiskEstimateScalarFieldIM(
-            width, height, disk_radius=disk_radius, default_value=default_soil)
+        super().__init__(width, height,
+            DiskEstimateScalarFieldIM(width, height, disk_radius=disk_radius, default_value=default_tylcv),
+            DiskEstimateScalarFieldIM(width, height, disk_radius=disk_radius, default_value=default_ccr),
+            DiskEstimateScalarFieldIM(width, height, disk_radius=disk_radius, default_value=default_soil),
+            name = "AD")
 
-class WBF_IM_GaussianProcess(WaterberryFarmInformationModel):
+class WBF_IM_GaussianProcess(WBF_IM_Composite):
     """WBF information model using a gaussian process estimator for all three measures. For default value, we assume healthy for strawberry and tomato, and zero water for the humidity"""
     def __init__(self, width, height, gp_kernel = None, gp_restarts = 5, gp_normalize_y = False,
                  default_tylcv = 1.0, default_ccr = 1.0, default_soil = 0.0):
-        super().__init__(width, height)
-        self.name = "GP"
-        self.im_tylcv = GaussianProcessScalarFieldIM(width, height, gp_kernel, default_tylcv, gp_restarts, gp_normalize_y)
-        self.im_ccr = GaussianProcessScalarFieldIM(width, height, gp_kernel, default_ccr, gp_restarts, gp_normalize_y)
-        self.im_soil = GaussianProcessScalarFieldIM(width, height, gp_kernel, default_soil, gp_restarts, gp_normalize_y)
+        super().__init__(width, height,
+            GaussianProcessScalarFieldIM(width, height, gp_kernel, default_tylcv, gp_restarts, gp_normalize_y),
+            GaussianProcessScalarFieldIM(width, height, gp_kernel, default_ccr, gp_restarts, gp_normalize_y),
+            GaussianProcessScalarFieldIM(width, height, gp_kernel, default_soil, gp_restarts, gp_normalize_y),
+            name = "GP")
 
 class WBF_Score:
     """The ancestor of all the classes"""
@@ -466,9 +470,10 @@ class WBF_Score_VoI(WBF_Score):
     def score_components():
         return WBF_Score_VoI.VARIANTS + ["voi"]
 
-    def expect(self, value):
-        """Expected value of knowing the cells with the estimated value"""
-        p_pos = np.clip(2.0 * (1.0 - value), 0, 1)
+    def expect(self, value, probability = None):
+        """Expected value of knowing the cells, from the probability that they are diseased if the 
+        estimator provides it, otherwise derived from the estimated value"""
+        p_pos = np.clip(2.0 * (1.0 - value), 0, 1) if probability is None else probability
         return p_pos * self.v_pos + (1 - p_pos) * self.v_neg
 
     def score(self, env, im):
@@ -491,8 +496,8 @@ class WBF_Score_VoI(WBF_Score):
         """Adds the VoI totals of one disease field to retval, and its discovery credits and update terms
         since the previous scoring event to credits"""
         truth = np.where(envfield.value < 1.0, self.v_pos, self.v_neg)
-        expect = self.expect(imfield.value)
-        c = np.clip(1.0 - imfield.uncertainty, 0, 1)
+        expect = self.expect(imfield.value, imfield.probability)
+        c = imfield.confidence()
         voi_est = c * expect + (1 - c) * self.v_unknown
         unobserved = mask & ~observed
         absolute = np.sum(truth[mask & observed])
