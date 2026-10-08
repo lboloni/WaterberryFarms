@@ -20,11 +20,32 @@ It contains the following major components:
 
 * __World__: A world for MREM is composed of an environmental model, a global information model and a collection of robots. Processing the evolution of time through the world object allows the modeling of certain scenarios. 
 
-* __User interface__: The framework provides an ipywidget + bokeh based user interface, runnable in a Jupyter notebook. It allows the visualization of the environment, the robot location and information model. It also provides a control panel for limited interactive control of the robots.
+* __User interface__: An early ipywidgets + bokeh based interactive user interface is kept, unmaintained, in `obsolete/earlyinteractive`.
+
+## Installation
+
+Waterberry Farms needs Python 3.10 or newer, and the [ExpRunFlow](https://github.com/lboloni/ExpRunFlow) exp/run and flow library checked out next to this repository. In a virtual environment, from the root of this repository:
+
+```shell
+python -m pip install -e "../ExpRunFlow[flow]"
+python -m pip install -r requirements.txt
+```
+
+ExpRunFlow brings PyTorch, papermill and tqdm. `requirements.txt` lists the simulator's own libraries: numpy, scipy, scikit-learn, matplotlib, pandas, imageio, PyYAML, networkx, and ipykernel. ipykernel is needed because the flows execute their notebooks with the `python3` kernel of the environment. The quotes around `"../ExpRunFlow[flow]"` are required in zsh, the default shell on macOS.
+
+Optional libraries, for a few notebooks only:
+- `ipywidgets`, for the legacy `src/notebooks/Robot.ipynb`;
+- `moviepy` 1.x, for `src/notebooks/papers/Video-WaterBerryBenchmarkArxiv.ipynb`, which uses `moviepy.editor`, removed in moviepy 2.
+
+Check the installation with the test suite (see `TESTING.md`):
+
+```shell
+MPLBACKEND=Agg python -m unittest discover -s src/test
+```
 
 ## How to use
 
-* The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, pandas, ipywidgets, bokeh, and the [ExpRunFlow](https://github.com/lboloni/ExpRunFlow) exp/run and flow library, which in turn needs PyTorch. The code is in `src`, the built-in exp/run templates in `data/expruns`.
+* The code is in `src`, the built-in exp/run templates in `data/expruns`.
 * In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy.
 
 ## Explicit simulation API
@@ -85,10 +106,7 @@ directories, lists generated PDF figures, and previews selected final figures
 inside the notebook. A failed stage is re-raised after the report is shown, so
 Papermill still records the flow as failed.
 
-```shell
-python -m pip install -e ../ExpRunFlow[flow]
-python -m pip install -r requirements-flow.txt
-```
+The flows need only the standard installation (see Installation): papermill comes with `ExpRunFlow[flow]`, and the kernel with `ipykernel`.
 
 The exp/run framework and the generic flow helpers are implemented by ExpRunFlow,
 which documents them in `docs/DESIGN-ExpRun.md` and `docs/DESIGN-Flows.md`.

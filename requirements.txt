@@ -1,0 +1,14 @@
+# The libraries used by the Waterberry Farms simulator, its tests, notebooks and flows.
+# Install ExpRunFlow first (it brings PyTorch, papermill and tqdm), see README.md:
+#   python -m pip install -e "../ExpRunFlow[flow]"
+#   python -m pip install -r requirements.txt
+# The lower bounds are the versions verified with Python 3.14.
+numpy>=2.5
+scipy>=1.18
+scikit-learn>=1.9
+matplotlib>=3.11
+pandas>=3.0
+imageio>=2.38
+PyYAML>=6.0
+networkx>=3.7      # the GLR policies (papers/y2023_glr)
+ipykernel>=7.4     # the python3 kernel with which the flows execute their notebooks
