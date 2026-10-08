@@ -66,7 +66,7 @@ Visualization code plots score events at their recorded timestamps. It does not 
 Run the complete baseline from the repository root with the project virtual environment:
 
 ```shell
-MPLBACKEND=Agg MPLCONFIGDIR=/tmp/wbf-matplotlib /Users/lboloni/Documents/Develop/VirtualEnvs/WBF/bin/python -m unittest discover -s unittests -v
+MPLBACKEND=Agg MPLCONFIGDIR=/tmp/wbf-matplotlib /Users/lboloni/Documents/Develop/VirtualEnvs/WBF/bin/python -m unittest discover -s src/test -v
 ```
 
-The suite uses explicit random seeds and temporary directories. It does not use the machine-specific Waterberry Farms configuration or existing experiment data.
+The exp/run framework and the generic flow helpers are tested in ExpRunFlow. The suite uses explicit random seeds and temporary directories. It does not use the machine-specific Waterberry Farms configuration or existing experiment data.

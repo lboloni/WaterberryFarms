@@ -24,7 +24,7 @@ It contains the following major components:
 
 ## How to use
 
-* The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, pandas, ipywidgets and bokeh. The learned estimator in `papers/estimator_cnn` additionally needs PyTorch.
+* The Waterberry Farms benchmark is implemented in Python 3.x. It relies on numpy, scipy, sklearn, pandas, ipywidgets, bokeh, and the [ExpRunFlow](https://github.com/lboloni/ExpRunFlow) exp/run and flow library, which in turn needs PyTorch. The code is in `src`, the built-in exp/run templates in `data/expruns`.
 * In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy.
 
 ## Explicit simulation API
@@ -60,7 +60,7 @@ External components require no registration and need not inherit from a Waterber
 - A replacement robot provides `name`, `x`, `y`, `policy`, `enact_policy()`, `proceed(delta_t)`, and `add_observation(observation)`.
 - A communication medium provides `robots`, `add_robot(robot)`, `send(...)`, and `receive(robot)`.
 
-The optional `after_timestep` and `after_day` hooks both receive `(results, environment, robots, estimator, evaluator)`. See `examples/external_components.py` for a complete external policy and evaluator.
+The optional `after_timestep` and `after_day` hooks both receive `(results, environment, robots, estimator, evaluator)`. See `src/examples/external_components.py` for a complete external policy and evaluator.
 
 ## Experiment flows
 
@@ -68,8 +68,8 @@ Built-in exp/run templates are organized by family under `data/expruns`.
 
 The two supported flow notebooks are:
 
-- `notebooks/Flow-1Robot1Day.ipynb` for the single-robot benchmark.
-- `notebooks/Flow-nRobot1Day.ipynb` for the MRMR multi-robot benchmark.
+- `src/notebooks/Flow-1Robot1Day.ipynb` for the single-robot benchmark.
+- `src/notebooks/Flow-nRobot1Day.ipynb` for the MRMR multi-robot benchmark.
 
 Each flow creates an external workspace below the configured `flows_path`,
 precomputes every referenced environment once, runs the selected algorithms,
@@ -86,9 +86,12 @@ inside the notebook. A failed stage is re-raised after the report is shown, so
 Papermill still records the flow as failed.
 
 ```shell
+python -m pip install -e ../ExpRunFlow[flow]
 python -m pip install -r requirements-flow.txt
 ```
 
+The exp/run framework and the generic flow helpers are implemented by ExpRunFlow,
+which documents them in `docs/DESIGN-ExpRun.md` and `docs/DESIGN-Flows.md`.
 The companion settings workspace documents the exp/run contract in
 `design/DESIGN-EXPRUN.md` and the workspace, execution, reporting, and
 flow-membership behavior in `design/DESIGN-FLOWS.md`.

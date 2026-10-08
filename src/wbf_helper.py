@@ -22,7 +22,7 @@ import pickle
 import pathlib
 import yaml
 
-REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parent
+SRC_ROOT = pathlib.Path(__file__).resolve().parent
 import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 
@@ -83,7 +83,7 @@ def create_field_estimator(estimator_type, exp_estimator, width, height, default
         # a paper-specific estimator with an optional dependency (PyTorch), imported only when used
         from papers.estimator_cnn.cnn_estimator import CNNScalarFieldIM
         return CNNScalarFieldIM(width, height, default_value=default_value,
-                                model_path=pathlib.Path(REPOSITORY_ROOT, e["cnn-model-path"]))
+                                model_path=pathlib.Path(SRC_ROOT, e["cnn-model-path"]))
     raise Exception(f"Unknown estimator type {estimator_type}")
 
 

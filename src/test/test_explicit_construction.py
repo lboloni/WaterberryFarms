@@ -49,7 +49,7 @@ class TestExplicitConstruction(unittest.TestCase):
 
     def test_estimator_factory(self):
         geometry = {"width": 10, "height": 10}
-        path = pathlib.Path(__file__).resolve().parents[1] / "data" / "expruns" / "estimator" / "_defaults_estimator.yaml"
+        path = pathlib.Path(__file__).resolve().parents[2] / "data" / "expruns" / "estimator" / "_defaults_estimator.yaml"
         with open(path) as f:
             defaults = yaml.safe_load(f)
         disk = wbf_helper.create_estimator(

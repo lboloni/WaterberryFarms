@@ -19,7 +19,7 @@ from wbf_helper import cache_is_current, create_wbfe, environment_configuration,
 
 def environment_exp(directory, **values):
     """An environment exp with the shipped defaults, its data dir and exp/run file in the directory"""
-    defaults = pathlib.Path(__file__).resolve().parents[1] / "data" / "expruns" / "environment" / "_defaults_environment.yaml"
+    defaults = pathlib.Path(__file__).resolve().parents[2] / "data" / "expruns" / "environment" / "_defaults_environment.yaml"
     with open(defaults) as f:
         exp = yaml.safe_load(f)
     data_dir = pathlib.Path(directory, "data")

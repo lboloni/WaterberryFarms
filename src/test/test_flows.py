@@ -11,23 +11,14 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from wbf_flow import (
-    build_flow_entries,
-    build_mrmr_2027_flow_entries,
-    executed_notebook_path,
-    format_duration,
-    get_flow_report,
-    run_flow,
-    run_notebook,
-    setup_flow,
-)
+from wbf_flow import build_flow_entries, build_mrmr_2027_flow_entries
 from wbf_helper import create_wbfe
 
 
-REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPERIMENT_ROOT = REPOSITORY_ROOT / "data" / "expruns"
+SRC_ROOT = pathlib.Path(__file__).resolve().parents[1]
+EXPERIMENT_ROOT = SRC_ROOT.parent / "data" / "expruns"
 FLOW_NOTEBOOKS = [
-    REPOSITORY_ROOT / "notebooks" / name
+    SRC_ROOT / "notebooks" / name
     for name in (
         "Environment-Precalc.ipynb",
         "1Robot1Day-Run.ipynb",
@@ -41,7 +32,7 @@ FLOW_NOTEBOOKS = [
     )
 ]
 MRMR_2027_NOTEBOOKS = [
-    REPOSITORY_ROOT / "papers" / "y2027_mrmr" / name
+    SRC_ROOT / "papers" / "y2027_mrmr" / name
     for name in (
         "MRMR-Run.ipynb",
         "MRMR-Visualize-DetectionMap.ipynb",
@@ -54,39 +45,18 @@ MRMR_2027_NOTEBOOKS = [
 ]
 FLOW_NOTEBOOKS += MRMR_2027_NOTEBOOKS
 TOP_LEVEL_FLOW_NOTEBOOKS = [
-    REPOSITORY_ROOT / "notebooks" / "Flow-1Robot1Day.ipynb",
-    REPOSITORY_ROOT / "notebooks" / "Flow-nRobot1Day.ipynb",
-    REPOSITORY_ROOT / "papers" / "y2027_mrmr" / "MRMR-Flow.ipynb",
+    SRC_ROOT / "notebooks" / "Flow-1Robot1Day.ipynb",
+    SRC_ROOT / "notebooks" / "Flow-nRobot1Day.ipynb",
+    SRC_ROOT / "papers" / "y2027_mrmr" / "MRMR-Flow.ipynb",
 ]
 
 
 
 def environment_defaults():
     """The defaults of the environment exp/runs, as shipped"""
-    path = pathlib.Path(__file__).resolve().parents[1] / "data" / "expruns" / "environment" / "_defaults_environment.yaml"
+    path = pathlib.Path(__file__).resolve().parents[2] / "data" / "expruns" / "environment" / "_defaults_environment.yaml"
     with open(path) as f:
         return yaml.safe_load(f)
-
-class FlowConfig:
-    def __init__(self, exprun_path, flows_path, results_path):
-        self.exprun_path = exprun_path
-        self.values = {
-            "flows_path": flows_path,
-            "experiment_data": results_path,
-        }
-
-    def __getitem__(self, key):
-        return self.values[key]
-
-    def get_exprun_path(self):
-        return self.exprun_path
-
-    def set_exprun_path(self, path):
-        self.exprun_path = path
-
-    def set_results_path(self, path):
-        self.values["experiment_data"] = path
-
 
 class TestFlowMetadata(unittest.TestCase):
     def test_every_resolved_exprun_has_existing_notebook_entries(self):
@@ -109,7 +79,7 @@ class TestFlowMetadata(unittest.TestCase):
                     f"{family}/{run_path.stem}")
                 for notebook in values["input-to-notebook"]:
                     self.assertTrue(
-                        (REPOSITORY_ROOT / notebook).is_file(),
+                        (SRC_ROOT / notebook).is_file(),
                         f"{family}/{run_path.stem}: {notebook}")
 
     def test_flow_notebooks_have_no_saved_execution_state(self):
@@ -155,7 +125,7 @@ class TestFlowMetadata(unittest.TestCase):
                 expected.setdefault(notebook, set()).add(run_path.stem)
 
         for path in MRMR_2027_NOTEBOOKS:
-            relative_path = path.relative_to(REPOSITORY_ROOT).as_posix()
+            relative_path = path.relative_to(SRC_ROOT).as_posix()
             with path.open() as handle:
                 notebook = json.load(handle)
             parameter_cell = next(
@@ -193,7 +163,7 @@ class TestFlowMetadata(unittest.TestCase):
             self.assertIn("raise flow_error", source, path.name)
 
     def test_mrmr_flow_embeds_all_generated_figure_previews(self):
-        path = (REPOSITORY_ROOT / "papers" / "y2027_mrmr" /
+        path = (SRC_ROOT / "papers" / "y2027_mrmr" /
                 "MRMR-Flow.ipynb")
         with path.open() as handle:
             notebook = json.load(handle)
@@ -206,232 +176,9 @@ class TestFlowHelpers(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.temporary_directory.name)
-        self.source = self.root / "source"
-        self.flows = self.root / "flows"
-        family = self.source / "sample"
-        family.mkdir(parents=True)
-        (family / "_defaults_sample.yaml").write_text(
-            "input-to-notebook: []\n")
-        (family / "run.yaml").write_text("name: sample\n")
-        self.config = FlowConfig(self.source, self.flows, self.root / "old")
 
     def tearDown(self):
         self.temporary_directory.cleanup()
-
-    def test_setup_flow_copies_from_active_exprun_path(self):
-        expruns, results, notebooks = setup_flow(
-            "sample-flow", ["sample"], config=self.config)
-        self.assertTrue((expruns / "sample" / "run.yaml").is_file())
-        self.assertEqual(self.config.exprun_path, expruns)
-        self.assertEqual(self.config.values["experiment_data"], results)
-        self.assertTrue(notebooks.is_dir())
-
-    def test_run_notebook_passes_standard_parameters(self):
-        calls = []
-
-        def executor(source, output, **kwargs):
-            calls.append((source, output, kwargs))
-
-        notebook_root = self.root / "repository"
-        notebook = notebook_root / "notebooks" / "Run.ipynb"
-        notebook.parent.mkdir(parents=True)
-        notebook.write_text("{}")
-        output_root = self.root / "executed"
-        output_root.mkdir()
-        entry = {
-            "notebook": "notebooks/Run.ipynb",
-            "experiment": "sample",
-            "run": "run",
-            "creation_style": "discard-old",
-        }
-
-        output = run_notebook(
-            entry, self.source, self.root / "results", output_root,
-            notebook_root=notebook_root, executor=executor)
-
-        self.assertEqual(output, output_root / "Run_sample_run.ipynb")
-        self.assertEqual(len(calls), 1)
-        source, called_output, kwargs = calls[0]
-        self.assertEqual(source, notebook)
-        self.assertEqual(called_output, output)
-        self.assertEqual(kwargs["cwd"], notebook.parent)
-        self.assertEqual(kwargs["parameters"], {
-            "experiment": "sample",
-            "run": "run",
-            "creation_style": "discard-old",
-            "expruns_path": self.source.as_posix(),
-            "results_path": (self.root / "results").as_posix(),
-        })
-
-    def test_run_notebook_does_not_swallow_failure(self):
-        def executor(*args, **kwargs):
-            raise RuntimeError("failed")
-
-        entry = {
-            "notebook": "missing.ipynb",
-            "experiment": "sample",
-            "run": "run",
-            "creation_style": "exist-ok",
-        }
-        with self.assertRaisesRegex(RuntimeError, "failed"):
-            run_notebook(
-                entry, self.source, self.root / "results", self.root,
-                notebook_root=self.root, executor=executor)
-
-    def test_run_flow_reports_completed_and_remaining_notebooks(self):
-        entries = [
-            {"name": name, "notebook": "notebooks/Run.ipynb",
-             "experiment": "sample", "run": name}
-            for name in ("first", "second")]
-        calls = []
-
-        class RecordingProgress:
-            def __init__(self, **kwargs):
-                self.n = 0
-                self.options = kwargs
-                self.labels = []
-                self.closed = False
-
-            def set_postfix_str(self, label):
-                self.labels.append(label)
-
-            def update(self, count):
-                self.n += count
-
-            def close(self):
-                self.closed = True
-
-        progress = RecordingProgress()
-
-        def run(entry, expruns, results, notebooks):
-            calls.append((entry, expruns, results, notebooks))
-
-        def progress_factory(**options):
-            progress.options = options
-            return progress
-
-        run_flow(
-            entries, self.source, self.root / "results", self.root,
-            notebook_runner=run,
-            progress_factory=progress_factory,
-        )
-
-        self.assertEqual([call[0] for call in calls], entries)
-        self.assertEqual(progress.options, {
-            "total": 2,
-            "desc": "Overall flow",
-            "unit": "notebook",
-        })
-        self.assertEqual(progress.n, 2)
-        self.assertEqual(progress.labels[-1], "0 notebooks left")
-        self.assertTrue(progress.closed)
-
-    def test_run_flow_closes_progress_and_propagates_failure(self):
-        class RecordingProgress:
-            n = 0
-            closed = False
-
-            def set_postfix_str(self, label):
-                pass
-
-            def update(self, count):
-                self.n += count
-
-            def close(self):
-                self.closed = True
-
-        progress = RecordingProgress()
-
-        def fail(*args):
-            raise RuntimeError("failed")
-
-        with self.assertRaisesRegex(RuntimeError, "failed"):
-            run_flow(
-                [{"name": "failing", "notebook": "notebooks/Run.ipynb",
-                  "experiment": "sample", "run": "failing"}], self.source,
-                self.root / "results", self.root,
-                notebook_runner=fail,
-                progress_factory=lambda **kwargs: progress,
-            )
-        self.assertEqual(progress.n, 0)
-        self.assertTrue(progress.closed)
-
-    def test_flow_report_distinguishes_complete_and_partial_results(self):
-        results = self.root / "results"
-        complete = results / "sample" / "complete"
-        complete.mkdir(parents=True)
-        (complete / "exprun.yaml").write_text(
-            "time_done: '2026-09-27 12:00:00.000000'\n")
-        entries = [
-            {
-                "name": "complete",
-                "notebook": "notebooks/Run.ipynb",
-                "experiment": "sample",
-                "run": "complete",
-            },
-            {
-                "name": "missing",
-                "notebook": "notebooks/Run.ipynb",
-                "experiment": "sample",
-                "run": "missing",
-            },
-        ]
-
-        report = get_flow_report(entries, results, self.root)
-        self.assertFalse(report["successful"])
-        self.assertFalse(report["all-results-present"])
-        self.assertEqual(
-            [stage["name"] for stage in report["completed"]],
-            ["complete"])
-        self.assertEqual(
-            [stage["name"] for stage in report["missing"]],
-            ["missing"])
-
-        (results / "sample" / "missing").mkdir()
-        (results / "sample" / "missing" / "exprun.yaml").write_text(
-            "time_done: '2026-09-27 12:01:00.000000'\n")
-        report = get_flow_report(entries, results, self.root)
-        self.assertTrue(report["successful"])
-        self.assertTrue(report["all-results-present"])
-
-    def test_flow_report_reads_executed_notebooks(self):
-        notebooks = self.root / "executed"
-        notebooks.mkdir()
-        entries = [
-            {"name": name, "notebook": "notebooks/Run.ipynb",
-             "experiment": "sample", "run": name}
-            for name in ("succeeded", "failed", "never")]
-
-        def write_notebook(entry, duration, failing_cell):
-            cells = [{"cell_type": "code", "metadata": {"papermill": {
-                "exception": failing_cell}}, "outputs": []}]
-            if failing_cell:
-                cells[0]["outputs"].append({
-                    "output_type": "error", "ename": "ValueError",
-                    "evalue": "bad value", "traceback": []})
-            executed_notebook_path(entry, notebooks).write_text(json.dumps({
-                "cells": cells,
-                "metadata": {"papermill": {"duration": duration}}}))
-
-        write_notebook(entries[0], 108.4, False)
-        write_notebook(entries[1], 6.0, True)
-
-        stages = get_flow_report(
-            entries, self.root / "results", notebooks)["stages"]
-        self.assertEqual(
-            [stage["notebook"] for stage in stages],
-            [notebooks / "Run_sample_succeeded.ipynb",
-             notebooks / "Run_sample_failed.ipynb", None])
-        self.assertEqual(
-            [stage["duration"] for stage in stages], [108.4, 6.0, None])
-        self.assertEqual(
-            [stage["error"] for stage in stages],
-            [None, "ValueError: bad value", None])
-
-    def test_format_duration(self):
-        self.assertEqual(format_duration(6.4), "6 s")
-        self.assertEqual(format_duration(108.4), "1 min 48 s")
-        self.assertEqual(format_duration(7500), "2 h 5 min")
 
     def test_build_flow_entries_has_exact_phase_order(self):
         experiments = {

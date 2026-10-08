@@ -11,7 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from information_model import OccupancyGridIM
 from wbf_helper import create_field_estimator
 
-DEFAULTS = yaml.safe_load(open(pathlib.Path(__file__).resolve().parents[1] / "data" / "expruns" / "estimator" / "_defaults_estimator.yaml"))
+DEFAULTS = yaml.safe_load(open(pathlib.Path(__file__).resolve().parents[2] / "data" / "expruns" / "estimator" / "_defaults_estimator.yaml"))
 TYPES = ["point", "disk", "gaussian-process", "gp-local", "gp-indicator", "nearest", "idw", "rbf",
          "occupancy", "mrf", "epidemic-pf", "cnn"]
 # the GP regressions, whose posterior mean is not clipped to [0, 1]
