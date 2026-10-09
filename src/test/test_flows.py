@@ -36,9 +36,10 @@ MRMR_2027_NOTEBOOKS = [
     for name in (
         "MRMR-Run.ipynb",
         "MRMR-Visualize-DetectionMap.ipynb",
-        "MRMR-Visualize-AgentDetections.ipynb",
+        "MRMR-Visualize-AgentVoI.ipynb",
         "MRMR-Visualize-Replanning.ipynb",
         "MRMR-Visualize-Comparison.ipynb",
+        "MRMR-Visualize-Communication.ipynb",
         "MRMR-Visualize-OptimalEPPath.ipynb",
         "MRMR-Flow.ipynb",
     )
@@ -140,7 +141,7 @@ class TestFlowMetadata(unittest.TestCase):
         path = EXPERIMENT_ROOT / "mrmr2027-flow" / "icc-2027-all.yaml"
         with path.open() as handle:
             collection = yaml.safe_load(handle)
-        self.assertEqual(len(collection["figures"]), 17)
+        self.assertEqual(len(collection["figures"]), 18)
         self.assertIn("optimal-ep-path", collection["figures"])
 
         path = (EXPERIMENT_ROOT / "mrmr2027-figure" /

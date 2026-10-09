@@ -15,14 +15,15 @@ figures:
   - detection-map-unclustered-mrmr
   - detection-map-unclustered-mrse
   - detection-map-unclustered-mrrw
-  - agent-detections-clustered-mrmr
-  - agent-detections-clustered-mrse
-  - agent-detections-clustered-mrrw
-  - agent-detections-unclustered-mrmr
-  - agent-detections-unclustered-mrse
-  - agent-detections-unclustered-mrrw
+  - agent-voi-clustered-mrmr
+  - agent-voi-clustered-mrse
+  - agent-voi-clustered-mrrw
+  - agent-voi-unclustered-mrmr
+  - agent-voi-unclustered-mrse
+  - agent-voi-unclustered-mrrw
   - replanning-clustered-mrmr
   - replanning-unclustered-mrmr
   - comparison-clustered
   - comparison-unclustered
+  - communication-cost
   - optimal-ep-path

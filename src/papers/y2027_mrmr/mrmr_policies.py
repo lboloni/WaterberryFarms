@@ -10,6 +10,7 @@ import copy
 
 from policy import Policy, AbstractCommunicateAndFollowPath
 from communication import Message
+from information_model import ObservationRecord
 #from papers.y2027_mrmr.epmarket import EPAgent, EPOffer
 #from papers.y2027_mrmr.exploration_package import ExplorationPackage, ExplorationPackageSet
 #from papers.y2027_mrmr.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
@@ -30,8 +31,9 @@ def ep_from_content(content):
 
 class MRMR_Policy(Policy):
     """Implements the common ancestor of the MRMR (multiresolution multirobot models). The agents 
-    interact only through messages: ep-offer, ep-bid, ep-award and ep-completed 
-    (DESIGN-COMMUNICATION.md)."""
+    interact only through messages: ep-offer, ep-bid, ep-award, ep-completed and location
+    (DESIGN-COMMUNICATION.md). Every agent broadcasts its location at every timestep, and builds
+    from the broadcasts a map of the explored cells."""
 
     def __init__(self, exp_policy, exp_env):
         self.exp_policy = exp_policy
@@ -43,6 +45,7 @@ class MRMR_Policy(Policy):
         self.outbox = [] # (destination, content) pairs to send in the next communication round
         self.rounds = 0 # the communication rounds seen so far, counted across timesteps
         self.observations = []
+        self._explored = None # the robot-local map of the explored cells, created at first use
         # initializing the agent's random generator
         seed = self.exp_policy["seed"]
         self.random = np.random.default_rng(seed)
@@ -59,14 +62,27 @@ class MRMR_Policy(Policy):
         randxy = xyplan_from_waypoints(randwp, t, vel=1, ep=None)        
         return randxy[0:int(budget)]
 
+    @property
+    def explored(self):
+        """The map of the explored cells: our own observations and the locations broadcast by the
+        other agents, which arrive one timestep later"""
+        if self._explored is None:
+            self._explored = ObservationRecord(self.robot.im.width, self.robot.im.height)
+        return self._explored
+
     def add_observation(self, obs):
         """MRMR policies collect the observations"""
         obs["name"] = self.name
         self.observations.append(obs)
+        self.explored.add(obs)
 
     def act_send(self, round):
-        """Send the queued messages"""
+        """Send the queued messages. In round 0, broadcast the location of the latest observation,
+        which is the current location of the robot."""
         self.rounds += 1
+        if round == 0 and self.observations:
+            obs = self.observations[-1]
+            self.outbox.append((None, {"type": "location", "x": obs["x"], "y": obs["y"], "time": obs["time"]}))
         self.before_send()
         for destination, content in self.outbox:
             self.robot.com.send(self.robot, destination, Message(content))
@@ -80,6 +96,12 @@ class MRMR_Policy(Policy):
         """Dispatch the received messages on their type"""
         for message in messages:
             getattr(self, "on_" + message.content["type"].replace("-", "_"))(message)
+
+    def on_location(self, message):
+        """Another agent explored a cell"""
+        content = message.content
+        self.explored.add({"x": content["x"], "y": content["y"], "time": content["time"],
+                           "robot": message.sender_name})
 
 class MRMR_Pioneer(MRMR_Policy):
     """Implements the Pioneer agent for the MRMR paper"""

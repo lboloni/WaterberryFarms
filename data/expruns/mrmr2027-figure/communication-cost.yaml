@@ -1,0 +1,10 @@
+name: communication cost of MRMR
+source-runs:
+  - clustered-mrmr
+  - unclustered-mrmr
+labels:
+  clustered-mrmr: clustered
+  unclustered-mrmr: unclustered
+output-filename: communication-cost.pdf
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Communication.ipynb

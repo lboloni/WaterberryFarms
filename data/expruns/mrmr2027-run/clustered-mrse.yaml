@@ -9,16 +9,16 @@
 name: "3 lawnmowers"
 
 exp_environment: "environment"
-run_environment: "mrmr-custom-clustered"
+run_environment: "mrmr-generated-clustered-100"
 
 exp_estimator: "estimator"
 run_estimator: "adaptive-disk"
 
 exp_score: "score"
-run_score: "weighted_asymmetric"
+run_score: "voi"
 
 timesteps-per-day: 1000
-time-start-environment: 15
+time-start-environment: 25
 
 robots:
   - name: "lawn-1"

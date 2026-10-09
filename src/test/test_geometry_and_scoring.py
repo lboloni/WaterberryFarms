@@ -28,7 +28,8 @@ class TestGeometry(unittest.TestCase):
     def test_get_geometry_agrees_with_the_farm(self):
         from wbf_helper import create_wbf, get_geometry
         for typename, size in [("Miniberry-10", (10, 10)), ("Miniberry-30", (30, 30)),
-                               ("Miniberry-100", (100, 100)), ("Waterberry", (6000, 5000))]:
+                               ("Miniberry-100", (100, 100)), ("Miniberry-200", (200, 200)),
+                               ("Waterberry", (6000, 5000))]:
             farm, geo = create_wbf({"typename": typename}), get_geometry(typename)
             self.assertEqual((farm.width, farm.height), size)
             self.assertEqual((geo["width"], geo["height"]), size)

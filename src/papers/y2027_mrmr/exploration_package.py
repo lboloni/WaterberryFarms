@@ -32,6 +32,11 @@ class ExplorationPackage:
                     self.y_min >= other.y_max)
 
 
+    def clip(self, path):
+        """The path inside the package: the last row of a lawnmower can overshoot the package by up to 
+        two steps, which near the border of the field would lead outside the field"""
+        return np.clip(np.array(path), [self.x_min, self.y_min], [self.x_max, self.y_max])
+
     def lawnmower_horizontal_bottom_left(self, shift=[0,0]):
         """Generates a horizontal lawnmower path, that starts at the bottom left, which is at x_min, y_min, and proceeds in the direction of higher y"""
         current = [self.x_min, self.y_min]
@@ -46,7 +51,7 @@ class ExplorationPackage:
             if current[1] + self.step > self.y_max:
                 break
         path.append([self.x_max, current[1]])
-        return np.array(path) + shift
+        return self.clip(path) + shift
 
     def lawnmower_horizontal_bottom_right(self, shift=[0,0]):
         """Generates a horizontal lawnmower path, that starts at the bottom right, which is at x_max, y_min, and proceeds in the direction of higher y"""
@@ -62,7 +67,7 @@ class ExplorationPackage:
             if current[1] + self.step > self.y_max:
                 break
         path.append([self.x_min, current[1]])
-        return np.array(path) + shift
+        return self.clip(path) + shift
 
     def lawnmower_horizontal_top_left(self, shift=[0,0]):
         """Generates a horizontal lawnmower path, that starts at the top left, which is at x_min, y_max, and proceeds in the direction of lower y"""
@@ -78,7 +83,7 @@ class ExplorationPackage:
             if current[1] - self.step < self.y_min:
                 break
         path.append([self.x_max, current[1]])
-        return np.array(path) + shift
+        return self.clip(path) + shift
 
     def lawnmower_horizontal_top_right(self, shift=[0,0]):
         """Generates a horizontal lawnmower path, that starts at the top left, which is at x_max, y_max, and proceeds in the direction of lower y"""
@@ -94,7 +99,7 @@ class ExplorationPackage:
             if current[1] - self.step < self.y_min:
                 break
         path.append([self.x_min, current[1]])
-        return np.array(path) + shift
+        return self.clip(path) + shift
 
 class ExplorationPackageSet: 
     """A class having a set of exploration packages. Code for creating optimal traversals"""    

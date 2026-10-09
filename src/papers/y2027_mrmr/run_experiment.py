@@ -2,7 +2,7 @@
 
 import pathlib
 
-from communication import PerfectCommunicationMedium
+from communication import PerfectCommunicationMedium, traffic_summary
 from exp_run_config import Config
 from policy import RandomWaypointPolicy
 from robot import Robot
@@ -10,7 +10,7 @@ from water_berry_farm import WBF_Score_VoI, WBF_Score_WeightedAsymmetric
 from wbf_helper import create_estimator, create_wbfe, generate_fixed_budget_lawnmower, get_geometry
 from wbf_simulate import save_simulation_results, simulate_1day
 
-from .mrmr_policies import MRMR_Contractor, MRMR_Pioneer
+from .mrmr_policies import MRMR_Contractor, MRMR_Pioneer, MRMR_Policy
 
 
 def run_mrmr_experiment(exp):
@@ -81,6 +81,13 @@ def run_mrmr_experiment(exp):
         "estimator-name": estimator.name,
         "score-name": evaluator.name,
         "results-basedir": exp["data_dir"],
+        # the bandwidth used by the communication (DESIGN-COMMUNICATION.md, Section 2.1)
+        "communication-traffic": communication.traffic,
+        "communication-summary": traffic_summary(
+            communication.traffic, exp["timesteps-per-day"]),
+        # the robot-local maps of the explored cells of the MRMR robots
+        "explored-maps": {robot.name: robot.policy.explored.cells for robot in robots
+                          if isinstance(robot.policy, MRMR_Policy)},
     })
     save_simulation_results(
         pathlib.Path(exp.data_dir(), "results.pickle"), results)

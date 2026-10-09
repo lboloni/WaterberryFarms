@@ -16,8 +16,11 @@ from policy import FollowPathPolicy
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from path_generators import find_fixed_budget_lawnmower
 
+from disease_maps import generate_disease_map
+
 import gzip as compress
 import hashlib
+import numpy as np
 import pickle
 import pathlib
 import yaml
@@ -35,6 +38,8 @@ def create_wbf(exp):
         return MiniberryFarm(scale=3)
     elif exp["typename"] == "Miniberry-100":
         return MiniberryFarm(scale=10)
+    elif exp["typename"] == "Miniberry-200":
+        return MiniberryFarm(scale=20)
     elif exp["typename"] == "Waterberry":
         return WaterberryFarm()
     else:
@@ -145,6 +150,7 @@ def create_wbfe(exp):
     wbf.create_type_map()
     wbfe = WaterberryFarmEnvironment(wbf, use_saved=False, seed=exp["seed"],
         savedir=exp["data_dir"] if cache else None, **field_parameters(exp))
+    apply_generated_maps(wbfe, exp)
     apply_pictures(wbfe, exp)
     if cache:
         with compress.open(path_geometry, "wb") as f:
@@ -184,6 +190,28 @@ def apply_pictures(wbfe, exp_env):
             field.environment.set_initial_status(value)
         else:
             raise Exception(f"Unknown picture mode {mode}")
+
+
+EPIDEMICS = {"tylcv": "tomato", "ccr": "strawberry"}
+
+
+def apply_generated_maps(wbfe, exp_env):
+    """Sets the epidemic fields that have a generated disease map (<field>-generated: clustered or 
+    unclustered) in the exp/run. The map is generated on the cells planted with the crop of the epidemic, 
+    with <field>-generated-fraction of them diseased, from <field>-generated-seed, and it is the value 
+    of the field on every day (like a static picture). See DESIGN-ClusteredDiseaseMap.md"""
+    for name in EPIDEMICS:
+        version = exp_env[f"{name}-generated"]
+        if version is None:
+            continue
+        if exp_env[f"{name}-picture"] is not None:
+            raise Exception(f"{name}-picture and {name}-generated are exclusive")
+        field = getattr(wbfe, name)
+        immunity_mask = np.where(field.environment.status == -2, -2, 0)
+        model, _ = generate_disease_map(wbfe.width, wbfe.height, version, exp_env[f"{name}-generated-seed"],
+            exp_env[f"{name}-generated-fraction"], immunity_mask=immunity_mask)
+        field.environment = ScalarFieldEnvironment(field.environment.name, wbfe.width, wbfe.height, seed=0, 
+            value=model.value)
 
 
 def environment_configuration(exp_env):
@@ -246,7 +274,7 @@ def get_geometry(typename, geo = None):
     geo["xmin"], geo["ymin"] = farm.owner_area[0], farm.owner_area[1]
     geo["xmax"], geo["ymax"] = farm.owner_area[2] - 1, farm.owner_area[3] - 1
     geo["timesteps-per-day"] = {"Miniberry-10": 0.4 * 100, "Miniberry-30": 0.4 * 900,
-        "Miniberry-100": 0.4 * 10000, "Waterberry": 0.4 * 12000000}[typename]
+        "Miniberry-100": 0.4 * 10000, "Miniberry-200": 0.4 * 40000, "Waterberry": 0.4 * 12000000}[typename]
     return geo
 
 

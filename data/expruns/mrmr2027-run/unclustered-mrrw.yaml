@@ -5,16 +5,16 @@
 name: "3 random waypoint"
 
 exp_environment: "environment"
-run_environment: "mrmr-custom-notclustered"
+run_environment: "mrmr-generated-unclustered-100"
 
 exp_estimator: "estimator"
 run_estimator: "adaptive-disk"
 
 exp_score: "score"
-run_score: "weighted_asymmetric"
+run_score: "voi"
 
 timesteps-per-day: 1000
-time-start-environment: 19
+time-start-environment: 25
 
 robots:
   - name: "robot-1"

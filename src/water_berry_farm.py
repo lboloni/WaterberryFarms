@@ -584,6 +584,8 @@ def create_wbfe(saved: bool, wbf_prec=None, typename="Miniberry-10"):
             wbf = MiniberryFarm(scale=3)
         elif typename == "Miniberry-100":
             wbf = MiniberryFarm(scale=10)
+        elif typename == "Miniberry-200":
+            wbf = MiniberryFarm(scale=20)
         elif typename == "Waterberry":
             wbf = WaterberryFarm()
         else:

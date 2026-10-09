@@ -7,6 +7,9 @@ labels:
   clustered-mrrw: MRRW
   clustered-mrse: MRSE
   clustered-mrmr: MRMR
-output-filename: comparative-bar-comparison-clustered.pdf
+# the VoI variants, one panel each (DESIGN-VOI.md, Section 5.1)
+voi-variants:
+  - voi-absolute
+output-filename: comparative-voi-clustered.pdf
 input-to-notebook:
   - papers/y2027_mrmr/MRMR-Visualize-Comparison.ipynb

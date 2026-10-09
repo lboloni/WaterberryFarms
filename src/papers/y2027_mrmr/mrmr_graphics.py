@@ -19,7 +19,7 @@ import pprint
 import tqdm
 
 
-from information_model import StoredObservationIM
+from water_berry_farm import voi_credits
 
 logging.getLogger("fontTools").setLevel(logging.WARNING)
 
@@ -59,13 +59,17 @@ def build_figure_previews(figure_experiment, figure_runs, config=None):
                 description = (
                     "Robot trajectories and detection locations for "
                     f'{exp["source-runs"][0]}')
-            elif run.startswith("agent-detections-"):
+            elif run.startswith("agent-voi-"):
                 description = (
-                    "Per-agent and total detection-count bar graph for "
+                    "Per-agent and total VoI bar graph for "
                     f'{exp["source-runs"][0]}')
+            elif run.startswith("communication-cost"):
+                description = (
+                    "Communication cost (cumulative and per message type) of "
+                    f'{", ".join(exp["source-runs"])}')
             elif run.startswith("comparison-"):
                 description = (
-                    "Total-detection comparison bar graph for the "
+                    "VoI comparison bar graphs for the "
                     f'{run.removeprefix("comparison-")} environment')
             elif "output-filename-prefix" in exp:
                 suffix = path.stem.removeprefix(
@@ -187,58 +191,107 @@ def show_robot_trajectories_and_detections(
     save_figure(fig, fig_file)
     plt.close(fig)
 
-def count_detections(results, robotno, field = "TYLCV"):
-    """Returns the number of detections for the specified robot, adapted from wbf_figures.show_detections"""
-    obs = np.array(results["observations"])[:, robotno]
-    detections = [[a[StoredObservationIM.X], a[StoredObservationIM.Y]] for a in obs if a[field][StoredObservationIM.VALUE] == 0.0]
-    return len(detections)
+VOI_LABELS = {"voi-absolute": "Absolute VoI", "voi-expected": "Expected VoI",
+              "voi-ignorance": "VoI (cost of ignorance)", "voi-estimator": "Estimator-based VoI",
+              "voi": "Estimator-based VoI"}
 
-def show_agentwise_detections(
-        exp_dest, name, results, robot_colors, output_filename=None):
-    """create a bargraph with the number of detection points for each agent and a total for all agents in the specific run
+
+def agentwise_voi(results, variant = "voi-absolute"):
+    """The VoI credited to each robot over the run, in robot order, followed by the estimator update 
+    terms under "Estimator" if they are not zero (DESIGN-VOI.md, Section 4)"""
+    credits = voi_credits(results, variant)
+    values = {name: float(credits[name].sum()) for name in results["robot-names"]}
+    estimator = float(credits[None].sum())
+    if estimator != 0.0:
+        values["Estimator"] = estimator
+    return values
+
+
+def show_agentwise_voi(
+        exp_dest, name, results, robot_colors, variant = "voi-absolute", output_filename=None):
+    """Create a bargraph with the VoI credited to each agent and their total in the specific run
     exp_dest: the exprun whose data dir the figures are going to be put
     """   
     if output_filename is None:
-        output_filename = f"detections-bar-{name}.pdf"
+        output_filename = f"voi-bar-{name}.pdf"
     fig_file = pathlib.Path(exp_dest.data_dir(), output_filename)
     figure_files = figure_paths(fig_file)
     if all(path.exists() for path in figure_files):
         print(f"{fig_file} and its PNG preview exist, skipping.")
         return
-    fig, ax = plt.subplots(1,1, figsize=(3, 1.4))
-    # ax.set_title(lookup[name])
-    total = 0
-    if "unclustered" in name:
-        ax.set_ylim(0, 100)
-    else:
-        ax.set_ylim(0, 800)
-    for i, robot in enumerate(results["robots"]):
-        detections = count_detections(results, i)
-        total += detections
-        br = ax.bar(robot.name, detections, color=robot_colors[i])
-    ax.bar("Total", total, color="gray")
+    fig, ax = plt.subplots(1,1, figsize=(3, 1.6))
+    values = agentwise_voi(results, variant)
+    for i, (label, value) in enumerate(values.items()):
+        color = "silver" if label == "Estimator" else robot_colors[i % len(robot_colors)]
+        ax.bar(label, value, color=color)
+    ax.bar("Total", sum(values.values()), color="gray")
+    ax.set_ylabel(VOI_LABELS.get(variant, variant))
+    # robot names such as robot-1 do not fit side by side
+    ax.tick_params(axis="x", labelrotation=30, labelsize=8)
+    for tick in ax.get_xticklabels():
+        tick.set_horizontalalignment("right")
+    fig.tight_layout()
     save_figure(fig, fig_file)
     plt.close(fig)
 
-def show_comparative_detections(
-        exp_dest, filename, values, lookup, name_colors,
-        output_filename=None):
-    """Create a comparative bargraph between the results listed in the values"""
-    fig, ax = plt.subplots(1,1, figsize=(3, 3))
-    ax.set_ylim(0, 600)
-    for i, policyname in enumerate(values):
-        if policyname in lookup:
-            name = lookup[policyname]
-        else: 
-            print(f"No short name for:\n{policyname}")
-            name = policyname
-        br = ax.bar(name, values[policyname], color=name_colors[i%len
-        (name_colors)])
-    # rotate the labels, as they don't fit
-    for tick in ax.get_xticklabels():
-        tick.set_rotation(90)
+
+def show_comparative_voi(
+        exp_dest, filename, all_results, lookup, name_colors,
+        variants = ("voi-absolute", "voi-estimator"), output_filename=None):
+    """Create a comparative bargraph of the final VoI of the runs in all_results, one panel per variant"""
+    fig, axes = plt.subplots(1, len(variants), figsize=(3 * len(variants), 3), squeeze=False)
+    for ax, variant in zip(axes[0], variants):
+        for i, policyname in enumerate(all_results):
+            if policyname in lookup:
+                name = lookup[policyname]
+            else: 
+                print(f"No short name for:\n{policyname}")
+                name = policyname
+            ax.bar(name, float(all_results[policyname]["score"][variant]), 
+                   color=name_colors[i % len(name_colors)])
+        ax.set_ylabel(VOI_LABELS.get(variant, variant))
+        ax.axhline(0, color="black", linewidth=0.5)
+        # rotate the labels, as they don't fit
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(90)
+    fig.tight_layout()
     if output_filename is None:
-        output_filename = f"comparative-bar-{filename}.pdf"
+        output_filename = f"comparative-voi-{filename}.pdf"
     save_figure(
         fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
+
+
+MESSAGE_TYPES = ["location", "ep-offer", "ep-bid", "ep-award", "ep-completed"]
+
+
+def show_communication_cost(
+        exp_dest, filename, all_results, lookup, name_colors, output_filename=None):
+    """Create a figure of the communication cost of the runs in all_results (DESIGN-COMMUNICATION.md, 
+    Section 2.1): left, the cumulative transmitted kB over time; right, the transmitted kB per 
+    message type, on a logarithmic scale as the location messages dominate"""
+    fig, (ax_time, ax_type) = plt.subplots(1, 2, figsize=(7, 3))
+    summaries = {name: results["communication-summary"] for name, results in all_results.items()}
+    types = [t for t in MESSAGE_TYPES if any(t in s["per-type"] for s in summaries.values())]
+    types += sorted({t for s in summaries.values() for t in s["per-type"]} - set(types), key=str)
+    width = 0.8 / max(1, len(summaries))
+    for i, (name, summary) in enumerate(summaries.items()):
+        label = lookup.get(name, name)
+        color = name_colors[i % len(name_colors)]
+        cumulative = np.cumsum(summary["bytes-per-timestep"]) / 1000
+        ax_time.plot(np.arange(len(cumulative)), cumulative, color=color, label=label)
+        values = [summary["per-type"].get(t, {}).get("bytes-transmitted", 0) / 1000 for t in types]
+        ax_type.bar(np.arange(len(types)) + (i - (len(summaries) - 1) / 2) * width, values, width, 
+                    color=color, label=label)
+    ax_time.set_xlabel("Timestep")
+    ax_time.set_ylabel("Transmitted (kB)")
+    ax_time.legend(fontsize=8)
+    ax_type.set_xticks(np.arange(len(types)))
+    ax_type.set_xticklabels([str(t) for t in types], rotation=30, ha="right", fontsize=8)
+    ax_type.set_yscale("log")
+    ax_type.set_ylabel("Transmitted (kB)")
+    fig.tight_layout()
+    if output_filename is None:
+        output_filename = f"communication-cost-{filename}.pdf"
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
     plt.close(fig)

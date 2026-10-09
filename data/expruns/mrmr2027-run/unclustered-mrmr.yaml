@@ -10,13 +10,13 @@ name: "1 pioneer 2 contractors"
 #exp_environment: "miniberry-100"
 
 exp_environment: "environment"
-run_environment: "mrmr-custom-notclustered"
+run_environment: "mrmr-generated-unclustered-100"
 
 exp_estimator: "estimator"
 run_estimator: "adaptive-disk"
 
 exp_score: "score"
-run_score: "weighted_asymmetric"
+run_score: "voi"
 
 timesteps-per-day: 1000
 time-start-environment: 25

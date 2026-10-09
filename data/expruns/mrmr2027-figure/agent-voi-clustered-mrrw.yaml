@@ -1,6 +1,8 @@
-name: Agent detections for clustered-mrrw
+name: Agent VoI for clustered-mrrw
 source-runs:
   - clustered-mrrw
-output-filename: detections-bar-clustered-mrrw.pdf
+# the VoI variant credited to the agents (DESIGN-VOI.md, Section 5.1)
+voi-variant: voi-absolute
+output-filename: voi-bar-clustered-mrrw.pdf
 input-to-notebook:
-  - papers/y2027_mrmr/MRMR-Visualize-AgentDetections.ipynb
+  - papers/y2027_mrmr/MRMR-Visualize-AgentVoI.ipynb
