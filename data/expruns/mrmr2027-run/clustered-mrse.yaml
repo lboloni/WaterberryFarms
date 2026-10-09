@@ -8,6 +8,10 @@
 # exp_environment: "miniberry-100-custom-mrmr"
 name: "3 lawnmowers"
 
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "clustered"
+approach: "mrse"
+
 exp_environment: "environment"
 run_environment: "mrmr-generated-clustered-100"
 

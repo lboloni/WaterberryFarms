@@ -1,0 +1,6 @@
+# The aggregations of the replications of the MRMR comparisons into tidy tables (DESIGN-MultiSeedEvaluation.md)
+source-experiment: mrmr2027-run
+# the order of the approaches in the paired differences: each is compared with every later one
+approaches: ["mrmr", "mrse", "mrrw"]
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Aggregate.ipynb

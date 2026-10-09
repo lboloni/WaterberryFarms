@@ -40,6 +40,8 @@ MRMR_2027_NOTEBOOKS = [
         "MRMR-Visualize-Replanning.ipynb",
         "MRMR-Visualize-Comparison.ipynb",
         "MRMR-Visualize-Communication.ipynb",
+        "MRMR-Aggregate.ipynb",
+        "MRMR-Visualize-Replicated.ipynb",
         "MRMR-Visualize-OptimalEPPath.ipynb",
         "MRMR-Flow.ipynb",
     )
@@ -112,7 +114,7 @@ class TestFlowMetadata(unittest.TestCase):
     def test_mrmr_2027_notebooks_list_every_compatible_exprun(self):
         expected = {}
         for family in (
-                "mrmr2027-run", "mrmr2027-figure", "mrmr2027-flow"):
+                "mrmr2027-run", "mrmr2027-aggregate", "mrmr2027-figure", "mrmr2027-flow"):
             family_path = EXPERIMENT_ROOT / family
             defaults_path = family_path / f"_defaults_{family}.yaml"
             with defaults_path.open() as handle:

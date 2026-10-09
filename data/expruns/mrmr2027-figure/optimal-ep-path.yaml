@@ -2,7 +2,7 @@ name: Optimal exploration-package path
 source-runs: []
 start: [60, 70]
 end: [70, 50]
-max-search-time: 30.0
+max-evaluations: null # exhaustive search
 exploration-packages:
   - {x-min: 20, x-max: 60, y-min: 20, y-max: 40, step: 2}
   - {x-min: 70, x-max: 90, y-min: 60, y-max: 80, step: 2}

@@ -1,0 +1,13 @@
+name: ICC 2027 MRMR, replicated over the robot behavior
+run-experiment: mrmr2027-run
+# the replications (base runs and seeds) are declared by the aggregate exp/run
+aggregate-experiment: mrmr2027-aggregate
+aggregate: icc-2027-replicated
+figure-experiment: mrmr2027-figure
+figures:
+  - replicated-comparison
+  - replicated-ranges
+  - replicated-voi-over-time
+  - replicated-paired
+  - replicated-communication-cost
+  - replicated-per-role

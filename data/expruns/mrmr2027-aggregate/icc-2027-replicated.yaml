@@ -1,0 +1,13 @@
+name: ICC 2027 MRMR, replicated over the robot behavior
+# the base runs to replicate; every one is run with every map seed and every behavior seed
+runs:
+  - clustered-mrmr
+  - clustered-mrse
+  - clustered-mrrw
+  - unclustered-mrmr
+  - unclustered-mrse
+  - unclustered-mrrw
+# the seeds of the generated maps (tylcv-generated-seed of the environment)
+map-seeds: [1]
+# the seeds from which the robot seeds are derived
+behavior-seeds: [1, 2, 3]

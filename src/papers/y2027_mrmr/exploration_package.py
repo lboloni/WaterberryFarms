@@ -7,7 +7,6 @@ Classes of the MultiResolutionMultiRobot paper that implement exploration packag
 
 import numpy as np
 import itertools
-from datetime import datetime
 from path_generators import get_path_length
 
 class ExplorationPackage:
@@ -114,9 +113,13 @@ class ExplorationPackageSet:
         """
         self.ep_to_explore.append(ep)
 
-    def find_shortest_path_ep(self, start, end=None, maxtime=30.0):
-        """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes 30 seconds. 
-        maxtime indicates the maximum time spent on this
+    def find_shortest_path_ep(self, start, end=None, max_evaluations=None):
+        """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes about 10 seconds. 
+        max_evaluations bounds the number of (order, directions) combinations evaluated: the search stops 
+        after the EP order during which it is reached, and returns the best path so far. None searches 
+        exhaustively. A count rather than a time limit makes the result independent of the speed and the 
+        load of the machine, so a run is reproducible from its seeds (DESIGN-MultiSeedEvaluation.md, Section 8). 
+        On the development machine, about 15000-30000 combinations are evaluated per second.
         
         Returns the path in the form of a list of dicts labeled with the EPs that are part of it
 
@@ -125,7 +128,6 @@ class ExplorationPackageSet:
         min_len = float('inf')
         best_path = None
         best_ep_path = None
-        start_time = datetime.now()
 
         count = 0
         for perm in itertools.permutations(self.ep_to_explore):
@@ -160,9 +162,7 @@ class ExplorationPackageSet:
                     # print(length)
                     best_path = path
                     best_ep_path = ep_path
-            current_time = datetime.now()
-            if (current_time - start_time).total_seconds() > maxtime:
-                if best_path is not None:                    
-                    return best_path, best_ep_path
+            if max_evaluations is not None and count >= max_evaluations:
+                return best_path, best_ep_path
              
         return best_path, best_ep_path        

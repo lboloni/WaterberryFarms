@@ -231,6 +231,10 @@ class MRMR_Pioneer(MRMR_Policy):
 
 class MRMR_Contractor(MRMR_Policy):
     """Implements the Contractor agent for the MRMR paper"""
+    # the bounds of the EP path search, as counts of evaluated combinations: they correspond to the earlier
+    # time limits of 0.1 s (bidding) and 1.0 s (replanning) on the development machine
+    BID_EVALUATIONS = 2000
+    REPLAN_EVALUATIONS = 20000
 
     def __init__(self, exp_policy, exp_env):
         super().__init__(exp_policy, exp_env)
@@ -310,7 +314,7 @@ class MRMR_Contractor(MRMR_Policy):
             # epset.ep_to_explore += self.epagent.commitments
             # the remainder of the current ep is already in part one
             epset.ep_to_explore = [x.ep for x in self.epagent.commitments.values() if x.ep is not currentep]
-            _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent], maxtime=1.0)
+            _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent], max_evaluations=self.REPLAN_EVALUATIONS)
             ep_xyplan = xyplan_from_ep_path(ep_path, t)
             self.plan += ep_xyplan
             print(f"Part two last step {self.plan[-1]}")
@@ -334,8 +338,6 @@ class MRMR_Contractor(MRMR_Policy):
     
     def can_bid(self, epoffer):
         """This function allows the agent to decide whether it can bid for a certain offer or not."""
-        # maxtime: how long to calculate
-        maxtime = 0.1 # was 1.0
         # step one: find the termination time of the current ep
         t = self.timestep
         currentep = None
@@ -355,7 +357,7 @@ class MRMR_Contractor(MRMR_Policy):
         eps.add_ep(epoffer.ep)
         # create an optimal path 
         current = [self.robot.x, self.robot.y]
-        _, best_ep_path = eps.find_shortest_path_ep(current, maxtime=maxtime)
+        _, best_ep_path = eps.find_shortest_path_ep(current, max_evaluations=self.BID_EVALUATIONS)
         path = xyplan_from_ep_path(best_ep_path, t)
         if path[-1]["t"] < self.exp_policy["budget"]:
             # FIXME: this needs to be made more sophisticated

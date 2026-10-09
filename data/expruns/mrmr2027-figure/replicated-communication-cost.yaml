@@ -1,0 +1,12 @@
+name: Communication cost of MRMR, replicated
+figure-kind: communication
+scenarios: [clustered, unclustered]
+approach: mrmr
+output-filename: replicated-communication-cost.pdf
+source-experiment: mrmr2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {mrmr: MRMR, mrse: MRSE, mrrw: MRRW, clustered: clustered, unclustered: unclustered}
+approaches: [mrrw, mrse, mrmr]
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Replicated.ipynb

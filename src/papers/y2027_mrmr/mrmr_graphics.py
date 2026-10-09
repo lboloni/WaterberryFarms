@@ -295,3 +295,208 @@ def show_communication_cost(
         output_filename = f"communication-cost-{filename}.pdf"
     save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
     plt.close(fig)
+
+
+# Figures of the replicated comparisons, drawn from the tidy tables of an aggregation 
+# (DESIGN-MultiSeedEvaluation.md, Section 7). They show the mean with its 95% confidence interval 
+# (confidence_interval: over the per-map means if there are several maps), and the individual 
+# replications or their range.
+
+METRIC_LABELS = {"voi-absolute": "Absolute VoI", "voi-estimator": "Estimator-based VoI",
+                 "diseased-found": "Diseased plants found", "cells-observed": "Cells observed",
+                 "bytes-transmitted": "Transmitted (bytes)", "bytes-transmitted-cumulative": "Transmitted (kB)"}
+
+
+def _cell(summary, **keys):
+    """The summary row matching the keys"""
+    frame = summary
+    for key, value in keys.items():
+        frame = frame[frame[key] == value]
+    return frame.iloc[0]
+
+
+def show_replicated_comparison(exp_dest, tables, scenarios, metrics, approaches, lookup, colors, output_filename):
+    """The summary across the approaches: one panel per metric, with the scenarios on the x axis and one 
+    bar per approach, the mean with its 95% CI, and every replication as a point. All the bars of a 
+    panel share its y axis, so the approaches and the scenarios can be compared visually."""
+    from .mrmr_aggregate import confidence_interval
+    replications, summary = tables["replications"], tables["summary"]
+    rng = np.random.default_rng(0)  # the jitter of the points
+    width = 0.8 / len(approaches)
+    fig, axes = plt.subplots(1, len(metrics), figsize=(3.2 * len(metrics), 3), squeeze=False)
+    for ax, metric in zip(axes[0], metrics):
+        for i, approach in enumerate(approaches):
+            for k, scenario in enumerate(scenarios):
+                x = k + (i - (len(approaches) - 1) / 2) * width
+                row = _cell(summary, scenario=scenario, approach=approach, metric=metric)
+                low, high = confidence_interval(row)
+                err = [[row["mean"] - low], [high - row["mean"]]] if not np.isnan(low) else None
+                ax.bar(x, row["mean"], width, color=colors[i % len(colors)], yerr=err, capsize=3, alpha=0.85,
+                       label=lookup.get(approach, approach) if k == 0 else None)
+                values = replications[(replications.scenario == scenario) & (replications.approach == approach)
+                                      & (replications.metric == metric)]["value"]
+                ax.scatter(x + rng.uniform(-width / 4, width / 4, len(values)), values, s=6, color="black", zorder=3)
+        ax.set_xticks(range(len(scenarios)))
+        ax.set_xticklabels([lookup.get(sc, sc) for sc in scenarios])
+        ax.set_ylabel(METRIC_LABELS.get(metric, metric))
+        ax.set_ylim(bottom=0)
+    axes[0][0].legend(fontsize=8)
+    fig.tight_layout()
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
+
+
+def show_replicated_series(exp_dest, tables, scenarios, metric, approaches, lookup, colors, output_filename, scale=1.0):
+    """The metric over time, one panel per scenario: per approach the mean curve with its 95% CI band 
+    and, lighter, the min-max range of the replications"""
+    from .mrmr_aggregate import confidence_interval
+    summary = tables["summary-series"]
+    fig, axes = plt.subplots(1, len(scenarios), figsize=(3.5 * len(scenarios), 3), sharey=True, squeeze=False)
+    for ax, scenario in zip(axes[0], scenarios):
+        for i, approach in enumerate(approaches):
+            frame = summary[(summary.scenario == scenario) & (summary.approach == approach)
+                            & (summary.metric == metric)].sort_values("timestep")
+            if frame.empty:
+                continue
+            color = colors[i % len(colors)]
+            ci = np.array([confidence_interval(row) for _, row in frame.iterrows()], dtype=float) / scale
+            t = frame["timestep"]
+            ax.fill_between(t, frame["min"] / scale, frame["max"] / scale, color=color, alpha=0.12, linewidth=0)
+            ax.fill_between(t, ci[:, 0], ci[:, 1], color=color, alpha=0.35, linewidth=0)
+            ax.plot(t, frame["mean"] / scale, color=color, label=lookup.get(approach, approach))
+        ax.set_title(scenario, fontsize=10)
+        ax.set_xlabel("Timestep")
+        ax.set_ylabel(METRIC_LABELS.get(metric, metric))
+        ax.legend(fontsize=8)
+    fig.tight_layout()
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
+
+
+def show_replicated_paired(exp_dest, tables, scenarios, metric, lookup, output_filename):
+    """The paired differences between the approaches, one panel per scenario sharing the x axis: the mean 
+    difference with its 95% CI, and the fraction of the replications in which the first approach is greater"""
+    paired = tables["paired"]
+    frames = [paired[(paired.scenario == sc) & (paired.metric == metric)] for sc in scenarios]
+    rows = max(len(f) for f in frames)
+    fig, axes = plt.subplots(1, len(scenarios), figsize=(3.5 * len(scenarios), 0.8 + 0.5 * rows),
+                             sharex=True, squeeze=False)
+    for ax, scenario, frame in zip(axes[0], scenarios, frames):
+        labels = []
+        for i, (_, row) in enumerate(frame.iterrows()):
+            low, high = row["ci95_low"], row["ci95_high"]
+            err = [[row["mean"] - low], [high - row["mean"]]] if not np.isnan(low) else None
+            ax.errorbar(row["mean"], i, xerr=err, fmt="o", color="black", capsize=4)
+            ax.annotate(f"{row['fraction_greater']:.0%} greater", (row["mean"], i), xytext=(0, 7),
+                        textcoords="offset points", ha="center", fontsize=7)
+            labels.append(f"{lookup.get(row['approach'], row['approach'])} - {lookup.get(row['reference'], row['reference'])}")
+        ax.axvline(0, color="gray", linewidth=0.8)
+        ax.set_yticks(range(len(labels)))
+        ax.set_yticklabels(labels, fontsize=8)
+        ax.set_ylim(-0.6, rows - 0.2)
+        ax.set_title(lookup.get(scenario, scenario), fontsize=10)
+        ax.set_xlabel(f"Difference: {METRIC_LABELS.get(metric, metric)}")
+    fig.tight_layout()
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
+
+
+def show_replicated_communication(exp_dest, tables, scenarios, approach, lookup, colors, output_filename):
+    """The communication cost of an approach: left, the cumulative transmitted kB over time, mean with 
+    95% CI band, per scenario; right, the transmitted kB per message type, mean with 95% CI (log scale)"""
+    from .mrmr_aggregate import confidence_interval
+    from .mrmr_metrics import MESSAGE_TYPES
+    series, summary = tables["summary-series"], tables["summary"]
+    fig, (ax_time, ax_type) = plt.subplots(1, 2, figsize=(7, 3))
+    width = 0.8 / len(scenarios)
+    for i, scenario in enumerate(scenarios):
+        color = colors[i % len(colors)]
+        frame = series[(series.scenario == scenario) & (series.approach == approach)
+                       & (series.metric == "bytes-transmitted-cumulative")].sort_values("timestep")
+        ci = np.array([confidence_interval(row) for _, row in frame.iterrows()], dtype=float) / 1000
+        ax_time.fill_between(frame["timestep"], ci[:, 0], ci[:, 1], color=color, alpha=0.35, linewidth=0)
+        ax_time.plot(frame["timestep"], frame["mean"] / 1000, color=color, label=lookup.get(scenario, scenario))
+        for j, message_type in enumerate(MESSAGE_TYPES):
+            row = _cell(summary, scenario=scenario, approach=approach, metric=f"bytes-{message_type}")
+            low, high = confidence_interval(row)
+            err = [[(row["mean"] - low) / 1000], [(high - row["mean"]) / 1000]] if not np.isnan(low) else None
+            ax_type.bar(j + (i - (len(scenarios) - 1) / 2) * width, row["mean"] / 1000, width, color=color,
+                        yerr=err, capsize=2, label=lookup.get(scenario, scenario) if j == 0 else None)
+    ax_time.set_xlabel("Timestep")
+    ax_time.set_ylabel("Transmitted (kB)")
+    ax_time.legend(fontsize=8)
+    ax_type.set_xticks(range(len(MESSAGE_TYPES)))
+    ax_type.set_xticklabels(MESSAGE_TYPES, rotation=30, ha="right", fontsize=8)
+    ax_type.set_yscale("log")
+    ax_type.set_ylabel("Transmitted (kB)")
+    fig.tight_layout()
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
+
+
+def show_replicated_per_role(exp_dest, tables, scenarios, metric, lookup, colors, output_filename):
+    """The metric per robot, by role, one panel per scenario: the mean over the robots of a role and 
+    the replications, with the 95% CI over the replications (of the per-replication role means)"""
+    from .mrmr_aggregate import describe
+    robots = tables["robots"]
+    robots = robots[robots.metric == metric]
+    fig, axes = plt.subplots(1, len(scenarios), figsize=(3.5 * len(scenarios), 3), sharey=True, squeeze=False)
+    for ax, scenario in zip(axes[0], scenarios):
+        frame = robots[robots.scenario == scenario]
+        per_replication = frame.groupby(["approach", "role", "run"])["value"].mean().reset_index()
+        groups = list(per_replication.groupby(["approach", "role"], sort=False))
+        for i, ((approach, role), values) in enumerate(groups):
+            d = describe(values["value"])
+            err = [[d["mean"] - d["ci95_low"]], [d["ci95_high"] - d["mean"]]] if not np.isnan(d["ci95_low"]) else None
+            ax.bar(i, d["mean"], color=colors[i % len(colors)], yerr=err, capsize=3)
+        ax.set_xticks(range(len(groups)))
+        ax.set_xticklabels([f"{lookup.get(a, a)} {r}" for (a, r), _ in groups], rotation=45, ha="right", fontsize=8)
+        ax.set_title(scenario, fontsize=10)
+        ax.set_ylabel(f"{METRIC_LABELS.get(metric, metric)} per robot")
+    fig.tight_layout()
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
+
+
+def show_replicated_ranges(exp_dest, tables, scenarios, metrics, approaches, lookup, colors, output_filename):
+    """A box-and-whisker ("mustache") summary across the approaches, in the layout of 
+    show_replicated_comparison: one panel per metric, the scenarios on the x axis, one element per 
+    approach. The box is the 95% confidence interval of the mean with a line at the mean, the whiskers 
+    the range of the replications (min to max), and the dots the replications. The box and the whiskers 
+    are drawn independently: with few replications the confidence interval can be wider than the range."""
+    from matplotlib.patches import Patch, Rectangle
+    from .mrmr_aggregate import confidence_interval
+    replications, summary = tables["replications"], tables["summary"]
+    rng = np.random.default_rng(0)  # the jitter of the points
+    width = 0.8 / len(approaches)
+    fig, axes = plt.subplots(1, len(metrics), figsize=(3.2 * len(metrics), 3), squeeze=False)
+    for ax, metric in zip(axes[0], metrics):
+        for i, approach in enumerate(approaches):
+            color = colors[i % len(colors)]
+            for k, scenario in enumerate(scenarios):
+                x = k + (i - (len(approaches) - 1) / 2) * width
+                row = _cell(summary, scenario=scenario, approach=approach, metric=metric)
+                low, high = confidence_interval(row)
+                if np.isnan(low):
+                    low = high = row["mean"]
+                box = 0.7 * width
+                ax.add_patch(Rectangle((x - box / 2, low), box, high - low, facecolor=color, alpha=0.5,
+                                       edgecolor=color, linewidth=1))
+                ax.plot([x - box / 2, x + box / 2], [row["mean"]] * 2, color=color, linewidth=2)
+                # the whiskers: the range of the replications, with caps
+                ax.plot([x, x], [row["min"], row["max"]], color="black", linewidth=1)
+                for end in [row["min"], row["max"]]:
+                    ax.plot([x - box / 4, x + box / 4], [end, end], color="black", linewidth=1)
+                values = replications[(replications.scenario == scenario) & (replications.approach == approach)
+                                      & (replications.metric == metric)]["value"]
+                ax.scatter(x + rng.uniform(-width / 6, width / 6, len(values)), values, s=6, color="black", zorder=3)
+        ax.set_xticks(range(len(scenarios)))
+        ax.set_xticklabels([lookup.get(sc, sc) for sc in scenarios])
+        ax.set_xlim(-0.5, len(scenarios) - 0.5)
+        ax.set_ylabel(METRIC_LABELS.get(metric, metric))
+        ax.autoscale(axis="y")
+    axes[0][0].legend(handles=[Patch(facecolor=colors[i % len(colors)], alpha=0.5, label=lookup.get(a, a))
+                               for i, a in enumerate(approaches)], fontsize=8)
+    fig.tight_layout()
+    save_figure(fig, pathlib.Path(exp_dest.data_dir(), output_filename))
+    plt.close(fig)
