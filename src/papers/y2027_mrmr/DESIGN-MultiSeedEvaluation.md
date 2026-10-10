@@ -264,11 +264,17 @@ The single-run figures (detection maps, replanning snapshots) remain, drawn for 
 
 A replication is only meaningful if it is a function of its seeds:
 
-1. **Bounded, deterministic EP path search (implemented):** the wall-clock `maxtime` of `find_shortest_path_ep` was replaced by `max_evaluations`, a limit on the number of evaluated (order, directions) combinations.
-   - **Where the search stops:** as the time limit did, it stops after the EP order during which the limit is reached, and returns the best path so far.
-   - **The limits:** `MRMR_Contractor.BID_EVALUATIONS = 2000` and `REPLAN_EVALUATIONS = 20000`, measured at 14000–33000 combinations per second on the development machine. They match the earlier 0.1 s and 1 s.
+1. **Bounded, deterministic EP path search (implemented, revised 2026-10-09):** `find_shortest_path_ep(start, end, max_evaluations)` in `exploration_package.py`. It first replaced the wall-clock `maxtime` with a count, which made the runs reproducible. It was then revised, because the count did not bound the work either.
+   - **The problem:** like the original time limit, the first version checked the count only after a complete EP order, i.e. after all 4^n lawnmower directions of n EPs. A contractor with 9 or 10 committed EPs therefore evaluated 0.3 to 1 million paths per search, whatever the limit.
+     - **Impact:** in the first 20-replication flow, the MRMR runs on the unclustered maps, with 13–18 EPs awarded, took 1–18 minutes of simulation instead of about 5 seconds. Six of the 240 runs took 17–18 minutes each.
+     - **Timing:** the time limit of the 2025 code had the same flaw, and hid it as "slow runs".
+   - **The fix:** the search is exhaustive only if its whole space fits into the limit, i.e. n! · 4^n ≤ `max_evaluations`. Otherwise `greedy_path_ep` builds the path greedily: from the current position, it takes the remaining EP and lawnmower direction with the smallest cost (the distance to the start of the lawnmower plus its length), and continues from its end.
+     - The greedy search is deterministic (ties go to the earlier EP and direction), and takes about 4 n² evaluations.
+     - It replaces the earlier exhaustive search cut off within the first EP orders. That search varied the directions of the last EPs while keeping the given commitment order, so it explored hardly any orders.
+   - **The limits:** `MRMR_Contractor.BID_EVALUATIONS = 2000` and `REPLAN_EVALUATIONS = 20000`, unchanged. Bidding is exhaustive up to 3 committed EPs (384 combinations) and greedy from 4 (6144). Replanning is exhaustive up to 4 EPs (6144) and greedy from 5 (122880).
+   - **Effect on the results:** paths with few EPs are the same optimal paths as before. With more EPs, MRMR's bids and plans differ from the earlier, truncated search, so all the replications were recomputed after the fix. The run that took 1063 s now takes 5.7 s, with the same number of awarded EPs (13).
    - **Exhaustive search:** `None` searches everything. The optimal-path figure uses it (`max-evaluations: null`).
-   - **No heuristic completion:** none is needed, since at least the first EP order is always complete.
+   - **Tests:** `src/test/test_exploration_package.py` checks that a small search is still the unbounded optimum, and that a search with 10 EPs finishes within 2 seconds, covers every EP and is deterministic.
 2. **No global random state:** the policies, the environment and the generator already use their own `np.random.default_rng` generators. A test runs one replication twice in the same process, and once in a fresh process, and compares `metrics.json`.
 3. **Parallel execution** becomes safe once 1 holds. The replications are independent, so the flow could run them in a process pool, which ExpRunFlow does not do today. Not part of this design.
 
@@ -276,7 +282,7 @@ A replication is only meaningful if it is a function of its seeds:
 
 | File | Change |
 |---|---|
-| `src/papers/y2027_mrmr/exploration_package.py` | `find_shortest_path_ep(start, end, max_evaluations)` instead of `maxtime` |
+| `src/papers/y2027_mrmr/exploration_package.py` | `find_shortest_path_ep(start, end, max_evaluations)` instead of `maxtime`: exhaustive if the space fits into the limit, otherwise `greedy_path_ep` (Section 8) |
 | `src/papers/y2027_mrmr/mrmr_policies.py` | `BID_EVALUATIONS`, `REPLAN_EVALUATIONS` |
 | `src/papers/y2027_mrmr/mrmr_metrics.py` | new: `collect_metrics`, `save_metrics`, `load_metrics`, `robot_role` |
 | `src/papers/y2027_mrmr/run_experiment.py` | writes `metrics.json`; `run_identification` |

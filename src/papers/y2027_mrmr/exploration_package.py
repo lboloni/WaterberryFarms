@@ -5,6 +5,7 @@ Classes of the MultiResolutionMultiRobot paper that implement exploration packag
 
 """
 
+import math
 import numpy as np
 import itertools
 from path_generators import get_path_length
@@ -113,56 +114,70 @@ class ExplorationPackageSet:
         """
         self.ep_to_explore.append(ep)
 
-    def find_shortest_path_ep(self, start, end=None, max_evaluations=None):
-        """Tries every combination of traversal directions to find the optimal one. This is a very expensive function, with a computational complexity of n!*4^n. Realistically, it can only be run up to n=5, where it takes about 10 seconds. 
-        max_evaluations bounds the number of (order, directions) combinations evaluated: the search stops 
-        after the EP order during which it is reached, and returns the best path so far. None searches 
-        exhaustively. A count rather than a time limit makes the result independent of the speed and the 
-        load of the machine, so a run is reproducible from its seeds (DESIGN-MultiSeedEvaluation.md, Section 8). 
-        On the development machine, about 15000-30000 combinations are evaluated per second.
-        
-        Returns the path in the form of a list of dicts labeled with the EPs that are part of it
+    LAWNMOWERS = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right,
+                  ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
 
-        """
-        choices = [ExplorationPackage.lawnmower_horizontal_bottom_left, ExplorationPackage.lawnmower_horizontal_bottom_right, ExplorationPackage.lawnmower_horizontal_top_left, ExplorationPackage.lawnmower_horizontal_top_right]
+    def find_shortest_path_ep(self, start, end=None, max_evaluations=None):
+        """The shortest path that starts at start, covers every EP with one of its four lawnmower patterns, 
+        and ends at end (if given). Returns the path as an array of points, and as a list of segments, dicts 
+        labeled with the EP they cover (None for the start and the end).
+
+        If the search space, n! EP orders times 4^n lawnmower directions, fits into max_evaluations (or 
+        max_evaluations is None), the search is exhaustive and the path optimal. Otherwise, the path is 
+        built greedily (greedy_path_ep). The bound is a count of evaluated combinations rather than a time, 
+        so the result does not depend on the speed or the load of the machine, and a run is reproducible 
+        from its seeds. Unlike an exhaustive search cut off after some combinations, the bound also holds 
+        for any number of EPs: the space grows as n! 4^n, about 10^6 combinations per EP order for n = 10
+        (DESIGN-MultiSeedEvaluation.md, Section 8)."""
+        n = len(self.ep_to_explore)
+        if max_evaluations is not None and math.factorial(n) * 4 ** n > max_evaluations:
+            return self.greedy_path_ep(start, end)
         min_len = float('inf')
         best_path = None
         best_ep_path = None
-
-        count = 0
         for perm in itertools.permutations(self.ep_to_explore):
-            generator_choices = itertools.product(
-                choices, repeat=len(self.ep_to_explore))
-            for gens in generator_choices:
+            for gens in itertools.product(self.LAWNMOWERS, repeat=n):
                 path = np.array([start])
                 # FIXME: this fixes the fact that the path does not start 
                 # with the start but then it breaks something else
-                ep_path = []
-                # append the first segment, not an ep
-                ep_path.append({"path": [start], "ep": None})
-                intrinsic = 0
+                ep_path = [{"path": [start], "ep": None}]
                 for generator, ep in zip(gens, perm):
-                    # print(generator.__name__)
                     newpath = generator(ep)
-                    # print(f"path length: {generator} {get_path_length(newpath)}")
-                    intrinsic += get_path_length(newpath)
                     path = np.concatenate((path, newpath), axis=0)
                     ep_path.append({"path": newpath, "ep": ep})
-                # FIXME: the ep_path should also have this
                 if end is not None:
                     path = np.concatenate((path, np.array([end])), axis=0)
-                    # append the last segment, not an ep
                     ep_path.append({"path": [end], "ep": None})
-                
                 length = get_path_length(path)
-                count += 1
-                # print(f"{count} Lenght of current path: {length} intrinsic {intrinsic}")
                 if length < min_len:
                     min_len = length
-                    # print(length)
                     best_path = path
                     best_ep_path = ep_path
-            if max_evaluations is not None and count >= max_evaluations:
-                return best_path, best_ep_path
-             
-        return best_path, best_ep_path        
+        return best_path, best_ep_path
+
+    def greedy_path_ep(self, start, end=None):
+        """A path built greedily: from the current position, take the remaining EP and lawnmower direction 
+        with the smallest cost, the distance to the start of the lawnmower plus its length; then continue 
+        from its end. Deterministic (ties go to the earlier EP and direction), and about 4 n^2 evaluations 
+        for n EPs. The result has the format of find_shortest_path_ep."""
+        current = np.array(start, dtype=float)
+        remaining = list(self.ep_to_explore)
+        path = np.array([start])
+        ep_path = [{"path": [start], "ep": None}]
+        while remaining:
+            best = None
+            for ep in remaining:
+                for generator in self.LAWNMOWERS:
+                    newpath = generator(ep)
+                    cost = float(np.linalg.norm(np.asarray(newpath[0], dtype=float) - current)) + get_path_length(newpath)
+                    if best is None or cost < best[0]:
+                        best = (cost, ep, newpath)
+            _, ep, newpath = best
+            remaining.remove(ep)
+            path = np.concatenate((path, newpath), axis=0)
+            ep_path.append({"path": newpath, "ep": ep})
+            current = np.asarray(newpath[-1], dtype=float)
+        if end is not None:
+            path = np.concatenate((path, np.array([end])), axis=0)
+            ep_path.append({"path": [end], "ep": None})
+        return path, ep_path
