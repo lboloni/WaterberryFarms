@@ -1,3 +1,4 @@
+# The clustered mrse comparison on the 200x200 field (Miniberry-200), with the same robots and budget as on 100x100
 # Experiment for the MRMR paper, three lawnmower robots arranged
 # in a certain way
 
@@ -11,10 +12,10 @@ name: "3 lawnmowers"
 # the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
 scenario: "clustered"
 approach: "mrse"
-map-size: 100
+map-size: 200
 
 exp_environment: "environment"
-run_environment: "mrmr-generated-clustered-100"
+run_environment: "mrmr-generated-clustered-200"
 
 exp_estimator: "estimator"
 run_estimator: "adaptive-disk"
@@ -30,20 +31,20 @@ robots:
     exp-policy: "policy"
     run-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      area: [5, 5, 95, 30] # [xmin, ymin, xmax, ymax]
+      area: [10, 10, 190, 60] # [xmin, ymin, xmax, ymax]
       policy-name: "lawn-bottom"
       budget: 1000 # same as timesteps-per-day
   - name: "lawn-2"
     exp-policy: "policy"
     run-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      area: [5, 35, 95, 60]
+      area: [10, 70, 190, 120]
       policy-name: "lawn-middle"
       budget: 1000 # same as timesteps-per-day
   - name: "lawn-3"
     exp-policy: "policy"
     run-policy: "fixed-budget-lawnmower"
     exp-policy-extra-parameters:
-      area: [5, 65, 95, 95]
+      area: [10, 130, 190, 190]
       policy-name: "lawn-top"
       budget: 1000 # same as timesteps-per-day

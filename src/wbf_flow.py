@@ -2,13 +2,9 @@
 generic helpers are implemented by the ExpRunFlow library (exprunflow.flow),
 the builders of the flow entries are specific to Waterberry Farms."""
 
-import pathlib
-
-import numpy as np
-import yaml
-
 from exp_run_config import Config
 from exprunflow.flow import *
+from exprunflow.replication import derive_seed, replication_entries
 
 
 def build_flow_entries(
@@ -67,14 +63,20 @@ def build_flow_entries(
 
 
 def build_mrmr_2027_flow_entries(
-        collection_experiment, collection_run, creation_style, config=None):
-    """Build the environment, simulation, and figure phases for MRMR 2027."""
+        collection_experiment, collection_run, creation_style, config=None, skip_completed=False):
+    """Build the environment, simulation, and figure phases for MRMR 2027. For a replicated collection, 
+    skip_completed reuses the replications that already have a completed result with the same 
+    configuration (exprunflow.replication.is_completed), e.g. to resume an interrupted flow."""
     if config is None:
         config = Config()
     collection = config.get_experiment(
         collection_experiment, collection_run, create_data_dir=False)
     if collection.get("aggregate") is not None:
-        return build_mrmr_2027_replicated_entries(collection, creation_style, config)
+        if skip_completed:
+            # in memory only: setting an item of an Experiment would save it into its (absent) result directory
+            values = collection.values if isinstance(getattr(collection, "values", None), dict) else collection
+            values["skip-completed"] = True
+        return replication_entries(collection, MRMR_APPLIERS, creation_style, config)
     run_experiment = collection["run-experiment"]
     figure_experiment = collection["figure-experiment"]
     run_names = collection["runs"]
@@ -132,124 +134,36 @@ def build_mrmr_2027_flow_entries(
     return entries
 
 
-# Replications: the same runs with varied map and behavior seeds (DESIGN-MultiSeedEvaluation.md)
+# Replications: the same runs with varied map and behavior seeds. The mechanism is in the ExpRunFlow 
+# library (exprunflow.replication, DESIGN-Replication.md); the project supplies what a seed changes
+# (DESIGN-MultiSeedEvaluation.md).
 
-def robot_seed(behavior_seed, index):
-    """The seed of the robot at the index of the robots list in the replication with the behavior seed. 
-    Robot i of every approach gets the same seed (common random numbers)."""
-    return int(np.random.SeedSequence([behavior_seed, index]).generate_state(1)[0])
-
-
-def environment_variant_name(environment_run, map_seed):
-    return f"{environment_run}-m{map_seed}"
-
-
-def replication_name(base_run, map_seed, behavior_seed):
-    return f"{base_run}-m{map_seed}-b{behavior_seed}"
-
-
-def replication_names(aggregate):
-    """The replication runs of an aggregate exp/run: every base run with every map and behavior seed"""
-    return [replication_name(run, m, b) for run in aggregate["runs"]
-            for m in aggregate["map-seeds"] for b in aggregate["behavior-seeds"]]
+def apply_map_seed(context, map_seed):
+    """The map seed: a variant of the run's environment with the seed of its generated disease map, 
+    precomputed before the replications"""
+    base = context.base
+    env_family, env_run = base["exp_environment"], base["run_environment"]
+    environment = context.config.get_experiment(env_family, env_run, create_data_dir=False)
+    if not environment["tylcv-generated"]:
+        raise Exception(f"The map seed can only be varied on a generated map, {env_family}/{env_run} has none")
+    name = context.variant(env_family, env_run, {"tylcv-generated-seed": map_seed}, f"{env_run}-m{map_seed}",
+                           queue=True)
+    return {"run_environment": name}
 
 
-def write_exprun_variant(family, run, changes, new_run, config=None):
-    """Write the run of the family, with the changes to its top-level values, as the new run into the 
-    active exp/run path (in a flow, the flow workspace). The variant is written from the run's own file, 
-    so it keeps inheriting the defaults of the family."""
-    if config is None:
-        config = Config()
-    family_path = pathlib.Path(config.get_exprun_path(), family)
-    with open(family_path / f"{run}.yaml") as f:
-        values = yaml.safe_load(f) or {}
-    values.update(changes)
-    with open(family_path / f"{new_run}.yaml", "w") as f:
-        f.write(f"# generated from {family}/{run} by write_exprun_variant, do not edit\n")
-        yaml.safe_dump(values, f, sort_keys=False)
-    return new_run
-
-
-def replicated_robots(base, behavior_seed, config):
-    """The robots of a base run, with the seed of every robot whose policy has one replaced by its 
-    replication seed"""
+def apply_behavior_seed(context, behavior_seed):
+    """The behavior seed: every robot whose policy has a seed gets one derived from the behavior seed and 
+    its position in the team, so robot i of every approach has the same seed (common random numbers)"""
     robots = []
-    for index, values in enumerate(base["robots"]):
+    for index, values in enumerate(context.base["robots"]):
         values = dict(values)
         extra = dict(values.get("exp-policy-extra-parameters") or {})
-        policy = config.get_experiment(values["exp-policy"], values["run-policy"], create_data_dir=False)
+        policy = context.config.get_experiment(values["exp-policy"], values["run-policy"], create_data_dir=False)
         if "seed" in extra or "seed" in policy:
-            extra["seed"] = robot_seed(behavior_seed, index)
+            extra["seed"] = derive_seed(behavior_seed, index)
             values["exp-policy-extra-parameters"] = extra
         robots.append(values)
-    return robots
+    return {"robots": robots}
 
 
-def build_mrmr_2027_replicated_entries(collection, creation_style, config):
-    """Generate the replications declared by the aggregate exp/run of the collection into the active 
-    exp/run path, and build their phases: the environment variants, the replications, the aggregation, 
-    and the figures"""
-    run_experiment = collection["run-experiment"]
-    aggregate_experiment = collection["aggregate-experiment"]
-    aggregate = config.get_experiment(aggregate_experiment, collection["aggregate"], create_data_dir=False)
-    if aggregate["source-experiment"] != run_experiment:
-        raise Exception(f"The aggregate {collection['aggregate']} refers to {aggregate['source-experiment']}, "
-                        f"expected {run_experiment}")
-    entries = []
-    environments = {}  # (environment family, run, map seed) -> variant name
-    runs = []
-    for base_name in aggregate["runs"]:
-        base = config.get_experiment(run_experiment, base_name, create_data_dir=False)
-        env_family, env_run = base["exp_environment"], base["run_environment"]
-        environment = config.get_experiment(env_family, env_run, create_data_dir=False)
-        if not environment["tylcv-generated"]:
-            raise Exception(f"{base_name}: the map seed can only be varied on a generated map, "
-                            f"{env_family}/{env_run} has none")
-        for map_seed in aggregate["map-seeds"]:
-            key = (env_family, env_run, map_seed)
-            if key not in environments:
-                environments[key] = write_exprun_variant(env_family, env_run, {"tylcv-generated-seed": map_seed},
-                    environment_variant_name(env_run, map_seed), config)
-                entries.append({
-                    "name": f"Precompute {env_family}/{environments[key]}",
-                    "notebook": environment["input-to-notebook"][0],
-                    "experiment": env_family,
-                    "run": environments[key],
-                    "creation_style": creation_style,
-                })
-            for behavior_seed in aggregate["behavior-seeds"]:
-                runs.append(write_exprun_variant(run_experiment, base_name, {
-                    "run_environment": environments[key],
-                    "robots": replicated_robots(base, behavior_seed, config),
-                    "base-run": base_name,
-                    "behavior-seed": behavior_seed,
-                }, replication_name(base_name, map_seed, behavior_seed), config))
-    for run in runs:
-        exp = config.get_experiment(run_experiment, run, create_data_dir=False)
-        entries.append({
-            "name": f"Run {run_experiment}/{run}",
-            "notebook": exp["input-to-notebook"][0],
-            "experiment": run_experiment,
-            "run": run,
-            "creation_style": creation_style,
-        })
-    entries.append({
-        "name": f"Aggregate {aggregate_experiment}/{collection['aggregate']}",
-        "notebook": aggregate["input-to-notebook"][0],
-        "experiment": aggregate_experiment,
-        "run": collection["aggregate"],
-        "creation_style": creation_style,
-    })
-    figure_experiment = collection["figure-experiment"]
-    for figure_name in collection["figures"]:
-        figure = config.get_experiment(figure_experiment, figure_name, create_data_dir=False)
-        if figure["source-experiment"] != aggregate_experiment or figure["source-runs"] != [collection["aggregate"]]:
-            raise Exception(f"Figure {figure_name} does not draw the aggregate {collection['aggregate']}")
-        entries.append({
-            "name": f"Figure {figure_experiment}/{figure_name}",
-            "notebook": figure["input-to-notebook"][0],
-            "experiment": figure_experiment,
-            "run": figure_name,
-            "creation_style": creation_style,
-        })
-    return entries
+MRMR_APPLIERS = {"map-seed": apply_map_seed, "behavior-seed": apply_behavior_seed}

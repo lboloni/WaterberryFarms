@@ -1,20 +1,17 @@
-# Experiment for the MRMR paper, three lawnmower robots arranged
-# in a certain way
-
-# FIXME: for the time being this is just a placeholder with the
-# 3 random ones, such that I can test the flow
-
+# The clustered mrrw comparison on the 200x200 field (Miniberry-200), with the same robots and budget as on 100x100
+# Experiment for the MRMR paper, three random waypoint robots
+# FIXME: we will need to change the environment to a custom one with more 
 # stuff to pick
 # exp_environment: "miniberry-100-custom-mrmr"
-name: "3 lawnmowers"
+name: "3 random waypoint"
 
 # the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
 scenario: "clustered"
-approach: "mrse"
-map-size: 100
+approach: "mrrw"
+map-size: 200
 
 exp_environment: "environment"
-run_environment: "mrmr-generated-clustered-100"
+run_environment: "mrmr-generated-clustered-200"
 
 exp_estimator: "estimator"
 run_estimator: "adaptive-disk"
@@ -26,24 +23,24 @@ timesteps-per-day: 1000
 time-start-environment: 25
 
 robots:
-  - name: "lawn-1"
+  - name: "robot-1"
     exp-policy: "policy"
-    run-policy: "fixed-budget-lawnmower"
+    run-policy: "random-waypoint"
     exp-policy-extra-parameters:
-      area: [5, 5, 95, 30] # [xmin, ymin, xmax, ymax]
-      policy-name: "lawn-bottom"
+      seed: 1
+      name: rwp-1
       budget: 1000 # same as timesteps-per-day
-  - name: "lawn-2"
+  - name: "robot-2"
     exp-policy: "policy"
-    run-policy: "fixed-budget-lawnmower"
+    run-policy: "random-waypoint-seed10"
     exp-policy-extra-parameters:
-      area: [5, 35, 95, 60]
-      policy-name: "lawn-middle"
+      seed: 10
+      name: rwp-2
       budget: 1000 # same as timesteps-per-day
-  - name: "lawn-3"
+  - name: "robot-3"
     exp-policy: "policy"
-    run-policy: "fixed-budget-lawnmower"
+    run-policy: "random-waypoint-seed20"
     exp-policy-extra-parameters:
-      area: [5, 65, 95, 95]
-      policy-name: "lawn-top"
+      seed: 20
+      name: rwp-3
       budget: 1000 # same as timesteps-per-day

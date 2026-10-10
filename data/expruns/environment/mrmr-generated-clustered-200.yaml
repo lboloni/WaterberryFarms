@@ -1,0 +1,8 @@
+# A generated clustered disease map of Miniberry-200 size, used in the MRMR paper (DESIGN-ClusteredDiseaseMap.md).
+# It has the same number of diseased plants as its pair, mrmr-generated-unclustered-200.
+typename: "Miniberry-200"
+precompute-time: 30
+planting: "tomato-only"
+tylcv-generated: "clustered"
+tylcv-generated-seed: 1
+tylcv-generated-fraction: 0.05

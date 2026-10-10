@@ -7,6 +7,7 @@ name: "3 random waypoint"
 # the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
 scenario: "unclustered"
 approach: "mrrw"
+map-size: 100
 
 exp_environment: "environment"
 run_environment: "mrmr-generated-unclustered-100"

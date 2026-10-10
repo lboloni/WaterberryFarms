@@ -1,12 +1,10 @@
 """
 mrmr_metrics.py
 
-The metrics of one MRMR run, as plain data (metrics.json), from which the replications are aggregated
-without loading their results pickles. See DESIGN-MultiSeedEvaluation.md, Section 5.
+The measurements of one MRMR run, saved as its metrics.json with exprunflow.metrics.save_metrics, from
+which the replications are aggregated without loading their results pickles.
+See DESIGN-MultiSeedEvaluation.md, Section 5, and ExpRunFlow's DESIGN-Replication.md, Section 3.
 """
-
-import json
-import pathlib
 
 import numpy as np
 
@@ -15,7 +13,8 @@ from water_berry_farm import voi_credits
 
 from .mrmr_policies import MRMR_Contractor, MRMR_Pioneer
 
-METRICS_FILE = "metrics.json"
+# the keys of a run that identify its cell (the labels of the aggregation)
+LABEL_KEYS = ["map-size", "scenario", "approach"]
 # the VoI variants recorded, if the run was scored with the VoI score
 VOI_VARIANTS = ["voi-absolute", "voi-estimator"]
 # the message types whose transmitted bytes are recorded as bytes-<type>
@@ -33,9 +32,9 @@ def robot_role(robot):
     return "lawnmower"
 
 
-def collect_metrics(exp, results, identification, computation_seconds=None):
-    """The metrics of a run: its identification, final scalars, per-robot values, and series sampled at
-    the scoring events. identification: run, base-run, scenario, approach, map-seed, behavior-seed"""
+def collect_metrics(results, computation_seconds=None):
+    """The measurements of a run: the final scalars, the series sampled at the scoring events (indexed by
+    timestep), and the values per robot (entities, grouped by the robot's role)"""
     environment = results["wbfe"]
     record = results["estimator"].record
     diseased = (environment.tylcv.value < 1.0) & environment.my_tomato_mask
@@ -71,35 +70,22 @@ def collect_metrics(exp, results, identification, computation_seconds=None):
         "bytes-transmitted-cumulative": [int(cumulative_bytes[t]) for t in timesteps],
     }
 
-    per_robot = {}
+    entities = {}
     credits = voi_credits(results, "voi-absolute") if scored_voi else None
     for robot in results["robots"]:
         name = robot.name
-        per_robot[name] = {
-            "role": robot_role(robot),
+        entities[name] = {
+            "group": robot_role(robot),
             "cells-observed": sum(1 for _, rec in cells if rec["first-robot"] == name),
             "diseased-found": sum(1 for _, rec in found if rec["first-robot"] == name),
             "bytes-transmitted": summary["per-sender"].get(name, {}).get("bytes-transmitted", 0),
         }
         if credits is not None:
-            per_robot[name]["voi-absolute"] = float(credits[name].sum())
+            entities[name]["voi-absolute"] = float(credits[name].sum())
 
     if scored_voi:
         for variant in VOI_VARIANTS:
             scalars[variant] = float(results["score"][variant])
             series[variant] = [float(event["score"][variant]) for event in events]
 
-    return {**identification, "robots": [robot.name for robot in results["robots"]],
-            "scalars": scalars, "per-robot": per_robot, "series": series}
-
-
-def save_metrics(data_dir, metrics):
-    path = pathlib.Path(data_dir, METRICS_FILE)
-    with open(path, "w") as f:
-        json.dump(metrics, f, indent=1)
-    return path
-
-
-def load_metrics(data_dir):
-    with open(pathlib.Path(data_dir, METRICS_FILE)) as f:
-        return json.load(f)
+    return scalars, series, entities

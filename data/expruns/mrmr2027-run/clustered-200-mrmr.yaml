@@ -1,20 +1,22 @@
-# Experiment for the MRMR paper, three lawnmower robots arranged
-# in a certain way
+# The clustered mrmr comparison on the 200x200 field (Miniberry-200), with the same robots and budget as on 100x100
+# Experiment for the MRMR paper: a lead robot placing experiments and two robots doing bidding and detection
 
 # FIXME: for the time being this is just a placeholder with the
 # 3 random ones, such that I can test the flow
 
 # stuff to pick
 # exp_environment: "miniberry-100-custom-mrmr"
-name: "3 lawnmowers"
+name: "1 pioneer 2 contractors clustered"
+
+#exp_environment: "miniberry-100"
 
 # the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
 scenario: "clustered"
-approach: "mrse"
-map-size: 100
+approach: "mrmr"
+map-size: 200
 
 exp_environment: "environment"
-run_environment: "mrmr-generated-clustered-100"
+run_environment: "mrmr-generated-clustered-200"
 
 exp_estimator: "estimator"
 run_estimator: "adaptive-disk"
@@ -26,24 +28,25 @@ timesteps-per-day: 1000
 time-start-environment: 25
 
 robots:
-  - name: "lawn-1"
+  - name: "pio"
     exp-policy: "policy"
-    run-policy: "fixed-budget-lawnmower"
+    run-policy: "generic"
     exp-policy-extra-parameters:
-      area: [5, 5, 95, 30] # [xmin, ymin, xmax, ymax]
-      policy-name: "lawn-bottom"
+      policy-name: "mrmr-pioneer"
+      seed: 1
       budget: 1000 # same as timesteps-per-day
-  - name: "lawn-2"
+      # area: "[5, 5, 95, 95]" # [xmin, ymin, xmax, ymax]
+  - name: "con-1"
     exp-policy: "policy"
-    run-policy: "fixed-budget-lawnmower"
+    run-policy: "generic"
     exp-policy-extra-parameters:
-      area: [5, 35, 95, 60]
-      policy-name: "lawn-middle"
+      policy-name: "mrmr-contractor-1"
+      seed: 2
       budget: 1000 # same as timesteps-per-day
-  - name: "lawn-3"
+  - name: "con-2"
     exp-policy: "policy"
-    run-policy: "fixed-budget-lawnmower"
+    run-policy: "generic"
     exp-policy-extra-parameters:
-      area: [5, 65, 95, 95]
-      policy-name: "lawn-top"
+      policy-name: "mrmr-contractor-2"
+      seed: 3
       budget: 1000 # same as timesteps-per-day

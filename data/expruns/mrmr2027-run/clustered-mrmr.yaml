@@ -12,6 +12,7 @@ name: "1 pioneer 2 contractors clustered"
 # the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
 scenario: "clustered"
 approach: "mrmr"
+map-size: 100
 
 exp_environment: "environment"
 run_environment: "mrmr-generated-clustered-100"

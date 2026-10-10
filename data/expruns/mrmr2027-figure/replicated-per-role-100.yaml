@@ -1,0 +1,13 @@
+name: Absolute VoI per robot role, replicated, 100x100
+figure-kind: per-role
+where: {map-size: 100}
+scenarios: [clustered, unclustered]
+metric: voi-absolute
+output-filename: replicated-per-role-100.pdf
+source-experiment: mrmr2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {mrmr: MRMR, mrse: MRSE, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, mrse, mrmr]
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Replicated.ipynb

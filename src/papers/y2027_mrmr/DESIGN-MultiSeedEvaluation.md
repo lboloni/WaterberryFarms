@@ -1,11 +1,19 @@
 # Multi-seed evaluation of the MRMR comparisons
 
-**Status:** implemented. It deviates from the original proposal in three points:
-- The replications are declared in the aggregate exp/run, not in the flow exp/run (Section 3).
-- The EP path search has an evaluation limit without a heuristic completion (Section 8).
-- The replicated figures share one notebook (Section 7).
+**Status:** implemented on top of the ExpRunFlow library (0.2.0, `ExpRunFlow/docs/DESIGN-Replication.md`), which now contains the general mechanism:
+- the generation of the replications (`exprunflow.replication`);
+- `metrics.json` (`exprunflow.metrics`);
+- the tidy tables and statistics (`exprunflow.aggregate`);
+- the standard figures (`exprunflow.plots`).
 
-First experiment: 3 behavior seeds on map seed 1 (`mrmr2027-aggregate/icc-2027-replicated`). It is tested in `src/test/test_replications.py` and `test_exploration_package.py`.
+The project supplies only what is specific to MRMR:
+- **The appliers** `apply_map_seed` and `apply_behavior_seed` in `src/wbf_flow.py`: what a map seed and a behavior seed change.
+- **The measurements of a run** (`mrmr_metrics.collect_metrics`) and its labels (`map-size`, `scenario`, `approach`).
+- **The MRMR-specific figures:** the communication cost, and the VoI per role.
+
+The names in this document have changed in the library. The replication block replaces the top-level `base-run` and `behavior-seed` keys, the `factors` section of the aggregate replaces the `map-seeds` and `behavior-seeds` lists, and the tables use the column names `map-seed`, `entities.csv` with `group`, and `n_clusters`.
+
+**The current experiment** (`mrmr2027-aggregate/icc-2027-replicated`): 12 base runs (100x100 and 200x200 fields, clustered and unclustered, MRMR, MRSE and MRRW) x 5 map seeds x 4 behavior seeds = 240 replications.
 
 ## Purpose
 

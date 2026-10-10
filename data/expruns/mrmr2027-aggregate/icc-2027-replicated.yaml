@@ -1,5 +1,5 @@
-name: ICC 2027 MRMR, replicated over the robot behavior
-# the base runs to replicate; every one is run with every map seed and every behavior seed
+name: ICC 2027 MRMR, 20 replications on 100x100 and 200x200 fields
+# the base runs to replicate; every one is run with every combination of the factor values
 runs:
   - clustered-mrmr
   - clustered-mrse
@@ -7,7 +7,13 @@ runs:
   - unclustered-mrmr
   - unclustered-mrse
   - unclustered-mrrw
-# the seeds of the generated maps (tylcv-generated-seed of the environment)
-map-seeds: [1]
-# the seeds from which the robot seeds are derived
-behavior-seeds: [1, 2, 3]
+  - clustered-200-mrmr
+  - clustered-200-mrse
+  - clustered-200-mrrw
+  - unclustered-200-mrmr
+  - unclustered-200-mrse
+  - unclustered-200-mrrw
+# crossed: 5 maps x 4 behaviors = 20 replications per base run
+factors:
+  map-seed: {code: m, values: [1, 2, 3, 4, 5]}          # the seed of the generated disease map
+  behavior-seed: {code: b, values: [1, 2, 3, 4]}        # the seed from which the robot seeds are derived

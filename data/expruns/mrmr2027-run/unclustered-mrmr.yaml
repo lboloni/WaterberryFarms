@@ -12,6 +12,7 @@ name: "1 pioneer 2 contractors"
 # the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
 scenario: "unclustered"
 approach: "mrmr"
+map-size: 100
 
 exp_environment: "environment"
 run_environment: "mrmr-generated-unclustered-100"

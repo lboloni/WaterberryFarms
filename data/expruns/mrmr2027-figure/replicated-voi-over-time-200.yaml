@@ -1,0 +1,13 @@
+name: Absolute VoI over time, replicated, 200x200
+figure-kind: series
+where: {map-size: 200}
+scenarios: [clustered, unclustered]
+metric: voi-absolute
+output-filename: replicated-voi-over-time-200.pdf
+source-experiment: mrmr2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {mrmr: MRMR, mrse: MRSE, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, mrse, mrmr]
+input-to-notebook:
+  - papers/y2027_mrmr/MRMR-Visualize-Replicated.ipynb
