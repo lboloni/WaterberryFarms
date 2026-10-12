@@ -1,0 +1,5 @@
+# Confidence-guided exploration in the robot's balanced area (papers/y2027_marex/DESIGN-BALANCED-EXPLORATION-AREAS.md):
+# the next waypoint is the cell of the highest uncertainty within the span, of an estimator of the run's type
+policy-name: "balanced-confidence-guided"
+seed: 1
+span: 5

@@ -1,0 +1,13 @@
+name: Paired differences of the absolute VoI, 100x100
+figure-kind: paired
+where: {map-size: 100, team-size: 3}
+scenarios: [clustered, unclustered]
+metric: voi-absolute
+output-filename: replicated-paired-100.pdf
+source-experiment: marex2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {marex: MAREX, bmrse: BMRSE, bmrcg: BMRCG, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, bmrse, bmrcg, marex]
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Replicated.ipynb

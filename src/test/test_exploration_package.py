@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 
-from papers.y2027_mrmr.exploration_package import ExplorationPackage, ExplorationPackageSet
+from papers.y2027_marex.exploration_package import ExplorationPackage, ExplorationPackageSet
 from path_generators import get_path_length
 
 

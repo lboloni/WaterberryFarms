@@ -1,0 +1,7 @@
+name: Detection map for clustered-bmrse
+source-runs:
+  - clustered-bmrse
+title: BMRSE
+output-filename: detections-map-clustered-bmrse.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

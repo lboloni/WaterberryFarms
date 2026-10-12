@@ -1,0 +1,8 @@
+name: Agent VoI for unclustered-marex
+source-runs:
+  - unclustered-marex
+# the VoI variant credited to the agents (DESIGN-VOI.md, Section 5.1)
+voi-variant: voi-absolute
+output-filename: voi-bar-unclustered-marex.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-AgentVoI.ipynb

@@ -1,0 +1,132 @@
+% Hero figure for the MAREX paper: the field, the Pioneer and Contractor
+% drones, exploration packages (EPs) and the EP market messages.
+% Build: the notebook MAREX-Visualize-Hero.ipynb (marex2027-figure/hero) runs xelatex on it -> hero.pdf
+% (sized for one IEEE column)
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{amsmath}
+\usepackage{fontspec}
+% Arial if installed (macOS), otherwise Liberation Sans, which has the same metrics (Linux)
+\IfFontExistsTF{Arial}{\def\herofont{Arial}}{\def\herofont{Liberation Sans}}
+\setmainfont{\herofont}
+\setsansfont{\herofont}
+\usepackage[italic]{mathastext}
+\usetikzlibrary{decorations.pathmorphing,arrows.meta,calc,backgrounds,positioning}
+
+\definecolor{field}{RGB}{226,240,206}
+\definecolor{disease}{RGB}{200,40,40}
+\definecolor{pioneer}{RGB}{230,120,0}
+\definecolor{contractor}{RGB}{30,90,190}
+\definecolor{msg}{RGB}{130,40,160}
+\definecolor{ep}{RGB}{30,90,190}
+
+% \drone[label offset]{position}{color}{label}
+\newcommand{\drone}[4][(0,0.42)]{%
+  \begin{scope}[shift={#2}]
+    \foreach \a in {45,135,225,315}
+      \draw[#3!70!black, line width=0.7pt] (0,0) -- (\a:0.2);
+    \foreach \a in {45,135,225,315}
+      \filldraw[fill=#3!20, draw=#3!70!black, line width=0.4pt] (\a:0.2) circle (0.095);
+    \filldraw[fill=#3, draw=#3!60!black, line width=0.4pt] (-0.08,-0.08) rectangle (0.08,0.08);
+    \node[font=\scriptsize\bfseries, text=#3!80!black, fill=white, fill opacity=0.8, text opacity=1, inner sep=0.5pt, rounded corners=1pt] at #1 {#4};
+  \end{scope}}
+
+\tikzset{
+  radio/.style={msg, line width=0.6pt, -{Stealth[length=4pt]},
+    decorate, decoration={snake, amplitude=0.7pt, segment length=4pt, post length=4pt}},
+  msglabel/.style={font=\tiny, text=msg, fill=white, fill opacity=0.85, text opacity=1,
+    inner sep=1pt, rounded corners=1pt},
+}
+
+\begin{document}
+\begin{tikzpicture}[x=0.84cm, y=0.84cm]
+
+% ---------------- field -----------------
+\fill[field] (0,0) rectangle (10,7);
+\draw[green!35!black, line width=0.6pt] (0,0) rectangle (10,7);
+
+% ---------------- diseased plants (clustered VoI) -----------------
+% cluster A (discovered, being explored by C1)
+\foreach \p in {(6.1,4.6),(6.4,4.9),(6.7,4.5),(6.9,5.1),(6.3,5.3),(7.2,4.8),(6.6,5.5),(7.0,4.2),(5.9,5.0),(7.4,5.3),(6.5,4.1)}
+  \fill[disease] \p circle (0.075);
+% cluster B (just discovered, EP offered on the market)
+\foreach \p in {(7.5,1.5),(7.8,1.8),(8.1,1.4),(7.7,1.2),(8.2,2.0),(7.9,2.2)}
+  \fill[disease] \p circle (0.075);
+% cluster C (not yet discovered)
+\foreach \p in {(1.6,5.6),(1.9,5.9),(2.2,5.5),(1.8,5.2),(2.4,5.9)}
+  \fill[disease] \p circle (0.075);
+\node[font=\tiny, text=disease!80!black, align=center] at (2.0,4.8) {undiscovered cluster};
+% isolated infections
+\foreach \p in {(3.6,4.6),(9.3,6.1),(2.6,0.7)}
+  \fill[disease] \p circle (0.075);
+
+% ---------------- exploration packages -----------------
+% EP1: won by C1, lawnmower in progress
+\fill[ep, opacity=0.08] (5.4,3.7) rectangle (7.9,6.0);
+\draw[ep, line width=0.9pt] (5.4,3.7) rectangle (7.9,6.0);
+\node[font=\scriptsize, text=ep, anchor=south west, inner sep=1pt] at (5.4,6.0) {\textit{ep}\textsubscript{1}(\textit{A}\textsubscript{1}, \textit{r})};
+% lawnmower: done part solid, remaining part dotted
+\draw[contractor, line width=0.6pt]
+  (5.55,3.85) -- (5.55,5.85) -- (5.85,5.85) -- (5.85,3.85) -- (6.15,3.85) -- (6.15,5.85)
+  -- (6.45,5.85) -- (6.45,3.85) -- (6.75,3.85) -- (6.75,4.25);
+\draw[contractor, line width=0.5pt, dotted]
+  (6.75,4.25) -- (6.75,5.85) -- (7.05,5.85) -- (7.05,3.85) -- (7.35,3.85) -- (7.35,5.85)
+  -- (7.65,5.85) -- (7.65,3.85);
+
+% EP2: just created by the Pioneer, offered on the market
+\fill[ep, opacity=0.05] (7.2,0.9) rectangle (8.6,2.5);
+\draw[ep, line width=0.9pt, dashed] (7.2,0.9) rectangle (8.6,2.5);
+\node[font=\scriptsize, text=ep, anchor=north west, inner sep=1pt, align=left] at (8.6,2.5) {\textit{ep}\textsubscript{2}\\[-1pt]\tiny(offered)};
+
+% ---------------- home base -----------------
+\coordinate (base) at (0.6,-0.3);
+\filldraw[fill=gray!30, draw=gray!60!black] ($(base)+(-0.35,-0.2)$) rectangle ($(base)+(0.35,0.2)$);
+\node[font=\tiny, anchor=west, fill=white, inner sep=1pt] at ($(base)+(0.4,0)$) {home base};
+
+% ---------------- trajectories -----------------
+% Pioneer: random waypoint, streaks through clusters A and B
+\draw[pioneer, line width=0.7pt, dashed] (base) -- (2.6,3.4) -- (5.8,4.8);
+\draw[pioneer, line width=2.2pt, opacity=0.55] (5.8,4.8) -- (7.4,4.95);
+\draw[pioneer, line width=0.7pt, dashed] (7.4,4.95) -- (9.2,3.0) -- (8.3,2.1);
+\draw[pioneer, line width=2.2pt, opacity=0.55] (8.3,2.1) -- (7.5,1.3);
+\draw[pioneer, line width=0.7pt, dashed] (7.5,1.3) -- (6.4,1.3);
+\node[font=\tiny, text=pioneer!80!black, fill=white, fill opacity=0.8, text opacity=1, inner sep=0.5pt] at (7.1,5.5) {streak};
+% Contractor 1: random waypoint until it won ep1
+\draw[contractor, line width=0.7pt, dashed] (base) -- (3.6,2.6) -- (5.55,3.85);
+% Contractor 2: random waypoint, re-planned to visit ep2 if it wins the bid
+\draw[contractor, line width=0.7pt, dashed] (base) -- (1.0,2.4) -- (3.4,1.6);
+\draw[contractor, line width=0.5pt, dotted, -{Stealth[length=3pt]}] (3.4,1.6) -- (4.6,0.45) -- (7.2,0.9);
+\node[font=\tiny, text=contractor!80!black, rotate=3] at (5.9,0.45) {re-planned path};
+
+% ---------------- drones -----------------
+\drone[(0,-0.42)]{(6.2,1.3)}{pioneer}{P}
+\drone[(0.45,-0.05)]{(6.75,4.25)}{contractor}{C\textsubscript{1}}
+\drone[(-0.4,0.25)]{(3.4,1.6)}{contractor}{C\textsubscript{2}}
+
+% ---------------- EP market messages -----------------
+\draw[radio] (5.95,1.45) -- (3.75,1.75);
+\node[msglabel] at (4.85,1.25) {offer $\langle$\textit{A}\textsubscript{2}, \textit{r}, \textit{R}$\rangle$};
+\draw[radio] (6.25,1.65) -- (6.7,3.85);
+\node[msglabel, anchor=west] at (6.55,2.8) {offer};
+\draw[radio] (3.6,1.95) to[bend left=35] (5.95,1.75);
+\node[msglabel] at (4.8,2.75) {bid ≤ \textit{R}};
+% sensing data stays on board; only six numbers go over the air
+\node[font=\tiny, text=msg, align=center] at (4.6,6.5) {only EP offers / bids\\[-1pt]go over the radio};
+
+% ---------------- legend -----------------
+\begin{scope}[shift={(0,-1.05)}, font=\tiny]
+  \fill[disease] (0.2,0) circle (0.075);
+  \node[anchor=west] at (0.35,0) {high VoI};
+  \draw[ep, line width=0.9pt] (0.07,-0.72) rectangle (0.33,-0.48);
+  \node[anchor=west] at (0.35,-0.6) {EP};
+  \drone{(2.2,0)}{pioneer}{}
+  \node[anchor=west] at (2.45,0) {Pioneer: finds clusters, offers EPs};
+  \drone{(2.2,-0.6)}{contractor}{}
+  \node[anchor=west] at (2.45,-0.6) {Contractor: bids, explores EPs};
+  \draw[radio] (7.25,0) -- (7.95,0);
+  \node[anchor=west] at (8.0,0) {radio msg};
+  \draw[contractor, line width=0.6pt] (7.25,-0.6) -- (7.45,-0.6) -- (7.45,-0.45) -- (7.65,-0.45) -- (7.65,-0.75) -- (7.85,-0.75) -- (7.85,-0.6) -- (7.95,-0.6);
+  \node[anchor=west] at (8.0,-0.6) {lawnmower};
+\end{scope}
+
+\end{tikzpicture}
+\end{document}

@@ -90,7 +90,7 @@ Built-in exp/run templates are organized by family under `data/expruns`.
 The two supported flow notebooks are:
 
 - `src/notebooks/Flow-1Robot1Day.ipynb` for the single-robot benchmark.
-- `src/notebooks/Flow-nRobot1Day.ipynb` for the MRMR multi-robot benchmark.
+- `src/notebooks/Flow-nRobot1Day.ipynb` for the MAREX multi-robot benchmark.
 
 Each flow creates an external workspace below the configured `flows_path`,
 precomputes every referenced environment once, runs the selected algorithms,

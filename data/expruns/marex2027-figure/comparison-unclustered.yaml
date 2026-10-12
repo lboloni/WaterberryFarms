@@ -1,0 +1,17 @@
+name: unclustered comparison
+source-runs:
+  - unclustered-mrrw
+  - unclustered-bmrse
+  - unclustered-bmrcg
+  - unclustered-marex
+labels:
+  unclustered-mrrw: MRRW
+  unclustered-bmrse: BMRSE
+  unclustered-bmrcg: BMRCG
+  unclustered-marex: MAREX
+# the VoI variants, one panel each (DESIGN-VOI.md, Section 5.1)
+voi-variants:
+  - voi-absolute
+output-filename: comparative-voi-unclustered.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Comparison.ipynb

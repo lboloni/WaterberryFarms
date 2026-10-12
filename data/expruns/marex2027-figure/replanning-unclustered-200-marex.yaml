@@ -1,0 +1,7 @@
+name: Replanning snapshots for unclustered-200-marex
+source-runs:
+  - unclustered-200-marex
+robot-name-prefix: con-
+output-filename-prefix: plans_unclustered-200-marex
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Replanning.ipynb

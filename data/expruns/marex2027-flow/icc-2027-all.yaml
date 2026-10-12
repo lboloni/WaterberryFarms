@@ -1,0 +1,49 @@
+name: ICC 2027 MAREX complete flow
+run-experiment: marex2027-run
+runs:
+  - clustered-marex
+  - clustered-bmrse
+  - clustered-bmrcg
+  - clustered-mrrw
+  - unclustered-marex
+  - unclustered-bmrse
+  - unclustered-bmrcg
+  - unclustered-mrrw
+  - clustered-200-marex
+  - clustered-200-bmrse
+  - clustered-200-bmrcg
+  - clustered-200-mrrw
+  - unclustered-200-marex
+  - unclustered-200-bmrse
+  - unclustered-200-bmrcg
+  - unclustered-200-mrrw
+figure-experiment: marex2027-figure
+figures:
+  - detection-map-clustered-marex
+  - detection-map-clustered-bmrse
+  - detection-map-clustered-bmrcg
+  - detection-map-clustered-mrrw
+  - detection-map-unclustered-marex
+  - detection-map-unclustered-bmrse
+  - detection-map-unclustered-bmrcg
+  - detection-map-unclustered-mrrw
+  - detection-map-clustered-200-marex
+  - detection-map-clustered-200-bmrse
+  - detection-map-clustered-200-bmrcg
+  - detection-map-clustered-200-mrrw
+  - detection-map-unclustered-200-marex
+  - detection-map-unclustered-200-bmrse
+  - detection-map-unclustered-200-bmrcg
+  - detection-map-unclustered-200-mrrw
+  - agent-voi-clustered-marex
+  - agent-voi-clustered-mrrw
+  - agent-voi-unclustered-marex
+  - agent-voi-unclustered-mrrw
+  - replanning-clustered-marex
+  - replanning-unclustered-marex
+  - replanning-clustered-200-marex
+  - replanning-unclustered-200-marex
+  - comparison-clustered
+  - comparison-unclustered
+  - communication-cost
+  - optimal-ep-path

@@ -3,7 +3,7 @@ disease_maps.py
 
 Generated disease maps: pairs of clustered and unclustered maps with exactly the same number of
 diseased plants, generated with the epidemic spreading model and determined by a seed.
-See src/papers/y2027_mrmr/DESIGN-ClusteredDiseaseMap.md
+See src/papers/y2027_marex/DESIGN-ClusteredDiseaseMap.md
 """
 
 import numpy as np

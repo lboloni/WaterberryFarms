@@ -1,0 +1,31 @@
+name: ICC 2027 MAREX against MRRW and the balanced baselines BMRSE and BMRCG, 20 replications on 100x100 and 200x200 fields, teams of 3 (1+2) and of 6 (1+5, 200x200 only)
+# the base runs to replicate; every one is run with every combination of the factor values
+runs:
+  - clustered-marex
+  - clustered-bmrse
+  - clustered-bmrcg
+  - clustered-mrrw
+  - unclustered-marex
+  - unclustered-bmrse
+  - unclustered-bmrcg
+  - unclustered-mrrw
+  - clustered-200-marex
+  - clustered-200-bmrse
+  - clustered-200-bmrcg
+  - clustered-200-mrrw
+  - unclustered-200-marex
+  - unclustered-200-bmrse
+  - unclustered-200-bmrcg
+  - unclustered-200-mrrw
+  - clustered-200-6-marex
+  - clustered-200-6-bmrse
+  - clustered-200-6-bmrcg
+  - clustered-200-6-mrrw
+  - unclustered-200-6-marex
+  - unclustered-200-6-bmrse
+  - unclustered-200-6-bmrcg
+  - unclustered-200-6-mrrw
+# crossed: 5 maps x 4 behaviors = 20 replications per base run
+factors:
+  map-seed: {code: m, values: [1, 2, 3, 4, 5]}          # the seed of the generated disease map
+  behavior-seed: {code: b, values: [1, 2, 3, 4]}        # the seed from which the robot seeds are derived

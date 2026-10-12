@@ -1,0 +1,7 @@
+name: Replanning snapshots for clustered-marex
+source-runs:
+  - clustered-marex
+robot-name-prefix: con-
+output-filename-prefix: plans_clustered-marex
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Replanning.ipynb

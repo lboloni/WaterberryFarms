@@ -1,0 +1,14 @@
+name: Replicated comparison of the approaches, 200x200
+# one panel per metric; the scenarios on the x axis, one bar per approach (a shared y axis per panel)
+figure-kind: bars
+where: {map-size: 200, team-size: 3}
+scenarios: [clustered, unclustered]
+metrics: [voi-absolute, diseased-found, cells-observed]
+output-filename: replicated-comparison-200.pdf
+source-experiment: marex2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {marex: MAREX, bmrse: BMRSE, bmrcg: BMRCG, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, bmrse, bmrcg, marex]
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Replicated.ipynb

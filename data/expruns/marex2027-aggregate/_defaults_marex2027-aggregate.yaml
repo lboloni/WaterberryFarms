@@ -1,0 +1,13 @@
+# The aggregations of the replications of the MAREX comparisons into tidy tables, with the ExpRunFlow 
+# library (exprunflow.aggregate; ExpRunFlow DESIGN-Replication.md, DESIGN-MultiSeedEvaluation.md)
+source-experiment: marex2027-run
+# the keys of the base runs that identify a cell
+labels: ["map-size", "team-size", "scenario", "approach"]
+# the behavior seeds that share a map are not independent: the confidence intervals of the figures are 
+# computed over the per-map means
+cluster-factor: map-seed
+# the approaches are compared pairwise, matched on the seeds (common random numbers)
+paired-by: approach
+paired-order: ["marex", "bmrse", "bmrcg", "mrrw"]
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Aggregate.ipynb

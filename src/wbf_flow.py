@@ -4,7 +4,7 @@ the builders of the flow entries are specific to Waterberry Farms."""
 
 from exp_run_config import Config
 from exprunflow.flow import *
-from exprunflow.replication import derive_seed, replication_entries
+from exprunflow.replication import derive_seed, replication_entries, without_completed
 
 
 def build_flow_entries(
@@ -62,21 +62,47 @@ def build_flow_entries(
     return entries
 
 
-def build_mrmr_2027_flow_entries(
-        collection_experiment, collection_run, creation_style, config=None, skip_completed=False):
-    """Build the environment, simulation, and figure phases for MRMR 2027. For a replicated collection, 
-    skip_completed reuses the replications that already have a completed result with the same 
-    configuration (exprunflow.replication.is_completed), e.g. to resume an interrupted flow."""
+def build_marex_2027_flow_entries(
+        collection_experiment, collection_run, creation_style, config=None, skip_completed=False,
+        replications=None):
+    """Build the environment, simulation, and figure phases for MAREX 2027. A collection is single-run 
+    (runs and figures drawn from them), replicated (aggregate and figures drawn from it), or both: then the 
+    single-run phases come first, followed by the replicated ones (the figures of the aggregate are its 
+    aggregate-figures). For a replicated collection, skip_completed reuses the replications that already 
+    have a completed result with the same configuration (exprunflow.replication.is_completed), e.g. to 
+    resume an interrupted flow; for a single-run collection, it also reuses the completed environments and 
+    runs. replications: N runs only the first N replications of every base run (a partial experiment, 
+    exprunflow DESIGN-Replication.md, Section 2.6); with skip_completed, a larger N continues it."""
     if config is None:
         config = Config()
     collection = config.get_experiment(
         collection_experiment, collection_run, create_data_dir=False)
-    if collection.get("aggregate") is not None:
+    if collection.get("aggregate") is not None and collection.get("runs") is not None:
+        values = collection.values if isinstance(getattr(collection, "values", None), dict) else collection
+        single = {key: value for key, value in values.items() if key not in ("aggregate", "aggregate-figures")}
+        replicated = {key: value for key, value in values.items() if key not in ("runs", "figures")}
+        replicated["figures"] = values.get("aggregate-figures", [])
         if skip_completed:
-            # in memory only: setting an item of an Experiment would save it into its (absent) result directory
-            values = collection.values if isinstance(getattr(collection, "values", None), dict) else collection
+            replicated["skip-completed"] = True
+        if replications is not None:
+            replicated["replications"] = replications
+        return (single_run_entries(single, creation_style, config, skip_completed)
+                + replication_entries(replicated, MAREX_APPLIERS, creation_style, config))
+    if collection.get("aggregate") is not None:
+        # in memory only: setting an item of an Experiment would save it into its (absent) result directory
+        values = collection.values if isinstance(getattr(collection, "values", None), dict) else collection
+        if skip_completed:
             values["skip-completed"] = True
-        return replication_entries(collection, MRMR_APPLIERS, creation_style, config)
+        if replications is not None:
+            values["replications"] = replications
+        return replication_entries(collection, MAREX_APPLIERS, creation_style, config)
+    return single_run_entries(collection, creation_style, config, skip_completed)
+
+
+def single_run_entries(collection, creation_style, config, skip_completed=False):
+    """The phases of a single-run collection: the environments, the runs, and the figures drawn from them. 
+    With skip_completed, the environments and runs that already have a completed result with the same 
+    configuration are left out; the figures always run."""
     run_experiment = collection["run-experiment"]
     figure_experiment = collection["figure-experiment"]
     run_names = collection["runs"]
@@ -111,6 +137,9 @@ def build_mrmr_2027_flow_entries(
             "run": run,
             "creation_style": creation_style,
         })
+
+    if skip_completed:
+        entries = without_completed(entries, config)
 
     for figure_name in collection["figures"]:
         figure = config.get_experiment(
@@ -166,4 +195,4 @@ def apply_behavior_seed(context, behavior_seed):
     return {"robots": robots}
 
 
-MRMR_APPLIERS = {"map-seed": apply_map_seed, "behavior-seed": apply_behavior_seed}
+MAREX_APPLIERS = {"map-seed": apply_map_seed, "behavior-seed": apply_behavior_seed}

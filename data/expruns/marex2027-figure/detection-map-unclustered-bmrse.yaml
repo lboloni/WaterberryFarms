@@ -1,0 +1,7 @@
+name: Detection map for unclustered-bmrse
+source-runs:
+  - unclustered-bmrse
+title: BMRSE
+output-filename: detections-map-unclustered-bmrse.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

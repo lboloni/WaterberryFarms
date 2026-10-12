@@ -64,9 +64,9 @@ class TestTraffic(unittest.TestCase):
         self.medium.send(self.robots[1], "robot-2", Message("direct"))
         self.assertEqual(self.medium.traffic, [
             {"timestep": 2, "round": 1, "sender": "robot-0", "destination": None, "type": "hello",
-             "bytes": 16, "recipients": 2},
+             "bytes": 16, "recipients": 2, "content": {"type": "hello"}},
             {"timestep": 2, "round": 1, "sender": "robot-1", "destination": "robot-2", "type": None,
-             "bytes": 8, "recipients": 1}])
+             "bytes": 8, "recipients": 1, "content": "direct"}])
 
     def test_summary_counts_transmitted_and_delivered_bytes(self):
         for timestep in [0, 2, 2]:

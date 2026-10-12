@@ -1,0 +1,46 @@
+# The unclustered bmrse comparison on the 200x200 field (Miniberry-200) with a team of 3: 3 balanced lawnmowers
+# robots, each exploring its balanced area (papers/y2027_marex/DESIGN-BALANCED-EXPLORATION-AREAS.md)
+name: "3 balanced lawnmowers"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "bmrse"
+map-size: 200
+team-size: 3 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+# the team divides the area into one strip per robot, nearest first, such that every robot covers its strip
+# with the same lawnmower density after its travel from the home base
+balanced-areas:
+  area: [10, 10, 190, 190] # [xmin, ymin, xmax, ymax]
+
+robots:
+  - name: "lawn-1"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-1"
+      budget: 1000 # same as timesteps-per-day
+  - name: "lawn-2"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-2"
+      budget: 1000 # same as timesteps-per-day
+  - name: "lawn-3"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-3"
+      budget: 1000 # same as timesteps-per-day

@@ -1,0 +1,7 @@
+name: Hero figure, the MAREX schematic
+# a schematic drawn in TikZ, not from simulation results
+source-runs: []
+tikz-source: hero.tex # relative to the notebook directory
+output-filename: hero.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Hero.ipynb

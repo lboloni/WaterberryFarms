@@ -1,0 +1,7 @@
+name: Detection map for clustered-200-marex
+source-runs:
+  - clustered-200-marex
+title: MAREX
+output-filename: detections-map-clustered-200-marex.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

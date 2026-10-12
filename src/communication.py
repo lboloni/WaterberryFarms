@@ -74,11 +74,12 @@ class CommunicationMedium:
         self.round = None
 
     def record_send(self, sender, destination, message, recipients):
-        """Record a send in the traffic, with the number of robots it was delivered to"""
+        """Record a send in the traffic, with the number of robots it was delivered to and a copy of the
+        content, which links the messages of a protocol (e.g. the offer id of the EP market)"""
         content = message.content
         self.traffic.append({"timestep": self.timestep, "round": self.round, "sender": sender.name,
             "destination": destination, "type": content.get("type") if isinstance(content, dict) else None,
-            "bytes": message_size(content), "recipients": recipients})
+            "bytes": message_size(content), "recipients": recipients, "content": copy.deepcopy(content)})
 
     def add_robot(self, robot):
         """Adds a robot to the system and creates the corresponding mailbox"""

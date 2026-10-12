@@ -1,0 +1,14 @@
+name: Absolute VoI of the approaches, box plots, 100x100, teams of 3 (MAREX 1+2)
+# standard box plots of the replications: the box spans the quartiles, with the median; the whiskers 1.5 IQR
+figure-kind: boxes
+where: {map-size: 100, team-size: 3}
+scenarios: [clustered, unclustered]
+metrics: [voi-absolute]
+output-filename: replicated-boxes-voi-100.pdf
+source-experiment: marex2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {marex: MAREX, bmrse: BMRSE, bmrcg: BMRCG, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, bmrse, bmrcg, marex]
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Replicated.ipynb

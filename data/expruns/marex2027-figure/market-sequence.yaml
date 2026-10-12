@@ -1,0 +1,8 @@
+name: The EP market of one offer as a message sequence chart
+source-runs:
+  - clustered-marex
+# the offer to show, e.g. "pio-0"; null: the first offer with several bids that was completed
+offer-id: null
+output-filename: market-sequence.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-MarketSequence.ipynb

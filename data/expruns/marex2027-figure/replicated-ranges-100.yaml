@@ -1,0 +1,14 @@
+name: Replicated comparison of the approaches, box and whiskers, 100x100
+# the layout of replicated-comparison: the box is the 95% CI of the mean, the whiskers the range
+figure-kind: ranges
+where: {map-size: 100, team-size: 3}
+scenarios: [clustered, unclustered]
+metrics: [voi-absolute, diseased-found, cells-observed]
+output-filename: replicated-ranges-100.pdf
+source-experiment: marex2027-aggregate
+source-runs:
+  - icc-2027-replicated
+labels: {marex: MAREX, bmrse: BMRSE, bmrcg: BMRCG, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, bmrse, bmrcg, marex]
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-Replicated.ipynb

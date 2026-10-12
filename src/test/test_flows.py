@@ -11,7 +11,7 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from wbf_flow import build_flow_entries, build_mrmr_2027_flow_entries
+from wbf_flow import build_flow_entries, build_marex_2027_flow_entries
 from wbf_helper import create_wbfe
 
 
@@ -31,26 +31,28 @@ FLOW_NOTEBOOKS = [
         "Flow-nRobot1Day.ipynb",
     )
 ]
-MRMR_2027_NOTEBOOKS = [
-    SRC_ROOT / "papers" / "y2027_mrmr" / name
+MAREX_2027_NOTEBOOKS = [
+    SRC_ROOT / "papers" / "y2027_marex" / name
     for name in (
-        "MRMR-Run.ipynb",
-        "MRMR-Visualize-DetectionMap.ipynb",
-        "MRMR-Visualize-AgentVoI.ipynb",
-        "MRMR-Visualize-Replanning.ipynb",
-        "MRMR-Visualize-Comparison.ipynb",
-        "MRMR-Visualize-Communication.ipynb",
-        "MRMR-Aggregate.ipynb",
-        "MRMR-Visualize-Replicated.ipynb",
-        "MRMR-Visualize-OptimalEPPath.ipynb",
-        "MRMR-Flow.ipynb",
+        "MAREX-Run.ipynb",
+        "MAREX-Visualize-DetectionMap.ipynb",
+        "MAREX-Visualize-AgentVoI.ipynb",
+        "MAREX-Visualize-Replanning.ipynb",
+        "MAREX-Visualize-Comparison.ipynb",
+        "MAREX-Visualize-Communication.ipynb",
+        "MAREX-Aggregate.ipynb",
+        "MAREX-Visualize-Replicated.ipynb",
+        "MAREX-Visualize-OptimalEPPath.ipynb",
+        "MAREX-Visualize-Hero.ipynb",
+        "MAREX-Visualize-MarketSequence.ipynb",
+        "MAREX-Flow.ipynb",
     )
 ]
-FLOW_NOTEBOOKS += MRMR_2027_NOTEBOOKS
+FLOW_NOTEBOOKS += MAREX_2027_NOTEBOOKS
 TOP_LEVEL_FLOW_NOTEBOOKS = [
     SRC_ROOT / "notebooks" / "Flow-1Robot1Day.ipynb",
     SRC_ROOT / "notebooks" / "Flow-nRobot1Day.ipynb",
-    SRC_ROOT / "papers" / "y2027_mrmr" / "MRMR-Flow.ipynb",
+    SRC_ROOT / "papers" / "y2027_marex" / "MAREX-Flow.ipynb",
 ]
 
 
@@ -99,7 +101,7 @@ class TestFlowMetadata(unittest.TestCase):
             "experiment", "run", "creation_style",
             "expruns_path", "results_path",
         }
-        for path in FLOW_NOTEBOOKS[:7] + MRMR_2027_NOTEBOOKS:
+        for path in FLOW_NOTEBOOKS[:7] + MAREX_2027_NOTEBOOKS:
             with path.open() as handle:
                 notebook = json.load(handle)
             parameter_cells = [
@@ -111,10 +113,10 @@ class TestFlowMetadata(unittest.TestCase):
             for name in required:
                 self.assertIn(f"{name} =", source, f"{path.name}: {name}")
 
-    def test_mrmr_2027_notebooks_list_every_compatible_exprun(self):
+    def test_marex_2027_notebooks_list_every_compatible_exprun(self):
         expected = {}
         for family in (
-                "mrmr2027-run", "mrmr2027-aggregate", "mrmr2027-figure", "mrmr2027-flow"):
+                "marex2027-run", "marex2027-aggregate", "marex2027-figure", "marex2027-flow"):
             family_path = EXPERIMENT_ROOT / family
             defaults_path = family_path / f"_defaults_{family}.yaml"
             with defaults_path.open() as handle:
@@ -127,7 +129,7 @@ class TestFlowMetadata(unittest.TestCase):
                 notebook = values["input-to-notebook"][0]
                 expected.setdefault(notebook, set()).add(run_path.stem)
 
-        for path in MRMR_2027_NOTEBOOKS:
+        for path in MAREX_2027_NOTEBOOKS:
             relative_path = path.relative_to(SRC_ROOT).as_posix()
             with path.open() as handle:
                 notebook = json.load(handle)
@@ -139,20 +141,20 @@ class TestFlowMetadata(unittest.TestCase):
                 r'^\s*#?\s*run = "([^"]+)"', source, re.MULTILINE))
             self.assertEqual(listed, expected[relative_path], path.name)
 
-    def test_mrmr_2027_flow_declares_optimal_ep_figure(self):
-        path = EXPERIMENT_ROOT / "mrmr2027-flow" / "icc-2027-all.yaml"
+    def test_marex_2027_flow_declares_optimal_ep_figure(self):
+        path = EXPERIMENT_ROOT / "marex2027-flow" / "icc-2027-all.yaml"
         with path.open() as handle:
             collection = yaml.safe_load(handle)
-        self.assertEqual(len(collection["figures"]), 18)
+        self.assertEqual(len(collection["figures"]), 28)
         self.assertIn("optimal-ep-path", collection["figures"])
 
-        path = (EXPERIMENT_ROOT / "mrmr2027-figure" /
+        path = (EXPERIMENT_ROOT / "marex2027-figure" /
                 "optimal-ep-path.yaml")
         with path.open() as handle:
             figure = yaml.safe_load(handle)
         self.assertEqual(figure["source-runs"], [])
         self.assertEqual(figure["input-to-notebook"], [
-            "papers/y2027_mrmr/MRMR-Visualize-OptimalEPPath.ipynb",
+            "papers/y2027_marex/MAREX-Visualize-OptimalEPPath.ipynb",
         ])
 
     def test_flow_notebooks_finish_with_result_report(self):
@@ -165,9 +167,9 @@ class TestFlowMetadata(unittest.TestCase):
             self.assertIn("display_flow_report(", source, path.name)
             self.assertIn("raise flow_error", source, path.name)
 
-    def test_mrmr_flow_embeds_all_generated_figure_previews(self):
-        path = (SRC_ROOT / "papers" / "y2027_mrmr" /
-                "MRMR-Flow.ipynb")
+    def test_marex_flow_embeds_all_generated_figure_previews(self):
+        path = (SRC_ROOT / "papers" / "y2027_marex" /
+                "MAREX-Flow.ipynb")
         with path.open() as handle:
             notebook = json.load(handle)
         source = "".join(notebook["cells"][-1]["source"])
@@ -230,7 +232,7 @@ class TestFlowHelpers(unittest.TestCase):
                 ("Compare.ipynb", "all", "discard-old"),
             ])
 
-    def test_build_mrmr_2027_flow_entries_has_exact_phase_order(self):
+    def test_build_marex_2027_flow_entries_has_exact_phase_order(self):
         experiments = {
             ("paper-flow", "all"): {
                 "run-experiment": "paper-run",
@@ -273,7 +275,7 @@ class TestFlowHelpers(unittest.TestCase):
                 return experiments[(experiment, run)]
 
         config = RecordingConfig()
-        entries = build_mrmr_2027_flow_entries(
+        entries = build_marex_2027_flow_entries(
             "paper-flow", "all", "discard-old", config)
 
         self.assertFalse(any(config.create_data_dir_values))
@@ -288,7 +290,7 @@ class TestFlowHelpers(unittest.TestCase):
                 ("Optimal.ipynb", "paper-figure", "optimal"),
             ])
 
-    def test_build_mrmr_2027_flow_rejects_undeclared_source(self):
+    def test_build_marex_2027_flow_rejects_undeclared_source(self):
         experiments = {
             ("paper-flow", "all"): {
                 "run-experiment": "paper-run",
@@ -317,7 +319,7 @@ class TestFlowHelpers(unittest.TestCase):
                 return experiments[(experiment, run)]
 
         with self.assertRaisesRegex(Exception, "undeclared run missing"):
-            build_mrmr_2027_flow_entries(
+            build_marex_2027_flow_entries(
                 "paper-flow", "all", "exist-ok",
                 ConfigWithBadSource())
 

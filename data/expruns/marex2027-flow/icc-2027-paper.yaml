@@ -1,0 +1,72 @@
+name: ICC 2027 MAREX paper, the example runs and their illustrations, and the replications with their figures
+run-experiment: marex2027-run
+# the example runs, one per base run of the teams of 3, for the illustrations
+runs:
+  - clustered-marex
+  - clustered-bmrse
+  - clustered-bmrcg
+  - clustered-mrrw
+  - unclustered-marex
+  - unclustered-bmrse
+  - unclustered-bmrcg
+  - unclustered-mrrw
+  - clustered-200-marex
+  - clustered-200-bmrse
+  - clustered-200-bmrcg
+  - clustered-200-mrrw
+  - unclustered-200-marex
+  - unclustered-200-bmrse
+  - unclustered-200-bmrcg
+  - unclustered-200-mrrw
+figure-experiment: marex2027-figure
+# the illustrations, drawn from the example runs
+figures:
+  # the hero figure (a schematic) and the optimal path through a set of EPs
+  - hero
+  - optimal-ep-path
+  # the trajectories of the robots
+  - detection-map-clustered-marex
+  - detection-map-clustered-bmrse
+  - detection-map-clustered-bmrcg
+  - detection-map-clustered-mrrw
+  - detection-map-unclustered-marex
+  - detection-map-unclustered-bmrse
+  - detection-map-unclustered-bmrcg
+  - detection-map-unclustered-mrrw
+  - detection-map-clustered-200-marex
+  - detection-map-clustered-200-bmrse
+  - detection-map-clustered-200-bmrcg
+  - detection-map-clustered-200-mrrw
+  - detection-map-unclustered-200-marex
+  - detection-map-unclustered-200-bmrse
+  - detection-map-unclustered-200-bmrcg
+  - detection-map-unclustered-200-mrrw
+  # the replanning of the contractors, planned and traversed trajectory
+  - replanning-clustered-marex
+  - replanning-unclustered-marex
+  - replanning-clustered-200-marex
+  - replanning-unclustered-200-marex
+  # the negotiation of one EP, as a message sequence chart
+  - market-sequence
+# the replications (base runs and seeds, including the teams of 6 on 200x200) are declared by the aggregate
+aggregate-experiment: marex2027-aggregate
+aggregate: icc-2027-replicated
+# the figures drawn from the aggregate
+aggregate-figures:
+  # the comparison with the baselines: absolute VoI, box plots
+  - replicated-boxes-voi-100
+  - replicated-boxes-voi-200
+  - replicated-boxes-voi-200-6
+  # the full results, teams of 3
+  - replicated-comparison-100
+  - replicated-ranges-100
+  - replicated-voi-over-time-100
+  - replicated-paired-100
+  - replicated-per-role-100
+  - replicated-communication-cost-100
+  - replicated-comparison-200
+  - replicated-ranges-200
+  - replicated-voi-over-time-200
+  - replicated-paired-200
+  - replicated-per-role-200
+  - replicated-communication-cost-200

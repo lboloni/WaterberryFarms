@@ -1,0 +1,52 @@
+# The unclustered marex comparison on the 200x200 field (Miniberry-200), with the same robots and budget as on 100x100
+# Experiment for the MAREX paper: a lead robot placing experiments and two robots doing bidding and detection
+
+# FIXME: for the time being this is just a placeholder with the
+# 3 random ones, such that I can test the flow
+
+# stuff to pick
+name: "1 pioneer 2 contractors"
+
+#exp_environment: "miniberry-100"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "marex"
+map-size: 200
+team-size: 3 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+robots:
+  - name: "pio"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-pioneer"
+      seed: 1
+      budget: 1000 # same as timesteps-per-day
+      # area: "[5, 5, 95, 95]" # [xmin, ymin, xmax, ymax]
+  - name: "con-1"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-1"
+      seed: 2
+      budget: 1000 # same as timesteps-per-day
+  - name: "con-2"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-2"
+      seed: 3
+      budget: 1000 # same as timesteps-per-day

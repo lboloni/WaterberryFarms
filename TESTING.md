@@ -12,7 +12,7 @@ The deterministic correctness suite covers:
 - Weighted and asymmetric scoring.
 - Experiment configuration assembly and output-directory creation modes.
 - Unified one- and multi-robot simulation through caller-constructed components.
-- Perfect communication and MRMR market primitives.
+- Perfect communication and MAREX market primitives.
 - Result serialization.
 - Experiment-flow metadata, ordered phase construction, external workspace
   setup, standard Papermill parameters, and fail-fast execution.
@@ -21,7 +21,7 @@ Notebooks, files under `obsolete`, LAIP, Bounomodes, and unfinished paper protot
 
 Flow notebooks are checked structurally rather than executing the full
 scientific workload in the unit suite. Full flow verification is intentionally
-an explicit research run because it includes long Gaussian-process and MRMR
+an explicit research run because it includes long Gaussian-process and MAREX
 experiments.
 
 ## Canonical simulation lifecycle

@@ -1,0 +1,8 @@
+name: Agent VoI for unclustered-mrrw
+source-runs:
+  - unclustered-mrrw
+# the VoI variant credited to the agents (DESIGN-VOI.md, Section 5.1)
+voi-variant: voi-absolute
+output-filename: voi-bar-unclustered-mrrw.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-AgentVoI.ipynb

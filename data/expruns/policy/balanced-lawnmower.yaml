@@ -1,0 +1,3 @@
+# A lawnmower over the robot's balanced area (papers/y2027_marex/DESIGN-BALANCED-EXPLORATION-AREAS.md): the 
+# area and the passes come from the allocation of the run's balanced-areas
+policy-name: "balanced-lawnmower"
