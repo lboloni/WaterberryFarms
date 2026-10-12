@@ -54,9 +54,7 @@ aggregate: icc-2027-replicated
 # the figures drawn from the aggregate
 aggregate-figures:
   # the comparison with the baselines: absolute VoI, box plots
-  - replicated-boxes-voi-100
-  - replicated-boxes-voi-200
-  - replicated-boxes-voi-200-6
+  - replicated-boxes-voi
   # the full results, teams of 3
   - replicated-comparison-100
   - replicated-ranges-100
