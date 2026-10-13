@@ -1,0 +1,102 @@
+# The unclustered aguts comparison on the 200x200 field with a team of 10: adapted GUTS (A-GUTS, independent posterior)
+name: "10 robots, adapted GUTS (A-GUTS, independent posterior)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "aguts"
+map-size: 200
+team-size: 10 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+robots:
+  - name: "ts-1"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-1"
+      seed: 1
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-2"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-2"
+      seed: 2
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-3"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-3"
+      seed: 3
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-4"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-4"
+      seed: 4
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-5"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-5"
+      seed: 5
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-6"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-6"
+      seed: 6
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-7"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-7"
+      seed: 7
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-8"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-8"
+      seed: 8
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-9"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-9"
+      seed: 9
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day
+  - name: "ts-10"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-10"
+      seed: 10
+      footprint: 0.0
+      budget: 1000 # same as timesteps-per-day

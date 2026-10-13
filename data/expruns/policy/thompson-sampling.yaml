@@ -1,0 +1,13 @@
+# Adapted GUTS (decentralized Thompson sampling, after Bakshi et al., ICRA 2023): papers/y2027_marex/thompson_sampling.py,
+# paper-MRMR PLAN-ComparisonStudy.md, "Adapted GUTS"; footprint 2.0 is A-GUTS-SP, footprint 0 (in the run) is A-GUTS
+policy-name: "thompson-sampling"
+seed: 1
+# the posterior of the diseased cells (team_knowledge.TeamKnowledge): the prior is the share of diseased plants;
+# the simulated sensor is deterministic; footprint 0 makes the cells independent (as in GUTS)
+prior: 0.05
+p-hit: 0.99
+p-false-alarm: 0.01
+footprint: 2.0
+# a decision scores this many candidate waypoints (GUTS subsamples its actions), half of them drawn from the cells
+# the Thompson sample says are diseased; a candidate is scored by the sampled diseased cells per timestep of travel
+candidates: 256

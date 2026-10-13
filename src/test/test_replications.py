@@ -13,6 +13,7 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from exp_run_config import Config
+from exprunflow.flow import phase_groups
 from exprunflow.replication import derive_seed, replication_names
 from wbf_flow import build_marex_2027_flow_entries
 
@@ -79,7 +80,7 @@ class TestReplicationGeneration(unittest.TestCase):
         self.assertEqual([r["exp-policy-extra-parameters"]["seed"] for r in six["robots"]],
                          [derive_seed(2, i) for i in range(6)])
 
-    def test_the_paper_flow_runs_the_examples_before_the_replications(self):
+    def test_the_paper_flow_runs_the_examples_together_with_the_replications_by_phase(self):
         entries = build_marex_2027_flow_entries("marex2027-flow", "icc-2027-paper", "discard-old")
         flow = Config().get_experiment("marex2027-flow", "icc-2027-paper", create_data_dir=False)
         aggregate = Config().get_experiment("marex2027-aggregate", flow["aggregate"], create_data_dir=False)
@@ -87,10 +88,12 @@ class TestReplicationGeneration(unittest.TestCase):
         environments = {Config().get_experiment("marex2027-run", run, create_data_dir=False)["run_environment"]
                         for run in flow["runs"]}
         names = [entry["name"].split()[0] for entry in entries]
-        self.assertEqual(names, ["Precompute"] * len(environments) + ["Run"] * len(flow["runs"])
-                         + ["Figure"] * len(flow["figures"]) + ["Prepare"] * (4 * len(maps))
-                         + ["Run"] * len(replication_names(aggregate)) + ["Aggregate"]
-                         + ["Figure"] * len(flow["aggregate-figures"]))
+        # one group per phase in a parallel flow (ExpRunFlow docs/DESIGN-Parallelization.md): the example runs
+        # are prepared and run together with the replications, and their figures come after the aggregation
+        self.assertEqual(names, ["Precompute"] * len(environments) + ["Prepare"] * (4 * len(maps))
+                         + ["Run"] * (len(flow["runs"]) + len(replication_names(aggregate))) + ["Aggregate"]
+                         + ["Figure"] * (len(flow["figures"]) + len(flow["aggregate-figures"])))
+        self.assertEqual([phase for phase, _ in phase_groups(entries)], ["prepare", "run", "aggregate", "figure"])
         figures = [entry["run"] for entry in entries if entry["name"].startswith("Figure")]
         self.assertEqual(figures, flow["figures"] + flow["aggregate-figures"])
 

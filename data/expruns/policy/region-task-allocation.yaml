@@ -1,0 +1,11 @@
+# Region-based task allocation with a correlation kernel (RBTA), after Edmonds & Yi, ICRA 2021:
+# papers/y2027_marex/region_task_allocation.py, paper-MRMR PLAN-ComparisonStudy.md, Plan C
+policy-name: "region-task-allocation"
+# the balance between the distance and the redundancy (the paper gives no value)
+gamma-p: 0.03
+# the redundancy field sums the kernel over all the observed cells (WBF observes along the path) or, as
+# published, over the task points only ("targets")
+redundancy: "observed"
+# the kernel: the spatial correlation of maps generated like the run's map, with seeds outside the replications
+kernel-seed-first: 1001
+kernel-maps: 30

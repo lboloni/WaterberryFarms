@@ -1,0 +1,45 @@
+# The unclustered ucba comparison on the 100x100 field with a team of 3: A-UCBA, adapted UCB auction (after Jia et al.)
+# (paper-MRMR PLAN-ComparisonStudy.md)
+name: "3 robots, A-UCBA, adapted UCB auction (after Jia et al.)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "ucba"
+map-size: 100
+team-size: 3 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-100"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 500 # the budget of the 100x100 field
+time-start-environment: 25
+
+robots:
+  - name: "auc-1"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-1"
+      seed: 1
+      auctioneer: true
+      budget: 500 # same as timesteps-per-day
+  - name: "auc-2"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-2"
+      seed: 2
+      budget: 500 # same as timesteps-per-day
+  - name: "auc-3"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-3"
+      seed: 3
+      budget: 500 # same as timesteps-per-day

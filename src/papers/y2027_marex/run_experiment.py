@@ -3,6 +3,8 @@
 import pathlib
 import time
 
+import numpy as np
+
 from communication import PerfectCommunicationMedium, traffic_summary
 from exp_run_config import Config
 from policy import RandomWaypointPolicy
@@ -15,6 +17,9 @@ from exprunflow.metrics import save_metrics
 
 from .balanced_areas import BALANCED_POLICIES, allocate_balanced_strips, create_balanced_policy
 from .marex_metrics import LABEL_KEYS, collect_metrics
+from .region_task_allocation import RegionTaskAllocationPolicy, estimate_kernel
+from .thompson_sampling import ThompsonSamplingPolicy
+from .ucb_auction import UCBAuctionPolicy
 from .marex_policies import MAREX_Contractor, MAREX_Pioneer, MAREX_Policy
 
 
@@ -34,6 +39,15 @@ def balanced_allocation(exp, geometry):
     budget = config.get("budget") or exp["timesteps-per-day"]
     strips = allocate_balanced_strips([START] * len(names), area, geometry["velocity"], budget)
     return {"area": area, "budget": budget, "robots": dict(zip(names, strips))}
+
+
+def rbta_kernel(exp_env, environment, exp_policy):
+    """The correlation kernel of RBTA: estimated from maps generated like the run's map (its version, size,
+    diseased fraction and planted cells), with the seeds of the policy, outside the replications' map seeds"""
+    immunity_mask = np.where(environment.my_tomato_mask, 0, -2)
+    seeds = range(exp_policy["kernel-seed-first"], exp_policy["kernel-seed-first"] + exp_policy["kernel-maps"])
+    return estimate_kernel(environment.width, environment.height, exp_env["tylcv-generated"],
+                           exp_env["tylcv-generated-fraction"], list(seeds), immunity_mask=immunity_mask)
 
 
 def run_marex_experiment(exp):
@@ -75,6 +89,13 @@ def run_marex_experiment(exp):
                 estimator_of_robot = create_estimator(exp_estimator, geometry)
             policy = create_balanced_policy(values["run-policy"], exp_policy, balanced["robots"][values["name"]],
                                             area, geometry["velocity"], estimator_of_robot)
+        elif values["run-policy"] == "thompson-sampling":
+            policy = ThompsonSamplingPolicy(exp_policy, geometry)
+        elif values["run-policy"] == "ucb-auction":
+            policy = UCBAuctionPolicy(exp_policy, geometry, values["name"])
+        elif values["run-policy"] == "region-task-allocation":
+            policy = RegionTaskAllocationPolicy(exp_policy, geometry, values["name"],
+                                                rbta_kernel(exp_env, environment, exp_policy))
         elif values["run-policy"].startswith("random-waypoint"):
             policy = RandomWaypointPolicy(
                 1,

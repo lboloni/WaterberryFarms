@@ -1,0 +1,22 @@
+# Adapted UCB auction (A-UCBA), after Jia et al., IROS 2025 (code: github.com/Chengfeng-Jia/UUVs_explore):
+# papers/y2027_marex/ucb_auction.py, paper-MRMR PLAN-ComparisonStudy.md, Plan B. The robot with auctioneer: true
+# (set in the run) also runs the auction.
+policy-name: "ucb-auction"
+seed: 1
+auctioneer: false
+# the published values: kappa, the interest points per round (5 for 3 UUVs), the cost weights
+# 10 d - 2 sigma + 1 UCB + 5 (0.5 d)
+kappa: 1.0
+interest-points: 5
+cost-weights: [10.0, 2.0, 1.0, 5.0]
+# the published minimum separation of 3 units and lengthscale of 1 unit, in cells (2.5 cells per unit)
+separation: 7.5
+lengthscale: 2.5
+# the GPy sparse GP: inducing points on a regular grid (published: 30, optimized), the value of a healthy cell
+inducing-per-side-100: 10
+inducing-per-side-200: 14
+healthy-value: -0.1
+# the data of the GP is updated every refit-interval timesteps, the hyperparameters and inducing points
+# re-optimized every optimize-interval timesteps (published: both every round)
+refit-interval: 10
+optimize-interval: 100

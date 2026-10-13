@@ -1,0 +1,7 @@
+name: Detection map for clustered-200-aguts
+source-runs:
+  - clustered-200-aguts
+title: A-GUTS
+output-filename: detections-map-clustered-200-aguts.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

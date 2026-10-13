@@ -1,0 +1,103 @@
+# The unclustered ucba comparison on the 200x200 field with a team of 10: adapted UCB auction (A-UCBA, after Jia et al.)
+name: "10 robots, adapted UCB auction (A-UCBA, after Jia et al.)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "ucba"
+map-size: 200
+team-size: 10 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+robots:
+  - name: "auc-1"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-1"
+      seed: 1
+      auctioneer: true
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-2"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-2"
+      seed: 2
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-3"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-3"
+      seed: 3
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-4"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-4"
+      seed: 4
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-5"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-5"
+      seed: 5
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-6"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-6"
+      seed: 6
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-7"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-7"
+      seed: 7
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-8"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-8"
+      seed: 8
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-9"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-9"
+      seed: 9
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day
+  - name: "auc-10"
+    exp-policy: "policy"
+    run-policy: "ucb-auction"
+    exp-policy-extra-parameters:
+      policy-name: "ucb-auction-10"
+      seed: 10
+      interest-points: 17
+      budget: 1000 # same as timesteps-per-day

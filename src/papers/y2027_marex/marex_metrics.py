@@ -13,6 +13,9 @@ from water_berry_farm import voi_credits
 
 from .balanced_areas import AreaConfidenceGuided, TransitThenExplorePolicy
 from .marex_policies import MAREX_Contractor, MAREX_Pioneer
+from .region_task_allocation import RegionTaskAllocationPolicy
+from .thompson_sampling import ThompsonSamplingPolicy
+from .ucb_auction import UCBAuctionPolicy
 
 # the keys of a run that identify its cell (the labels of the aggregation)
 LABEL_KEYS = ["map-size", "team-size", "scenario", "approach"]
@@ -28,6 +31,12 @@ def robot_role(robot):
         return "pioneer"
     if isinstance(robot.policy, MAREX_Contractor):
         return "contractor"
+    if isinstance(robot.policy, ThompsonSamplingPolicy):
+        return "thompson-sampling"
+    if isinstance(robot.policy, UCBAuctionPolicy):
+        return "ucb-auction"
+    if isinstance(robot.policy, RegionTaskAllocationPolicy):
+        return "region-task-allocation"
     if isinstance(robot.policy, TransitThenExplorePolicy):
         return "balanced-" + robot_role_of_explorer(robot.policy.explorer)
     if isinstance(robot.policy, RandomWaypointPolicy):

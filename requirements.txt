@@ -11,4 +11,5 @@ pandas>=3.0
 imageio>=2.38
 PyYAML>=6.0
 networkx>=3.7      # the GLR policies (papers/y2023_glr)
+GPy>=1.14          # sparse Gaussian processes (the A-UCBA baseline, papers/y2027_marex; verified with Python 3.12, numpy 2.5)
 ipykernel>=7.4     # the python3 kernel with which the flows execute their notebooks

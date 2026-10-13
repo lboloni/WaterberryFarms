@@ -8,6 +8,6 @@ labels: ["map-size", "team-size", "scenario", "approach"]
 cluster-factor: map-seed
 # the approaches are compared pairwise, matched on the seeds (common random numbers)
 paired-by: approach
-paired-order: ["marex", "bmrse", "bmrcg", "mrrw"]
+paired-order: ["marex", "bmrse", "bmrcg", "mrrw", "aguts", "ucba", "rbta"]
 input-to-notebook:
   - papers/y2027_marex/MAREX-Aggregate.ipynb

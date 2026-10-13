@@ -1,0 +1,7 @@
+name: Detection map for clustered-200-ucba
+source-runs:
+  - clustered-200-ucba
+title: A-UCBA
+output-filename: detections-map-clustered-200-ucba.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

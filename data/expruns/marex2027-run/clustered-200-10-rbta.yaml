@@ -1,0 +1,82 @@
+# The clustered rbta comparison on the 200x200 field with a team of 10: region-based task allocation (RBTA, after Edmonds & Yi)
+name: "10 robots, region-based task allocation (RBTA, after Edmonds & Yi)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "clustered"
+approach: "rbta"
+map-size: 200
+team-size: 10 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-clustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+robots:
+  - name: "rbta-1"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-1"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-2"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-2"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-3"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-3"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-4"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-4"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-5"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-5"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-6"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-6"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-7"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-7"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-8"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-8"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-9"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-9"
+      budget: 1000 # same as timesteps-per-day
+  - name: "rbta-10"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-10"
+      budget: 1000 # same as timesteps-per-day

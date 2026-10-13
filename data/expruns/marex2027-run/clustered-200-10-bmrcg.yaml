@@ -1,0 +1,97 @@
+# The clustered bmrcg comparison on the 200x200 field with a team of 10: balanced confidence-guided (BMRCG)
+name: "10 robots, balanced confidence-guided (BMRCG)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "clustered"
+approach: "bmrcg"
+map-size: 200
+team-size: 10 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-clustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+# the team divides the area into one strip per robot, nearest first, such that every robot covers its strip
+# with the same lawnmower density after its travel from the home base
+balanced-areas:
+  area: [10, 10, 190, 190] # [xmin, ymin, xmax, ymax]
+
+robots:
+  - name: "cg-1"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-1"
+      seed: 1
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-2"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-2"
+      seed: 2
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-3"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-3"
+      seed: 3
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-4"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-4"
+      seed: 4
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-5"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-5"
+      seed: 5
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-6"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-6"
+      seed: 6
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-7"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-7"
+      seed: 7
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-8"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-8"
+      seed: 8
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-9"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-9"
+      seed: 9
+      budget: 1000 # same as timesteps-per-day
+  - name: "cg-10"
+    exp-policy: "policy"
+    run-policy: "balanced-confidence-guided"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-confidence-guided-10"
+      seed: 10
+      budget: 1000 # same as timesteps-per-day

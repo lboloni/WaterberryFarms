@@ -157,10 +157,6 @@ def show_robot_trajectories_and_detections(
     if output_filename is None:
         output_filename = f"detections-map-{name}.pdf"
     fig_file = pathlib.Path(exp_dest.data_dir(), output_filename)
-    figure_files = figure_paths(fig_file)
-    if all(path.exists() for path in figure_files):
-        print(f"{fig_file} and its PNG preview exist, skipping.")
-        return
     fig, ax = plt.subplots(1,1, figsize=(3, 3))
     wbf_figures.show_env_tylcv(results, ax)
     if lookup and name in lookup:
@@ -215,10 +211,6 @@ def show_agentwise_voi(
     if output_filename is None:
         output_filename = f"voi-bar-{name}.pdf"
     fig_file = pathlib.Path(exp_dest.data_dir(), output_filename)
-    figure_files = figure_paths(fig_file)
-    if all(path.exists() for path in figure_files):
-        print(f"{fig_file} and its PNG preview exist, skipping.")
-        return
     fig, ax = plt.subplots(1,1, figsize=(3, 1.6))
     values = agentwise_voi(results, variant)
     for i, (label, value) in enumerate(values.items()):

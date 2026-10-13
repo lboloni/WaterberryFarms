@@ -86,8 +86,9 @@ def build_marex_2027_flow_entries(
             replicated["skip-completed"] = True
         if replications is not None:
             replicated["replications"] = replications
-        return (single_run_entries(single, creation_style, config, skip_completed)
-                + replication_entries(replicated, MAREX_APPLIERS, creation_style, config))
+        entries = (single_run_entries(single, creation_style, config, skip_completed)
+                   + replication_entries(replicated, MAREX_APPLIERS, creation_style, config))
+        return merge_phases(entries)
     if collection.get("aggregate") is not None:
         # in memory only: setting an item of an Experiment would save it into its (absent) result directory
         values = collection.values if isinstance(getattr(collection, "values", None), dict) else collection
@@ -127,6 +128,7 @@ def single_run_entries(collection, creation_style, config, skip_completed=False)
             "experiment": experiment,
             "run": run,
             "creation_style": creation_style,
+            "phase": "prepare",
         })
 
     for exp, run in zip(runs, run_names):
@@ -136,6 +138,7 @@ def single_run_entries(collection, creation_style, config, skip_completed=False)
             "experiment": run_experiment,
             "run": run,
             "creation_style": creation_style,
+            "phase": "run",
         })
 
     if skip_completed:
@@ -153,14 +156,28 @@ def single_run_entries(collection, creation_style, config, skip_completed=False)
                 raise Exception(
                     f"Figure {figure_name} refers to undeclared run "
                     f"{source_run}")
+        # a figure starts from an empty data directory, so that it never keeps files of earlier runs (e.g. the
+        # replanning snapshots of a run with another budget)
         entries.append({
             "name": f"Figure {figure_experiment}/{figure_name}",
             "notebook": figure["input-to-notebook"][0],
             "experiment": figure_experiment,
             "run": figure_name,
-            "creation_style": creation_style,
+            "creation_style": "discard-old",
+            "phase": "figure",
         })
     return entries
+
+
+# the order of the phases of a parallel flow (ExpRunFlow docs/DESIGN-Parallelization.md)
+PHASE_ORDER = ["prepare", "run", "aggregate", "figure"]
+
+
+def merge_phases(entries):
+    """The entries of a combined collection ordered by phase, stably: the environments of the example runs 
+    and of the replications are prepared together, the example runs run together with the replications, 
+    and all the figures come after the aggregation. In a parallel flow each phase is then one group."""
+    return sorted(entries, key=lambda entry: PHASE_ORDER.index(entry["phase"]))
 
 
 # Replications: the same runs with varied map and behavior seeds. The mechanism is in the ExpRunFlow 

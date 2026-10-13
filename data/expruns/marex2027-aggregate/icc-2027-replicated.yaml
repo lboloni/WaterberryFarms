@@ -1,30 +1,90 @@
-name: ICC 2027 MAREX against MRRW and the balanced baselines BMRSE and BMRCG, 20 replications on 100x100 and 200x200 fields, teams of 3 (1+2) and of 6 (1+5, 200x200 only)
+name: ICC 2027 MAREX against MRRW, the balanced baselines BMRSE and BMRCG, adapted GUTS (A-GUTS), the adapted UCB auction (A-UCBA) and RBTA, 20 replications on 100x100 and 200x200 fields, teams of 3 (1+2), 6 (1+5) and 10 (1+9)
 # the base runs to replicate; every one is run with every combination of the factor values
 runs:
   - clustered-marex
   - clustered-bmrse
   - clustered-bmrcg
   - clustered-mrrw
+  - clustered-aguts
+  - clustered-ucba
+  - clustered-rbta
   - unclustered-marex
   - unclustered-bmrse
   - unclustered-bmrcg
   - unclustered-mrrw
+  - unclustered-aguts
+  - unclustered-ucba
+  - unclustered-rbta
   - clustered-200-marex
   - clustered-200-bmrse
   - clustered-200-bmrcg
   - clustered-200-mrrw
+  - clustered-200-aguts
+  - clustered-200-ucba
+  - clustered-200-rbta
   - unclustered-200-marex
   - unclustered-200-bmrse
   - unclustered-200-bmrcg
   - unclustered-200-mrrw
+  - unclustered-200-aguts
+  - unclustered-200-ucba
+  - unclustered-200-rbta
   - clustered-200-6-marex
   - clustered-200-6-bmrse
   - clustered-200-6-bmrcg
   - clustered-200-6-mrrw
+  - clustered-200-6-aguts
+  - clustered-200-6-ucba
+  - clustered-200-6-rbta
   - unclustered-200-6-marex
   - unclustered-200-6-bmrse
   - unclustered-200-6-bmrcg
   - unclustered-200-6-mrrw
+  - unclustered-200-6-aguts
+  - unclustered-200-6-ucba
+  - unclustered-200-6-rbta
+  - clustered-6-marex
+  - clustered-6-bmrse
+  - clustered-6-bmrcg
+  - clustered-6-mrrw
+  - clustered-6-aguts
+  - clustered-6-ucba
+  - clustered-6-rbta
+  - unclustered-6-marex
+  - unclustered-6-bmrse
+  - unclustered-6-bmrcg
+  - unclustered-6-mrrw
+  - unclustered-6-aguts
+  - unclustered-6-ucba
+  - unclustered-6-rbta
+  - clustered-10-marex
+  - clustered-10-bmrse
+  - clustered-10-bmrcg
+  - clustered-10-mrrw
+  - clustered-10-aguts
+  - clustered-10-ucba
+  - clustered-10-rbta
+  - unclustered-10-marex
+  - unclustered-10-bmrse
+  - unclustered-10-bmrcg
+  - unclustered-10-mrrw
+  - unclustered-10-aguts
+  - unclustered-10-ucba
+  - unclustered-10-rbta
+  - clustered-200-10-marex
+  - clustered-200-10-bmrse
+  - clustered-200-10-bmrcg
+  - clustered-200-10-mrrw
+  - clustered-200-10-aguts
+  - clustered-200-10-ucba
+  - clustered-200-10-rbta
+  - unclustered-200-10-marex
+  - unclustered-200-10-bmrse
+  - unclustered-200-10-bmrcg
+  - unclustered-200-10-mrrw
+  - unclustered-200-10-aguts
+  - unclustered-200-10-ucba
+  - unclustered-200-10-rbta
 # crossed: 5 maps x 4 behaviors = 20 replications per base run
 factors:
   map-seed: {code: m, values: [1, 2, 3, 4, 5]}          # the seed of the generated disease map

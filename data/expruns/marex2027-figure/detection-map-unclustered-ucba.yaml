@@ -1,0 +1,7 @@
+name: Detection map for unclustered-ucba
+source-runs:
+  - unclustered-ucba
+title: A-UCBA
+output-filename: detections-map-unclustered-ucba.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

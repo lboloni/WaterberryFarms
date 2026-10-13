@@ -8,7 +8,7 @@ output-filename: replicated-comparison-200.pdf
 source-experiment: marex2027-aggregate
 source-runs:
   - icc-2027-replicated
-labels: {marex: MAREX, bmrse: BMRSE, bmrcg: BMRCG, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
-approaches: [mrrw, bmrse, bmrcg, marex]
+labels: {marex: MAREX, bmrse: BMRSE, bmrcg: BMRCG, aguts: A-GUTS, ucba: A-UCBA, rbta: RBTA, mrrw: MRRW, clustered: clustered, unclustered: unclustered, timestep: Timestep}
+approaches: [mrrw, bmrse, bmrcg, rbta, aguts, ucba, marex]
 input-to-notebook:
   - papers/y2027_marex/MAREX-Visualize-Replicated.ipynb

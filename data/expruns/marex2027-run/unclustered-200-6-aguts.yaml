@@ -1,0 +1,71 @@
+# The unclustered aguts comparison on the 200x200 field with a team of 6: 6 robots of adapted GUTS (decentralized Thompson sampling, independent posterior)
+# (papers/y2027_marex/thompson_sampling.py, after GUTS; paper-MRMR PLAN-ComparisonStudy.md, Plan A)
+name: "6 adapted GUTS (decentralized Thompson sampling, independent posterior)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "aguts"
+map-size: 200
+team-size: 6 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-200"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 1000
+time-start-environment: 25
+
+robots:
+  - name: "ts-1"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-1"
+      seed: 1
+      budget: 1000 # same as timesteps-per-day
+      footprint: 0.0
+  - name: "ts-2"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-2"
+      seed: 2
+      budget: 1000 # same as timesteps-per-day
+      footprint: 0.0
+  - name: "ts-3"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-3"
+      seed: 3
+      budget: 1000 # same as timesteps-per-day
+      footprint: 0.0
+  - name: "ts-4"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-4"
+      seed: 4
+      budget: 1000 # same as timesteps-per-day
+      footprint: 0.0
+  - name: "ts-5"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-5"
+      seed: 5
+      budget: 1000 # same as timesteps-per-day
+      footprint: 0.0
+  - name: "ts-6"
+    exp-policy: "policy"
+    run-policy: "thompson-sampling"
+    exp-policy-extra-parameters:
+      policy-name: "thompson-sampling-6"
+      seed: 6
+      budget: 1000 # same as timesteps-per-day
+      footprint: 0.0

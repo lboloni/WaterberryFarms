@@ -1,0 +1,92 @@
+# The clustered mrrw comparison on the 100x100 field with a team of 10: random waypoint (MRRW)
+name: "10 robots, random waypoint (MRRW)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "clustered"
+approach: "mrrw"
+map-size: 100
+team-size: 10 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-clustered-100"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 500 # the budget of the 100x100 field
+time-start-environment: 25
+
+robots:
+  - name: "robot-1"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-1"
+      seed: 1
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-2"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-2"
+      seed: 11
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-3"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-3"
+      seed: 21
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-4"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-4"
+      seed: 31
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-5"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-5"
+      seed: 41
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-6"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-6"
+      seed: 51
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-7"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-7"
+      seed: 61
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-8"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-8"
+      seed: 71
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-9"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-9"
+      seed: 81
+      budget: 500 # same as timesteps-per-day
+  - name: "robot-10"
+    exp-policy: "policy"
+    run-policy: "random-waypoint"
+    exp-policy-extra-parameters:
+      policy-name: "rwp-10"
+      seed: 91
+      budget: 500 # same as timesteps-per-day

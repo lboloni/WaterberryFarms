@@ -1,0 +1,87 @@
+# The unclustered bmrse comparison on the 100x100 field with a team of 10: balanced lawnmowers (BMRSE)
+name: "10 robots, balanced lawnmowers (BMRSE)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "bmrse"
+map-size: 100
+team-size: 10 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-100"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 500 # the budget of the 100x100 field
+time-start-environment: 25
+
+# the team divides the area into one strip per robot, nearest first, such that every robot covers its strip
+# with the same lawnmower density after its travel from the home base
+balanced-areas:
+  area: [5, 5, 95, 95] # [xmin, ymin, xmax, ymax]
+
+robots:
+  - name: "lawn-1"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-1"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-2"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-2"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-3"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-3"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-4"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-4"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-5"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-5"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-6"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-6"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-7"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-7"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-8"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-8"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-9"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-9"
+      budget: 500 # same as timesteps-per-day
+  - name: "lawn-10"
+    exp-policy: "policy"
+    run-policy: "balanced-lawnmower"
+    exp-policy-extra-parameters:
+      policy-name: "balanced-lawnmower-10"
+      budget: 500 # same as timesteps-per-day

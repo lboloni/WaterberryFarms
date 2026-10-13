@@ -1,0 +1,41 @@
+# The unclustered rbta comparison on the 100x100 field with a team of 3: RBTA, region-based task allocation (after Edmonds & Yi)
+# (paper-MRMR PLAN-ComparisonStudy.md)
+name: "3 robots, RBTA, region-based task allocation (after Edmonds & Yi)"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "rbta"
+map-size: 100
+team-size: 3 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-100"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 500 # the budget of the 100x100 field
+time-start-environment: 25
+
+robots:
+  - name: "rbta-1"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-1"
+      budget: 500 # same as timesteps-per-day
+  - name: "rbta-2"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-2"
+      budget: 500 # same as timesteps-per-day
+  - name: "rbta-3"
+    exp-policy: "policy"
+    run-policy: "region-task-allocation"
+    exp-policy-extra-parameters:
+      policy-name: "region-task-allocation-3"
+      budget: 500 # same as timesteps-per-day

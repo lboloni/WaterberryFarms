@@ -1,0 +1,7 @@
+name: Detection map for clustered-aguts-sp
+source-runs:
+  - clustered-aguts-sp
+title: A-GUTS-SP
+output-filename: detections-map-clustered-aguts-sp.pdf
+input-to-notebook:
+  - papers/y2027_marex/MAREX-Visualize-DetectionMap.ipynb

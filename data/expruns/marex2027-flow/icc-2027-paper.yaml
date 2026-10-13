@@ -6,18 +6,30 @@ runs:
   - clustered-bmrse
   - clustered-bmrcg
   - clustered-mrrw
+  - clustered-aguts
+  - clustered-ucba
+  - clustered-rbta
   - unclustered-marex
   - unclustered-bmrse
   - unclustered-bmrcg
   - unclustered-mrrw
+  - unclustered-aguts
+  - unclustered-ucba
+  - unclustered-rbta
   - clustered-200-marex
   - clustered-200-bmrse
   - clustered-200-bmrcg
   - clustered-200-mrrw
+  - clustered-200-aguts
+  - clustered-200-ucba
+  - clustered-200-rbta
   - unclustered-200-marex
   - unclustered-200-bmrse
   - unclustered-200-bmrcg
   - unclustered-200-mrrw
+  - unclustered-200-aguts
+  - unclustered-200-ucba
+  - unclustered-200-rbta
 figure-experiment: marex2027-figure
 # the illustrations, drawn from the example runs
 figures:
@@ -29,18 +41,30 @@ figures:
   - detection-map-clustered-bmrse
   - detection-map-clustered-bmrcg
   - detection-map-clustered-mrrw
+  - detection-map-clustered-aguts
+  - detection-map-clustered-ucba
+  - detection-map-clustered-rbta
   - detection-map-unclustered-marex
   - detection-map-unclustered-bmrse
   - detection-map-unclustered-bmrcg
   - detection-map-unclustered-mrrw
+  - detection-map-unclustered-aguts
+  - detection-map-unclustered-ucba
+  - detection-map-unclustered-rbta
   - detection-map-clustered-200-marex
   - detection-map-clustered-200-bmrse
   - detection-map-clustered-200-bmrcg
   - detection-map-clustered-200-mrrw
+  - detection-map-clustered-200-aguts
+  - detection-map-clustered-200-ucba
+  - detection-map-clustered-200-rbta
   - detection-map-unclustered-200-marex
   - detection-map-unclustered-200-bmrse
   - detection-map-unclustered-200-bmrcg
   - detection-map-unclustered-200-mrrw
+  - detection-map-unclustered-200-aguts
+  - detection-map-unclustered-200-ucba
+  - detection-map-unclustered-200-rbta
   # the replanning of the contractors, planned and traversed trajectory
   - replanning-clustered-marex
   - replanning-unclustered-marex
@@ -54,7 +78,8 @@ aggregate: icc-2027-replicated
 # the figures drawn from the aggregate
 aggregate-figures:
   # the comparison with the baselines: absolute VoI, box plots
-  - replicated-boxes-voi
+  - replicated-boxes-voi-clustered
+  - replicated-boxes-voi-unclustered
   # the full results, teams of 3
   - replicated-comparison-100
   - replicated-ranges-100

@@ -1,0 +1,64 @@
+# The unclustered marex comparison on the 100x100 field with a team of 6: MAREX, one pioneer and 5 contractors
+name: "6 robots, MAREX, one pioneer and 5 contractors"
+
+# the scenario and the approach, for the aggregation of replications (DESIGN-MultiSeedEvaluation.md)
+scenario: "unclustered"
+approach: "marex"
+map-size: 100
+team-size: 6 # the number of robots
+
+exp_environment: "environment"
+run_environment: "marex-generated-unclustered-100"
+
+exp_estimator: "estimator"
+run_estimator: "adaptive-disk"
+
+exp_score: "score"
+run_score: "voi"
+
+timesteps-per-day: 500 # the budget of the 100x100 field
+time-start-environment: 25
+
+robots:
+  - name: "pio"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-pioneer"
+      seed: 1
+      budget: 500 # same as timesteps-per-day
+  - name: "con-1"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-1"
+      seed: 2
+      budget: 500 # same as timesteps-per-day
+  - name: "con-2"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-2"
+      seed: 3
+      budget: 500 # same as timesteps-per-day
+  - name: "con-3"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-3"
+      seed: 4
+      budget: 500 # same as timesteps-per-day
+  - name: "con-4"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-4"
+      seed: 5
+      budget: 500 # same as timesteps-per-day
+  - name: "con-5"
+    exp-policy: "policy"
+    run-policy: "generic"
+    exp-policy-extra-parameters:
+      policy-name: "marex-contractor-5"
+      seed: 6
+      budget: 500 # same as timesteps-per-day

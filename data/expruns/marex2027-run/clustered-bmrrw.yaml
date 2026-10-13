@@ -17,7 +17,7 @@ run_estimator: "adaptive-disk"
 exp_score: "score"
 run_score: "voi"
 
-timesteps-per-day: 1000
+timesteps-per-day: 500 # the budget of the 100x100 field
 time-start-environment: 25
 
 # the team divides the area into one strip per robot, nearest first, such that every robot covers its strip
@@ -32,18 +32,18 @@ robots:
     exp-policy-extra-parameters:
       policy-name: "balanced-random-waypoint-1"
       seed: 1
-      budget: 1000 # same as timesteps-per-day
+      budget: 500 # same as timesteps-per-day
   - name: "robot-2"
     exp-policy: "policy"
     run-policy: "balanced-random-waypoint"
     exp-policy-extra-parameters:
       policy-name: "balanced-random-waypoint-2"
       seed: 2
-      budget: 1000 # same as timesteps-per-day
+      budget: 500 # same as timesteps-per-day
   - name: "robot-3"
     exp-policy: "policy"
     run-policy: "balanced-random-waypoint"
     exp-policy-extra-parameters:
       policy-name: "balanced-random-waypoint-3"
       seed: 3
-      budget: 1000 # same as timesteps-per-day
+      budget: 500 # same as timesteps-per-day
