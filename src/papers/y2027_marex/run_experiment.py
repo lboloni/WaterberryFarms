@@ -20,7 +20,7 @@ from .marex_metrics import LABEL_KEYS, collect_metrics
 from .region_task_allocation import RegionTaskAllocationPolicy, estimate_kernel
 from .thompson_sampling import ThompsonSamplingPolicy
 from .ucb_auction import UCBAuctionPolicy
-from .marex_policies import MAREX_Contractor, MAREX_Pioneer, MAREX_Policy
+from .marex_policies import MAREX_DEFAULTS, MAREX_Contractor, MAREX_Pioneer, MAREX_Policy
 
 
 # the start of every robot, the home base
@@ -106,6 +106,9 @@ def run_marex_experiment(exp):
         elif values["name"] == "pio" or values["name"].startswith("con-"):
             # the option of the run that lets the contractors create EPs (DESIGN-Market.md)
             exp_policy["contractors-offer"] = bool(exp.get("marex-contractors-offer", False))
+            # the parameters of MAREX, from the marex-* keys of the run
+            for key, default in MAREX_DEFAULTS.items():
+                exp_policy[key] = exp.get("marex-" + key, default)
             if values["name"] == "pio":
                 policy = MAREX_Pioneer(exp_policy, exp_env)
             else:

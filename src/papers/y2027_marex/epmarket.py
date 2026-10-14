@@ -19,7 +19,8 @@ import textwrap
 
 # the communication rounds between the broadcast of an offer and its award: the bids are sent in the round
 # after the offer, and the offering agent clears the offer in the round after that. A bid that was not
-# awarded by then is lost (the award goes only to the winner).
+# awarded by then is lost (the award goes only to the winner). The default of the exprun key
+# marex-award-delay-rounds.
 AWARD_DELAY_ROUNDS = 2
 
 class EPOffer:
@@ -44,8 +45,9 @@ class EPOffer:
 
 class EPAgent:
     """The robot-local ledger of an agent participating in the market"""
-    def __init__(self, name):
+    def __init__(self, name, award_delay_rounds=AWARD_DELAY_ROUNDS):
         self.name = name
+        self.award_delay_rounds = award_delay_rounds
         self.money = 0
         self.offer_count = 0 # used to create globally unique offer ids
         self.commitments = {} # offer id -> offer, the deals we won and have to execute
@@ -109,9 +111,9 @@ class EPAgent:
         self.outstanding_bids[epoff.offer_id] = epoff
 
     def expire_bids(self, round):
-        """Forget the bids that were not awarded within AWARD_DELAY_ROUNDS rounds: they were lost"""
+        """Forget the bids that were not awarded within award_delay_rounds rounds: they were lost"""
         for offer_id, epoff in list(self.outstanding_bids.items()):
-            if epoff.bid_round is not None and round - epoff.bid_round > AWARD_DELAY_ROUNDS:
+            if epoff.bid_round is not None and round - epoff.bid_round > self.award_delay_rounds:
                 self.lost_bids.append(self.outstanding_bids.pop(offer_id))
 
     def won(self, offer_id, price):

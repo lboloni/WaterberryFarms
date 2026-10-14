@@ -1,9 +1,9 @@
 name: The EP market of one offer as a message sequence chart
 source-runs:
-  # the run of the replanning snapshots of the paper (con-1 on the clustered 200x200 map)
+  # the run of the replanning snapshots of the paper (con-2 on the clustered 200x200 map)
   - clustered-200-marex
 # the offer to show, e.g. "pio-0"; null: the first offer with several bids that was completed
-# the offer of the pioneer at timestep 481, won by con-1 with the lower of two different bids (run of 2026-10-14)
+# the offer of the pioneer at timestep 91, won by con-2 with the lower of two different bids (run of 2026-10-14, EP resolution 1)
 offer-id: marex-pioneer-1
 output-filename: market-sequence.pdf
 input-to-notebook:

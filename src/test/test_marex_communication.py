@@ -7,7 +7,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from communication import PerfectCommunicationMedium, traffic_summary
 from papers.y2027_marex.epmarket import AWARD_DELAY_ROUNDS, EPAgent, EPOffer
 from papers.y2027_marex.exploration_package import ExplorationPackage
-from papers.y2027_marex.marex_policies import MAREX_Contractor, MAREX_Pioneer
+from papers.y2027_marex.marex_policies import MAREX_DEFAULTS, MAREX_Contractor, MAREX_Pioneer
 from robot import Robot
 from wbf_simulate import simulate_1day
 
@@ -280,14 +280,19 @@ def destroyed(x, y, t=0):
     return {"x": x, "y": y, "time": t, "TYLCV": {"value": 0.0}}
 
 
+def infected(x, y, t=0):
+    return {"x": x, "y": y, "time": t, "TYLCV": {"value": 0.5}}
+
+
 def healthy(x, y, t=0):
     return {"x": x, "y": y, "time": t, "TYLCV": {"value": 1.0}}
 
 
-def offering_contractor(name="con-1", option=True, budget=200):
-    """An idle contractor at (0, 0) on a 31x31 field, with the contractors-offer option"""
+def offering_contractor(name="con-1", option=True, budget=200, **parameters):
+    """An idle contractor at (0, 0) on a 31x31 field, with the contractors-offer option and the given
+    parameters of MAREX (MAREX_DEFAULTS)"""
     contractor = MAREX_Contractor({"policy-name": name, "seed": 1, "budget": budget,
-                                   "contractors-offer": option}, None)
+                                   "contractors-offer": option, **parameters}, None)
     robot = Robot(name, 0, 0, 0)
     robot.im = SizedEstimator()
     robot.assign_policy(contractor)
@@ -355,6 +360,50 @@ class TestContractorOffers(unittest.TestCase):
         self.assertEqual(contractor.epagent.commitments, {})
         self.assertEqual([deal.offer_id for deal in contractor.epagent.terminated_deals], [offer.offer_id] * 2)
         self.assertEqual(contractor.epagent.money, 0)
+
+
+class TestMarexParameters(unittest.TestCase):
+    STREAK = [destroyed(15, 15), destroyed(16, 15), healthy(17, 15)]
+
+    def test_defaults(self):
+        contractor = offering_contractor()
+        for key, value in MAREX_DEFAULTS.items():
+            self.assertEqual(getattr(contractor, key.replace("-", "_")), value)
+        self.assertEqual(contractor.epagent.award_delay_rounds, MAREX_DEFAULTS["award-delay-rounds"])
+
+    def test_ep_step_border_and_prize_factor(self):
+        contractor = offering_contractor(**{"ep-step": 1, "ep-border": 5, "prize-factor": 1.0})
+        observe(contractor, *self.STREAK)
+        [offer] = contractor.epagent.outstanding_offers.values()
+        self.assertEqual((offer.ep.x_min, offer.ep.x_max, offer.ep.y_min, offer.ep.y_max), (10, 21, 10, 20))
+        self.assertEqual(offer.ep.step, 1)
+        self.assertEqual(offer.prize, 11 * 10)
+
+    def test_streak_below_destroyed_only(self):
+        # with 0.5, an infected plant (0.5) ends the streak, like a healthy one
+        contractor = offering_contractor(**{"streak-below": 0.5})
+        observe(contractor, destroyed(15, 15), infected(16, 15))
+        self.assertEqual(len(contractor.epagent.outstanding_offers), 1)
+        observe(contractor, infected(20, 25), healthy(21, 25))
+        self.assertEqual(len(contractor.epagent.outstanding_offers), 1)
+
+    def test_streak_below_infected_and_destroyed(self):
+        # with 1.0 (the default), the infected and the destroyed plants make up one streak, which a healthy plant ends
+        contractor = offering_contractor(**{"streak-below": 1.0})
+        observe(contractor, destroyed(15, 15), infected(16, 15))
+        self.assertEqual(contractor.epagent.outstanding_offers, {})
+        self.assertEqual(contractor.detections, [[15, 15], [16, 15]])
+        observe(contractor, healthy(17, 15))
+        self.assertEqual(len(contractor.epagent.outstanding_offers), 1)
+
+    def test_award_delay_rounds(self):
+        contractor = offering_contractor(**{"award-delay-rounds": 4})
+        lost = offer_of(ExplorationPackage(30, 34, 30, 34, step=2), "pioneer-1")
+        contractor.epagent.bid(lost, round=5)
+        contractor.epagent.expire_bids(5 + 4)
+        self.assertIn("pioneer-1", contractor.epagent.outstanding_bids)
+        contractor.epagent.expire_bids(5 + 4 + 1)
+        self.assertEqual(contractor.epagent.outstanding_bids, {})
 
 
 if __name__ == "__main__":

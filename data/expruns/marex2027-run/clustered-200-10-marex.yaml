@@ -8,6 +8,14 @@ map-size: 200
 team-size: 10 # the number of robots
 # the contractors also create EPs from the streaks they find outside their EPs (DESIGN-Market.md)
 marex-contractors-offer: true
+# the parameters of MAREX, with the defaults of MAREX_DEFAULTS (DESIGN-Market.md)
+marex-ep-step: 1 # the resolution of the EPs: the distance between the passes of their lawnmower (1: every row)
+marex-ep-border: 3 # the border by which the bounding box of a streak is extended into an EP
+marex-prize-factor: 0.1 # the prize of an EP per unit of its area
+marex-streak-below: 1.0 # a streak is made of the observations below this TYLCV value (1.0: the infected and the destroyed plants)
+marex-award-delay-rounds: 2 # the communication rounds between the broadcast of an offer and its award
+marex-bid-evaluations: 2000 # the bound of the EP path search when bidding (evaluated combinations)
+marex-replan-evaluations: 20000 # the same, when replanning
 
 exp_environment: "environment"
 run_environment: "marex-generated-clustered-200"

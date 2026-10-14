@@ -52,3 +52,28 @@ The offering agent awards the EP to the lowest bid, breaking ties by the names o
 Every contractor bid the prize itself. The tie-break by name then gave every EP to the first feasible contractor in name order: con-1 won 52 of the 54 EPs in the 20 replications of the clustered 200x200 setting. Also, the feasibility test started the path at the robot's current position, but at the time when its current EP ends. The new `schedule_start` fixes this.
 
 The tests are in `src/test/test_marex_communication.py` (`TestMarginalCostBids`, `TestMarketProtocol`, `TestLostBids`, `TestContractorOffers`).
+
+## The parameters of MAREX
+
+The values that define MAREX are set by run-level keys `marex-<name>`, which `run_experiment.py` passes to every MAREX policy as `exp_policy["<name>"]`. Their defaults are in `MAREX_DEFAULTS` (`marex_policies.py`). Like `marex-contractors-offer`, they are written explicitly into the MAREX run files of `marex2027-run`, and not into their defaults, which would change the configuration, and hence the reuse, of the baselines too.
+
+| key | default | meaning |
+|---|---|---|
+| `marex-ep-step` | 1 | the resolution $r$ of the EPs: the distance between the passes of their lawnmower. With a sensor that observes only the cell of the robot, $r = 1$ observes every row of an EP, $r = 2$ every second row. |
+| `marex-ep-border` | 3 | the border, in cells, by which the bounding box of a streak is extended into an EP |
+| `marex-prize-factor` | 0.1 | $\alpha$ in the prize $R = \alpha |A|$ |
+| `marex-streak-below` | 1.0 | a streak is made of the consecutive observations whose TYLCV value is below this threshold (see below) |
+| `marex-award-delay-rounds` | 2 | the communication rounds between the broadcast of an offer and its award (`EPAgent.award_delay_rounds`) |
+| `marex-bid-evaluations` | 2000 | the bound of the EP path search when bidding, as a count of evaluated combinations |
+| `marex-replan-evaluations` | 20000 | the same, when replanning |
+
+### The streaks: `marex-streak-below`
+
+The TYLCV map has three values: 1.0 for a healthy plant, 0.5 for an infected one, and 0.0 for a destroyed one (`environment.py`). A robot extends its streak of detections while it observes plants whose value is below `marex-streak-below` (`MAREX_Policy.track_streak`: `value < streak_below`). The first observation at or above the threshold ends the streak, and an EP is built around it (`build_offer`).
+
+- **1.0 (the default):** the infected and the destroyed plants make up the streaks, as the VoI counts both as positives (`water_berry_farm.py`: `envfield.value < 1.0`).
+- **0.5:** only the destroyed plants make up a streak; an infected plant ends it like a healthy one. Before the parameter was introduced (2026-10-14), the streaks were defined this way, by an equality with 0.0.
+
+### The choice of the defaults
+
+Until 2026-10-14 MAREX used $r = 2$ and the streaks of the destroyed plants only. A 2x2 ablation of the EP resolution and the streak threshold (the variants MAREX-r1, MAREX-inf and MAREX-r1-inf, replicated in `icc-2027-replicated`) led to the current defaults, $r = 1$ and the streaks of the infected and the destroyed plants (the former MAREX-r1-inf). The variants were then removed from the run files and from the paper; git keeps them.

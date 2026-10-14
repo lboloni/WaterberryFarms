@@ -19,6 +19,23 @@ from .exploration_package import ExplorationPackage, ExplorationPackageSet
 from .xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
 
 
+# the parameters of MAREX that an exprun can set, with their defaults; the exprun key is the name prefixed
+# with "marex-", e.g. marex-ep-step (DESIGN-Market.md)
+MAREX_DEFAULTS = {
+    "ep-step": 1, # the resolution of the EPs: the distance between the passes of their lawnmower (1: every row)
+    "ep-border": 3, # the border by which the bounding box of a streak is extended into an EP
+    "prize-factor": 0.1, # the prize of an EP per unit of its area
+    # the observations that make up a streak: those with a TYLCV value below this (1.0 healthy, 0.5 infected,
+    # 0.0 destroyed); 0.5: the destroyed plants only, 1.0: the infected and the destroyed plants
+    "streak-below": 1.0,
+    "award-delay-rounds": AWARD_DELAY_ROUNDS, # the rounds between the broadcast of an offer and its award
+    # the bounds of the EP path search of a contractor, as counts of evaluated combinations: they correspond
+    # to the earlier time limits of 0.1 s (bidding) and 1.0 s (replanning) on the development machine
+    "bid-evaluations": 2000,
+    "replan-evaluations": 20000,
+}
+
+
 def ep_to_content(ep):
     """The exploration package as plain data, for sending in a message"""
     return {"x_min": ep.x_min, "x_max": ep.x_max, "y_min": ep.y_min, "y_max": ep.y_max, "step": ep.step}
@@ -41,7 +58,12 @@ class MAREX_Policy(Policy):
         self.name = exp_policy["policy-name"]
         self.timestep = -1 # local way to keep track of time, based on act calls
         # the robot-local ledger of the market
-        self.epagent = EPAgent(self.name)
+        self.ep_step = self.exp_policy.get("ep-step", MAREX_DEFAULTS["ep-step"])
+        self.ep_border = self.exp_policy.get("ep-border", MAREX_DEFAULTS["ep-border"])
+        self.prize_factor = self.exp_policy.get("prize-factor", MAREX_DEFAULTS["prize-factor"])
+        self.streak_below = self.exp_policy.get("streak-below", MAREX_DEFAULTS["streak-below"])
+        self.award_delay_rounds = self.exp_policy.get("award-delay-rounds", MAREX_DEFAULTS["award-delay-rounds"])
+        self.epagent = EPAgent(self.name, award_delay_rounds=self.award_delay_rounds)
         self.outbox = [] # (destination, content) pairs to send in the next communication round
         self.rounds = 0 # the communication rounds seen so far, counted across timesteps
         self.observations = []
@@ -109,8 +131,9 @@ class MAREX_Policy(Policy):
     #
     def track_streak(self, obs):
         """Extend the streak of detections with an observation; returns the streak if the observation ended
-        it, otherwise None. A streak is a run of consecutive observations of destroyed plants."""
-        if obs["TYLCV"]["value"] == 0.0:
+        it, otherwise None. A streak is a run of consecutive observations with a TYLCV value below
+        streak_below (by default the destroyed plants)."""
+        if obs["TYLCV"]["value"] < self.streak_below:
             self.detections.append([obs["x"], obs["y"]])
             return None
         streak, self.detections = self.detections, []
@@ -125,14 +148,14 @@ class MAREX_Policy(Policy):
         geom_y_min, geom_y_max = 0, im.height - 1
         # the bounding box of the streak, extended by a border and clipped to the field
         # border = 3 * streak.shape[0] would make the EP grow with the streak
-        border = 3
+        border = self.ep_border
         x_min = max(geom_x_min, np.min(streak[:, 0]) - border)
         x_max = min(geom_x_max, np.max(streak[:, 0]) + border)
         y_min = max(geom_y_min, np.min(streak[:, 1]) - border)
         y_max = min(geom_y_max, np.max(streak[:, 1]) + border)
-        ep = ExplorationPackage(x_min, x_max, y_min, y_max, step = 2)
+        ep = ExplorationPackage(x_min, x_max, y_min, y_max, step = self.ep_step)
         # the prize is proportional to the area
-        prize = (x_max - x_min) * (y_max - y_min) * 0.1
+        prize = (x_max - x_min) * (y_max - y_min) * self.prize_factor
         if self.contractors_offer:
             ruling = self.known_eps
         else:
@@ -147,10 +170,10 @@ class MAREX_Policy(Policy):
         return self.epagent.offer(ep, prize)
 
     def before_send(self):
-        """Clear the offers whose bids arrived (AWARD_DELAY_ROUNDS rounds after sending them), then broadcast
+        """Clear the offers whose bids arrived (award_delay_rounds rounds after sending them), then broadcast
         the new offers"""
         for epoff in list(self.epagent.outstanding_offers.values()):
-            if epoff.sent_round is not None and self.rounds >= epoff.sent_round + AWARD_DELAY_ROUNDS:
+            if epoff.sent_round is not None and self.rounds >= epoff.sent_round + self.award_delay_rounds:
                 awarded = self.epagent.clear(epoff.offer_id)
                 if awarded is None:
                     continue
@@ -226,13 +249,12 @@ class MAREX_Pioneer(MAREX_Policy):
 
 class MAREX_Contractor(MAREX_Policy):
     """Implements the Contractor agent for the MAREX paper"""
-    # the bounds of the EP path search, as counts of evaluated combinations: they correspond to the earlier
-    # time limits of 0.1 s (bidding) and 1.0 s (replanning) on the development machine
-    BID_EVALUATIONS = 2000
-    REPLAN_EVALUATIONS = 20000
 
     def __init__(self, exp_policy, exp_env):
         super().__init__(exp_policy, exp_env)
+        # the bounds of the EP path search (MAREX_DEFAULTS)
+        self.bid_evaluations = self.exp_policy.get("bid-evaluations", MAREX_DEFAULTS["bid-evaluations"])
+        self.replan_evaluations = self.exp_policy.get("replan-evaluations", MAREX_DEFAULTS["replan-evaluations"])
         # the current epoffer which is under execution
         self.current_epoffer = None
         self.plan = []
@@ -358,7 +380,7 @@ class MAREX_Contractor(MAREX_Policy):
             # epset.ep_to_explore += self.epagent.commitments
             # the remainder of the current ep is already in part one
             epset.ep_to_explore = [x.ep for x in self.epagent.commitments.values() if x.ep is not currentep]
-            _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent], max_evaluations=self.REPLAN_EVALUATIONS)
+            _, ep_path = epset.find_shortest_path_ep(start=[xcurrent, ycurrent], max_evaluations=self.replan_evaluations)
             ep_xyplan = xyplan_from_ep_path(ep_path, t)
             self.plan += ep_xyplan
             print(f"Part two last step {self.plan[-1]}")
@@ -397,7 +419,7 @@ class MAREX_Contractor(MAREX_Policy):
             return t
         epset = ExplorationPackageSet()
         epset.ep_to_explore = list(eps)
-        _, ep_path = epset.find_shortest_path_ep(start, max_evaluations=self.BID_EVALUATIONS)
+        _, ep_path = epset.find_shortest_path_ep(start, max_evaluations=self.bid_evaluations)
         return xyplan_from_ep_path(ep_path, t)[-1]["t"] + 1
 
     def can_bid(self, epoffer):

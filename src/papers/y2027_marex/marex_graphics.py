@@ -524,7 +524,7 @@ def show_replicated_per_role(tables, scenarios, metric, lookup, colors, output_p
     from exprunflow.aggregate import describe
     from exprunflow.plots import save_figure, select
     entities = select(tables["entities"], where, metric=metric)
-    fig, axes = plt.subplots(1, len(scenarios), figsize=(3.5 * len(scenarios), 3), sharey=True, squeeze=False)
+    fig, axes = plt.subplots(1, len(scenarios), figsize=(3.5 * len(scenarios), 3.5), sharey=True, squeeze=False)
     for ax, scenario in zip(axes[0], scenarios):
         frame = select(entities, scenario=scenario)
         per_replication = frame.groupby(["approach", "group", "run"])["value"].mean().reset_index()
@@ -534,7 +534,8 @@ def show_replicated_per_role(tables, scenarios, metric, lookup, colors, output_p
             err = [[d["mean"] - d["ci95_low"]], [d["ci95_high"] - d["mean"]]] if not np.isnan(d["ci95_low"]) else None
             ax.bar(i, d["mean"], color=colors[i % len(colors)], yerr=err, capsize=3)
         ax.set_xticks(range(len(groups)))
-        ax.set_xticklabels([f"{lookup.get(a, a)} {r}" for (a, r), _ in groups], rotation=45, ha="right", fontsize=8)
+        # vertical labels: with many roles, slanted ones overlap
+        ax.set_xticklabels([f"{lookup.get(a, a)} {r}" for (a, r), _ in groups], rotation=90, fontsize=7)
         ax.set_title(lookup.get(scenario, scenario), fontsize=10)
         ax.set_ylabel(f"{METRIC_LABELS.get(metric, metric)} per robot")
     fig.tight_layout()
