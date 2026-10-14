@@ -313,10 +313,13 @@ def market_lifecycles(results):
     return lifecycles
 
 
-def choose_lifecycle(lifecycles):
-    """The most informative offer to illustrate: the first one that received several bids and was
-    completed, otherwise the first completed one, otherwise the first one"""
-    ordered = sorted(lifecycles.values(), key=lambda c: (c["offer"]["timestep"], c["offer"]["round"]))
+def choose_lifecycle(lifecycles, offerer="pio"):
+    """The most informative offer of the pioneer to illustrate: the first one that received several bids and
+    was completed, otherwise the first completed one, otherwise the first one. Only the pioneer's offers are
+    candidates: when the contractors also offer, a contractor bids on its own offer without a message, which
+    the chart could not show."""
+    ordered = sorted((c for c in lifecycles.values() if c["offer"] is not None and c["offer"]["sender"] == offerer),
+                     key=lambda c: (c["offer"]["timestep"], c["offer"]["round"]))
     for accept in (lambda c: len(c["bids"]) >= 2 and c["completed"], lambda c: c["completed"], lambda c: True):
         for lifecycle in ordered:
             if accept(lifecycle):

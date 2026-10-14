@@ -22,6 +22,27 @@ Both schedules start where and when the EP that the contractor is currently expl
   - For a contractor with commitments, it is the detour that the EP causes.
 - **Pending bids:** the EPs of the contractor's outstanding bids (bid on, not yet awarded) count as commitments. A contractor that receives several offers in the same round therefore cannot win more of them than its budget allows. This is pessimistic, because a bid that is later lost raised the other bids. But an auction lasts only one timestep.
 
+## Lost bids
+
+The award goes only to the winner, so a contractor is never told that it lost an auction. The offering agent clears an offer `AWARD_DELAY_ROUNDS` = 2 communication rounds after it sends it (`epmarket.py`): the bids are sent in the round after the offer, and the award in the round after that. A bid that has not been awarded by then is lost. `EPAgent.expire_bids` moves it from `outstanding_bids` to `lost_bids`, so that it no longer counts as a commitment. The contractor calls it before every bid, and at every timestep.
+
+Before 2026-10-14 (commit 123fa02), the lost bids were never removed. Every EP a contractor had ever lost then lengthened all its later schedules, and the share of the pioneer's offers without any bid rose from 10–18% to 34–35%.
+
+## Contractors that create EPs (option `contractors-offer`)
+
+The run-level key `marex-contractors-offer` (true/false, default false) is passed by `run_experiment.py` to every MAREX policy as `exp_policy["contractors-offer"]`. It is set in the 12 MAREX run files of `marex2027-run`, and not in their defaults, because a key in the defaults would change the configuration, and hence the reuse, of every run.
+
+With the option on:
+- **Streaks:** every robot tracks streaks of detections (`MAREX_Policy.track_streak`). A Contractor does so only for observations outside the EP it explores and its commitments, and a streak in progress is dropped when it enters one.
+- **Offers:** every robot builds the EP around a finished streak in the same way (`build_offer`: bounding box, border of 3 cells, $r = 2$, prize $0.1|A|$). It does not offer it if it overlaps any EP it has heard offered or offered itself (`known_eps`).
+- **The offering side** of the market (`before_send`, `on_ep_bid`, `on_ep_completed`) is in `MAREX_Policy`, and is the same for all robots.
+- **Self-bids:** a Contractor bids on its own offer like the others, when it broadcasts it, but without a message (`on_own_offer_sent`). If it wins, the EP becomes a commitment without an award message (`on_self_award`), and its completion is settled in its own ledger without a message (`report_completion`).
+- **The Pioneer** never bids, and never explores EPs.
+
+With the option off, a Contractor never offers, and the Pioneer checks the overlap only against its own awarded deals, as before. The behavior is then that of the marginal-cost bids with the expiry of the lost bids.
+
+The message sequence chart (`marex_graphics.choose_lifecycle`) only illustrates offers of the pioneer: the self-bid of a contractor is not a message, and could not be drawn.
+
 ## The award and the payment
 
 The offering agent awards the EP to the lowest bid, breaking ties by the names of the bidders (`EPAgent.clear`), and pays the winning bid when the completion is reported (first-price). The payments are recorded in the ledgers, but no decision depends on them.
@@ -30,4 +51,4 @@ The offering agent awards the EP to the lowest bid, breaking ties by the names o
 
 Every contractor bid the prize itself. The tie-break by name then gave every EP to the first feasible contractor in name order: con-1 won 52 of the 54 EPs in the 20 replications of the clustered 200x200 setting. Also, the feasibility test started the path at the robot's current position, but at the time when its current EP ends. The new `schedule_start` fixes this.
 
-The tests are in `src/test/test_marex_communication.py` (`TestMarginalCostBids`, `TestMarketProtocol`).
+The tests are in `src/test/test_marex_communication.py` (`TestMarginalCostBids`, `TestMarketProtocol`, `TestLostBids`, `TestContractorOffers`).

@@ -5,7 +5,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from communication import PerfectCommunicationMedium, traffic_summary
-from papers.y2027_marex.epmarket import EPAgent, EPOffer
+from papers.y2027_marex.epmarket import AWARD_DELAY_ROUNDS, EPAgent, EPOffer
 from papers.y2027_marex.exploration_package import ExplorationPackage
 from papers.y2027_marex.marex_policies import MAREX_Contractor, MAREX_Pioneer
 from robot import Robot
@@ -246,6 +246,115 @@ class TestMarginalCostBids(unittest.TestCase):
     def test_infeasible_offer_gets_no_bid(self):
         contractor = idle_contractor("con-1", 0, 0, budget=20)
         self.assertEqual(contractor.can_bid(offer_of(self.EP)), (False, None))
+
+
+class TestLostBids(unittest.TestCase):
+    EP = ExplorationPackage(10, 14, 10, 14, step=2)
+
+    def test_lost_bid_expires(self):
+        contractor = idle_contractor("con-1", 0, 0)
+        lost = offer_of(ExplorationPackage(30, 34, 30, 34, step=2), "pioneer-1")
+        contractor.epagent.bid(lost, round=5)
+        _, idle_bid = idle_contractor("con-2", 0, 0).can_bid(offer_of(self.EP))
+        # while the auction may still be awarded to us, the bid counts as a commitment
+        contractor.epagent.expire_bids(5 + AWARD_DELAY_ROUNDS)
+        self.assertIn("pioneer-1", contractor.epagent.outstanding_bids)
+        self.assertNotEqual(contractor.can_bid(offer_of(self.EP))[1], idle_bid)
+        # one round later it was lost: forgotten, and the bid is that of an idle contractor
+        contractor.epagent.expire_bids(5 + AWARD_DELAY_ROUNDS + 1)
+        self.assertEqual(contractor.epagent.outstanding_bids, {})
+        self.assertEqual([offer.offer_id for offer in contractor.epagent.lost_bids], ["pioneer-1"])
+        self.assertEqual(contractor.can_bid(offer_of(self.EP))[1], idle_bid)
+
+    def test_loser_forgets_the_lost_auction(self):
+        # both contractors bid the same on the offer at timestep 1; con-2 loses by name order
+        policies, commitments, _, _ = run_market(communication_rounds=3)
+        loser = policies["con-2"].epagent
+        self.assertEqual(loser.commitments, {})
+        self.assertEqual(loser.outstanding_bids, {})
+        self.assertEqual(sorted(offer.offer_id for offer in loser.lost_bids), ["pioneer-0", "pioneer-1"])
+
+
+def destroyed(x, y, t=0):
+    """An observation of a destroyed plant (a detection)"""
+    return {"x": x, "y": y, "time": t, "TYLCV": {"value": 0.0}}
+
+
+def healthy(x, y, t=0):
+    return {"x": x, "y": y, "time": t, "TYLCV": {"value": 1.0}}
+
+
+def offering_contractor(name="con-1", option=True, budget=200):
+    """An idle contractor at (0, 0) on a 31x31 field, with the contractors-offer option"""
+    contractor = MAREX_Contractor({"policy-name": name, "seed": 1, "budget": budget,
+                                   "contractors-offer": option}, None)
+    robot = Robot(name, 0, 0, 0)
+    robot.im = SizedEstimator()
+    robot.assign_policy(contractor)
+    contractor.timestep = 0
+    return contractor
+
+
+def observe(contractor, *observations):
+    """Feed observations one by one, as act does after every move"""
+    for obs in observations:
+        contractor.observations.append(obs)
+        contractor.offer_own_streaks()
+
+
+class TestContractorOffers(unittest.TestCase):
+    STREAK = [destroyed(15, 15), destroyed(16, 15), healthy(17, 15)]
+
+    def test_contractor_offers_a_streak_outside_its_eps(self):
+        contractor = offering_contractor()
+        observe(contractor, *self.STREAK)
+        [offer] = contractor.epagent.outstanding_offers.values()
+        self.assertEqual((offer.ep.x_min, offer.ep.x_max, offer.ep.y_min, offer.ep.y_max), (12, 19, 12, 18))
+        self.assertIn(offer.ep, contractor.known_eps)
+
+    def test_contractor_does_not_offer_inside_an_ep(self):
+        contractor = offering_contractor()
+        committed = offer_of(ExplorationPackage(10, 20, 10, 20, step=2), "pioneer-0")
+        contractor.epagent.commitments[committed.offer_id] = committed
+        observe(contractor, *self.STREAK)
+        self.assertEqual(contractor.epagent.outstanding_offers, {})
+        self.assertEqual(contractor.detections, [])
+
+    def test_no_offer_overlapping_a_known_ep(self):
+        contractor = offering_contractor()
+        contractor.known_eps.append(ExplorationPackage(14, 24, 14, 24, step=2))
+        observe(contractor, *self.STREAK)
+        self.assertEqual(contractor.epagent.outstanding_offers, {})
+
+    def test_option_off_contractors_never_offer(self):
+        contractor = offering_contractor(option=False)
+        observe(contractor, *self.STREAK)
+        self.assertEqual(contractor.epagent.outstanding_offers, {})
+
+    def test_offering_contractor_can_win_its_own_offer(self):
+        contractor = offering_contractor()
+        observe(contractor, *self.STREAK)
+        [offer] = contractor.epagent.outstanding_offers.values()
+        # the offer is broadcast, and we bid on it without a message
+        contractor.rounds = 1
+        contractor.before_send()
+        self.assertEqual([content["type"] for _, content in contractor.outbox], ["ep-offer"])
+        self.assertIn("con-1", offer.bids)
+        # cleared without other bids: we win it, and no award message is sent
+        contractor.outbox = []
+        contractor.rounds = 1 + AWARD_DELAY_ROUNDS
+        contractor.replan_needed = False
+        contractor.before_send()
+        self.assertEqual(contractor.outbox, [])
+        self.assertIn(offer.offer_id, contractor.epagent.commitments)
+        self.assertTrue(contractor.replan_needed)
+        # its completion is settled in our own ledger, without a message
+        contractor.current_real_value = 0
+        contractor.report_completion(offer)
+        self.assertEqual(contractor.outbox, [])
+        self.assertEqual(contractor.epagent.commitments, {})
+        self.assertEqual([deal.offer_id for deal in contractor.epagent.terminated_deals], [offer.offer_id] * 2)
+        self.assertEqual(contractor.epagent.money, 0)
 
 
 if __name__ == "__main__":

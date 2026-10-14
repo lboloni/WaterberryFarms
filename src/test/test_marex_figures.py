@@ -105,6 +105,16 @@ class TestMarketSequence(unittest.TestCase):
     def test_the_first_offer_with_several_bids_is_chosen(self):
         self.assertEqual(choose_lifecycle(market_lifecycles(MARKET))["offer-id"], "pio-1")
 
+    def test_only_the_pioneers_offers_are_chosen(self):
+        # a contractor's earlier offer with several bids and a completion is not a candidate
+        traffic = [send(4, 0, "con-1", None, {"type": "ep-offer", "offer-id": "con-0", "ep": EP, "prize": 8}),
+                   send(4, 1, "con-2", "con-1", {"type": "ep-bid", "offer-id": "con-0", "value": 3}),
+                   send(4, 1, "pio", "con-1", {"type": "ep-bid", "offer-id": "con-0", "value": 3}),
+                   send(4, 2, "con-1", "con-2", {"type": "ep-award", "offer-id": "con-0", "price": 3}),
+                   send(8, 0, "con-2", "con-1", {"type": "ep-completed", "offer-id": "con-0", "real-value": 0})]
+        market = dict(MARKET, **{"communication-traffic": traffic + MARKET["communication-traffic"]})
+        self.assertEqual(choose_lifecycle(market_lifecycles(market))["offer-id"], "pio-1")
+
     def test_traffic_without_contents_is_rejected(self):
         traffic = [{k: v for k, v in record.items() if k != "content"} for record in MARKET["communication-traffic"]]
         with self.assertRaises(ValueError):

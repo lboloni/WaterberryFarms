@@ -6,6 +6,8 @@ scenario: "unclustered"
 approach: "marex"
 map-size: 100
 team-size: 10 # the number of robots
+# the contractors also create EPs from the streaks they find outside their EPs (DESIGN-Market.md)
+marex-contractors-offer: true
 
 exp_environment: "environment"
 run_environment: "marex-generated-unclustered-100"

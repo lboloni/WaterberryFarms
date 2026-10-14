@@ -17,6 +17,11 @@ awarded to the lowest bid, at the price of that bid.
 import pprint
 import textwrap
 
+# the communication rounds between the broadcast of an offer and its award: the bids are sent in the round
+# after the offer, and the offering agent clears the offer in the round after that. A bid that was not
+# awarded by then is lost (the award goes only to the winner).
+AWARD_DELAY_ROUNDS = 2
+
 class EPOffer:
     """An offer for the execution of an exploration package"""
     def __init__(self, offer_id, ep, offering_agent_name, prize):
@@ -30,6 +35,7 @@ class EPOffer:
         self.executed = False
         self.real_value = 0
         self.sent_round = None # the offering agent's round count when the offer was sent
+        self.bid_round = None # the bidder's round count when it bid on the offer
 
     def __repr__(self):
         pretty_str = "EPOffer: " +  pprint.pformat(self.__dict__, indent=4)
@@ -48,6 +54,7 @@ class EPAgent:
         self.agreed_deals = {} # offer id -> offer, our offers awarded to a contractor
         self.terminated_deals = []
         self.declined_offers = []
+        self.lost_bids = [] # the offers we bid on and were not awarded
 
     def __repr__(self):
         retval = f"Agent: {self.name}\n"
@@ -96,9 +103,16 @@ class EPAgent:
     #
     # The contractor's side
     #
-    def bid(self, epoff):
-        """Record that we bid on an offer (our own copy of it)"""
+    def bid(self, epoff, round=None):
+        """Record that we bid on an offer (our own copy of it), in the given communication round"""
+        epoff.bid_round = round
         self.outstanding_bids[epoff.offer_id] = epoff
+
+    def expire_bids(self, round):
+        """Forget the bids that were not awarded within AWARD_DELAY_ROUNDS rounds: they were lost"""
+        for offer_id, epoff in list(self.outstanding_bids.items()):
+            if epoff.bid_round is not None and round - epoff.bid_round > AWARD_DELAY_ROUNDS:
+                self.lost_bids.append(self.outstanding_bids.pop(offer_id))
 
     def won(self, offer_id, price):
         """We were awarded the offer at the given price; it becomes a commitment"""

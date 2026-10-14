@@ -14,7 +14,7 @@ from information_model import ObservationRecord
 #from papers.y2027_marex.epmarket import EPAgent, EPOffer
 #from papers.y2027_marex.exploration_package import ExplorationPackage, ExplorationPackageSet
 #from papers.y2027_marex.xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
-from .epmarket import EPAgent, EPOffer
+from .epmarket import AWARD_DELAY_ROUNDS, EPAgent, EPOffer
 from .exploration_package import ExplorationPackage, ExplorationPackageSet
 from .xyplans import create_random_waypoints, xyplan_from_waypoints, xyplan_from_ep_path
 
@@ -49,6 +49,11 @@ class MAREX_Policy(Policy):
         # initializing the agent's random generator
         seed = self.exp_policy["seed"]
         self.random = np.random.default_rng(seed)
+        # whether the contractors also create EPs from their own streaks (DESIGN-Market.md); with the option
+        # off, only the pioneer creates EPs, and it checks the overlap only against its own awarded deals
+        self.contractors_offer = bool(self.exp_policy.get("contractors-offer", False))
+        self.detections = [] # the streak of detections in progress
+        self.known_eps = [] # the EPs of all the offers we heard or made
 
     def create_randxy(self, xcurrent=0, ycurrent=0, t=0):
         """Create a random xy plan starting from the specified position and time t. We assume that the robot is connected at this point"""
@@ -88,10 +93,6 @@ class MAREX_Policy(Policy):
             self.robot.com.send(self.robot, destination, Message(content))
         self.outbox = []
 
-    def before_send(self):
-        """Hook for the messages to be decided at the start of a round"""
-        pass
-
     def act_receive(self, round, messages):
         """Dispatch the received messages on their type"""
         for message in messages:
@@ -103,18 +104,94 @@ class MAREX_Policy(Policy):
         self.explored.add({"x": content["x"], "y": content["y"], "time": content["time"],
                            "robot": message.sender_name})
 
+    #
+    # streaks and offers
+    #
+    def track_streak(self, obs):
+        """Extend the streak of detections with an observation; returns the streak if the observation ended
+        it, otherwise None. A streak is a run of consecutive observations of destroyed plants."""
+        if obs["TYLCV"]["value"] == 0.0:
+            self.detections.append([obs["x"], obs["y"]])
+            return None
+        streak, self.detections = self.detections, []
+        return streak if streak else None
+
+    def build_offer(self, streak):
+        """The EP around a streak and its prize, or None if it overlaps an EP that rules it out: with the
+        contractors offering, any EP we heard or made an offer for; otherwise one of our awarded deals"""
+        streak = np.array(streak)
+        im = self.robot.im
+        geom_x_min, geom_x_max = 0, im.width - 1
+        geom_y_min, geom_y_max = 0, im.height - 1
+        # the bounding box of the streak, extended by a border and clipped to the field
+        # border = 3 * streak.shape[0] would make the EP grow with the streak
+        border = 3
+        x_min = max(geom_x_min, np.min(streak[:, 0]) - border)
+        x_max = min(geom_x_max, np.max(streak[:, 0]) + border)
+        y_min = max(geom_y_min, np.min(streak[:, 1]) - border)
+        y_max = min(geom_y_max, np.max(streak[:, 1]) + border)
+        ep = ExplorationPackage(x_min, x_max, y_min, y_max, step = 2)
+        # the prize is proportional to the area
+        prize = (x_max - x_min) * (y_max - y_min) * 0.1
+        if self.contractors_offer:
+            ruling = self.known_eps
+        else:
+            ruling = [epold.ep for epold in self.epagent.agreed_deals.values()]
+        if any(other.overlap(ep) for other in ruling):
+            return None
+        return ep, prize
+
+    def make_offer(self, ep, prize):
+        """Create an offer, broadcast in the next communication round"""
+        self.known_eps.append(ep)
+        return self.epagent.offer(ep, prize)
+
+    def before_send(self):
+        """Clear the offers whose bids arrived (AWARD_DELAY_ROUNDS rounds after sending them), then broadcast
+        the new offers"""
+        for epoff in list(self.epagent.outstanding_offers.values()):
+            if epoff.sent_round is not None and self.rounds >= epoff.sent_round + AWARD_DELAY_ROUNDS:
+                awarded = self.epagent.clear(epoff.offer_id)
+                if awarded is None:
+                    continue
+                if awarded.assigned_to_name == self.robot.name:
+                    self.on_self_award(awarded)
+                else:
+                    self.outbox.append((awarded.assigned_to_name, {"type": "ep-award",
+                        "offer-id": awarded.offer_id, "price": awarded.bid_prize}))
+        for epoff in self.epagent.outstanding_offers.values():
+            if epoff.sent_round is None:
+                epoff.sent_round = self.rounds
+                self.outbox.append((None, {"type": "ep-offer", "offer-id": epoff.offer_id,
+                    "ep": ep_to_content(epoff.ep), "prize": epoff.prize}))
+                self.on_own_offer_sent(epoff)
+
+    def on_own_offer_sent(self, epoff):
+        """Hook: our offer was just broadcast (a contractor bids on its own offers here)"""
+        pass
+
+    def on_self_award(self, epoff):
+        """Hook: we won our own offer"""
+        pass
+
+    def on_ep_offer(self, message):
+        """Remember the EP of every offer we hear, for the overlap check"""
+        self.known_eps.append(ep_from_content(message.content["ep"]))
+
+    def on_ep_bid(self, message):
+        self.epagent.receive_bid(message.content["offer-id"], message.sender_name, message.content["value"])
+
+    def on_ep_completed(self, message):
+        self.epagent.offer_finished(message.content["offer-id"], message.content["real-value"])
+
 class MAREX_Pioneer(MAREX_Policy):
-    """Implements the Pioneer agent for the MAREX paper"""
+    """Implements the Pioneer agent for the MAREX paper: it explores with random waypoints, offers EPs around
+    its streaks of detections, and never explores EPs itself"""
 
     def __init__(self, exp_policy, exp_env):
         super().__init__(exp_policy, exp_env)
-        # contains the list of detections
-        self.detections = []
-        # when the streak ended, we put it here
-        self.streak = None
         self.plan = []
         self.replan_needed = True
-        self.offer_plan = None
 
     def replan(self):
         if not self.replan_needed and self.plan != []:
@@ -123,46 +200,6 @@ class MAREX_Pioneer(MAREX_Policy):
         randxy = self.create_randxy(xcurrent=self.robot.x, ycurrent=self.robot.y, t=self.timestep)
         self.plan += randxy
         self.replan_needed = False        
-
-    def decide_to_offer_an_ep(self):
-        """This is the function in which the agent decides to offer an ep. The ep is a border around the current streak of detections""" 
-        if self.streak is None:
-            return None
-        streak = np.array(self.streak)
-        # fixme
-        im = self.robot.im
-        geom_x_min = 0
-        geom_x_max = im.width - 1 
-        geom_y_min = 0
-        geom_y_max = im.height - 1
-        # create an ep around the streak
-        x_min = np.min(streak[:,0])
-        x_max = np.max(streak[:,0])
-        y_min = np.min(streak[:,1])
-        y_max = np.max(streak[:,1])
-        # the longer the streak, the larger the ep
-        # border = 3 * streak.shape[0]
-        border = 3
-        x_min = max(geom_x_min, x_min-border)
-        x_max = min(geom_x_max, x_max+border)
-        y_min = max(geom_y_min, y_min-border)
-        y_max = min(geom_y_max, y_max+border)
-        ep = ExplorationPackage(x_min, x_max, y_min, y_max, step = 2)
-        # offer value is proportional with the area 
-        offer_value = (x_max - x_min) * (y_max - y_min) * 0.1
-        # reset the streak
-        self.streak = None
-        # check if the ep overlaps with any of the other eps.
-        overlap = False
-        for epold in self.epagent.agreed_deals.values():
-            if epold.ep.overlap(ep):
-                overlap = True
-                break
-        if overlap:
-            return None
-        else:
-            return {"ep": ep, "value": offer_value}
-
 
     def act(self, delta_t):
         """The primary behavior of the agent. """
@@ -176,57 +213,15 @@ class MAREX_Pioneer(MAREX_Policy):
 
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         self.plan.pop(0) # move on with the plan
-        # 
-        # managing streaks of detections
-        # FIXME: I am almost sure that this needs to be modified, tylcv 
-        #
+        # the streaks of detections, around which we offer EPs; FIXME: only the destroyed plants count
         if len(self.observations) == 0:
             return
-        #
-        # maintaining a streak???
-        #
-        obs = self.observations[-1]
-        # print(f'Pio obs {obs["TYLCV"]["value"]}')
-        if obs["TYLCV"]["value"] == 0.0:
-            self.detections.append([obs["x"], obs["y"]])
-        else: # end of streak
-            if len(self.detections) > 0:
-                self.streak = self.detections
-                self.detections = []
-                self.offer_plan = self.decide_to_offer_an_ep()
-        if self.offer_plan is None:
+        streak = self.track_streak(self.observations[-1])
+        if streak is None:
             return
-        #
-        # participation in the market, if we decided to make an offer: it is broadcast 
-        # in the next communication round
-        #
-        self.epagent.offer(self.offer_plan["ep"], self.offer_plan["value"])
-        self.offer_plan = None
-
-    def before_send(self):
-        """Clear the offers whose bids arrived (two rounds after sending them), then broadcast the new offers"""
-        for epoff in list(self.epagent.outstanding_offers.values()):
-            if epoff.sent_round is not None and self.rounds >= epoff.sent_round + 2:
-                awarded = self.epagent.clear(epoff.offer_id)
-                if awarded is not None:
-                    self.outbox.append((awarded.assigned_to_name, {"type": "ep-award", 
-                        "offer-id": awarded.offer_id, "price": awarded.bid_prize}))
-        for epoff in self.epagent.outstanding_offers.values():
-            if epoff.sent_round is None:
-                epoff.sent_round = self.rounds
-                self.outbox.append((None, {"type": "ep-offer", "offer-id": epoff.offer_id,
-                    "ep": ep_to_content(epoff.ep), "prize": epoff.prize}))
-
-    def on_ep_offer(self, message):
-        """Pioneers do not bid"""
-        pass
-
-    def on_ep_bid(self, message):
-        self.epagent.receive_bid(message.content["offer-id"], message.sender_name, message.content["value"])
-
-    def on_ep_completed(self, message):
-        self.epagent.offer_finished(message.content["offer-id"], message.content["real-value"])
-
+        offer = self.build_offer(streak)
+        if offer is not None:
+            self.make_offer(*offer)
 
 
 class MAREX_Contractor(MAREX_Policy):
@@ -248,15 +243,63 @@ class MAREX_Contractor(MAREX_Policy):
         the EP lengthens our schedule. The currency of the market is one timestep of exploration budget."""
         content = message.content
         epoff = EPOffer(content["offer-id"], ep_from_content(content["ep"]), message.sender_name, content["prize"])
+        super().on_ep_offer(message)
+        self.epagent.expire_bids(self.rounds)
         canbid, bid = self.can_bid(epoff)
         if canbid:
-            self.epagent.bid(epoff)
+            self.epagent.bid(epoff, self.rounds)
             self.outbox.append((message.sender_name, {"type": "ep-bid", "offer-id": epoff.offer_id, "value": bid}))
 
     def on_ep_award(self, message):
         """We won the offer: it becomes a commitment, which requires a replan"""
         self.epagent.won(message.content["offer-id"], message.content["price"])
         self.replan_needed = True
+
+    def on_own_offer_sent(self, epoff):
+        """We bid on our own offer like the others, without a message: we found the cluster, so we are often
+        the nearest contractor"""
+        canbid, bid = self.can_bid(epoff)
+        if canbid:
+            self.epagent.bid(epoff, self.rounds)
+            self.epagent.receive_bid(epoff.offer_id, self.robot.name, bid)
+
+    def on_self_award(self, epoff):
+        """We won our own offer: it becomes a commitment, without an award message"""
+        self.epagent.won(epoff.offer_id, epoff.bid_prize)
+        self.replan_needed = True
+
+    def report_completion(self, epoff):
+        """We finished exploring a committed EP: report it to the offering agent, or, for our own offer,
+        settle it in our own ledger without a message"""
+        epoff = self.epagent.commitment_executed(epoff.offer_id, real_value = self.current_real_value)
+        if epoff.offer_id in self.epagent.agreed_deals:
+            self.epagent.offer_finished(epoff.offer_id, epoff.real_value)
+        else:
+            self.outbox.append((epoff.offering_agent_name, {"type": "ep-completed",
+                "offer-id": epoff.offer_id, "real-value": epoff.real_value}))
+
+    def inside_own_ep(self, x, y):
+        """Whether a cell is inside the EP we are exploring or one of our commitments"""
+        eps = [o.ep for o in self.epagent.commitments.values()]
+        if self.current_epoffer is not None:
+            eps.append(self.current_epoffer.ep)
+        return any(ep.x_min <= x <= ep.x_max and ep.y_min <= y <= ep.y_max for ep in eps)
+
+    def offer_own_streaks(self):
+        """With the contractors offering, offer an EP around a streak of detections we found outside our EPs.
+        Inside an EP, which we explore at the fine resolution anyway, the streak in progress is dropped."""
+        if not self.contractors_offer or not self.observations:
+            return
+        obs = self.observations[-1]
+        if self.inside_own_ep(obs["x"], obs["y"]):
+            self.detections = []
+            return
+        streak = self.track_streak(obs)
+        if streak is None:
+            return
+        offer = self.build_offer(streak)
+        if offer is not None:
+            self.make_offer(*offer)
 
     def offer_of(self, ep):
         """The committed offer of an exploration package of our plan"""
@@ -375,6 +418,7 @@ class MAREX_Contractor(MAREX_Policy):
     def act(self, delta_t):
         """Call the following of the path"""
         self.timestep += delta_t
+        self.epagent.expire_bids(self.rounds)
         self.replan()
         # just verify that the time is the right one
         if self.plan[0]["t"] != self.timestep:
@@ -397,9 +441,7 @@ class MAREX_Contractor(MAREX_Policy):
         # FIXME: self.plan[0]["ep"] supposed to fix when we are not in a new ep... but will this finish the last one?
         if self.current_epoffer and self.plan[0]["ep"] and self.current_epoffer.ep != self.plan[0]["ep"]:
             # current ep was terminated             
-            epoff = self.epagent.commitment_executed(self.current_epoffer.offer_id, real_value = self.current_real_value)
-            self.outbox.append((epoff.offering_agent_name, {"type": "ep-completed", 
-                "offer-id": epoff.offer_id, "real-value": epoff.real_value}))
+            self.report_completion(self.current_epoffer)
             self.current_epoffer = None
             self.current_real_value = 0
         # if the new one is the start of a new epoffer, start it
@@ -407,3 +449,4 @@ class MAREX_Contractor(MAREX_Policy):
             self.current_epoffer = self.offer_of(self.plan[0]["ep"])
         # move on with the plan
         self.plan.pop(0)
+        self.offer_own_streaks()

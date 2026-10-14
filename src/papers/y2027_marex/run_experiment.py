@@ -103,10 +103,13 @@ def run_marex_experiment(exp):
                 [geometry["xmax"], geometry["ymax"]],
                 exp_policy["seed"],
             )
-        elif values["name"] == "pio":
-            policy = MAREX_Pioneer(exp_policy, exp_env)
-        elif values["name"].startswith("con-"):
-            policy = MAREX_Contractor(exp_policy, exp_env)
+        elif values["name"] == "pio" or values["name"].startswith("con-"):
+            # the option of the run that lets the contractors create EPs (DESIGN-Market.md)
+            exp_policy["contractors-offer"] = bool(exp.get("marex-contractors-offer", False))
+            if values["name"] == "pio":
+                policy = MAREX_Pioneer(exp_policy, exp_env)
+            else:
+                policy = MAREX_Contractor(exp_policy, exp_env)
         else:
             raise Exception(
                 f"No explicit MAREX policy construction for {values['name']}")
