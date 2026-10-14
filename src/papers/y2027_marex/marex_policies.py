@@ -244,13 +244,14 @@ class MAREX_Contractor(MAREX_Policy):
         self.replan_needed = True # set to true if new ep accepted
     
     def on_ep_offer(self, message):
-        """Bid exactly the prize on an offer that fits into the budget"""
+        """Bid the marginal cost of an offer that fits into the budget: the number of timesteps by which
+        the EP lengthens our schedule. The currency of the market is one timestep of exploration budget."""
         content = message.content
         epoff = EPOffer(content["offer-id"], ep_from_content(content["ep"]), message.sender_name, content["prize"])
-        canbid, underbid = self.can_bid(epoff)
+        canbid, bid = self.can_bid(epoff)
         if canbid:
             self.epagent.bid(epoff)
-            self.outbox.append((message.sender_name, {"type": "ep-bid", "offer-id": epoff.offer_id, "value": epoff.prize}))
+            self.outbox.append((message.sender_name, {"type": "ep-bid", "offer-id": epoff.offer_id, "value": bid}))
 
     def on_ep_award(self, message):
         """We won the offer: it becomes a commitment, which requires a replan"""
@@ -336,35 +337,40 @@ class MAREX_Contractor(MAREX_Policy):
             print(f"Self plan first {self.plan[0]}, \n robot location {self.robot.x},{self.robot.y} \n last observation {self.observations[-1]}")
         return 
     
-    def can_bid(self, epoffer):
-        """This function allows the agent to decide whether it can bid for a certain offer or not."""
-        # step one: find the termination time of the current ep
-        t = self.timestep
-        currentep = None
-        if self.plan[0]["ep"]: # we are in an ep
-            i = 0
+    def schedule_start(self):
+        """Where and when a schedule through our other commitments starts: where the EP we are exploring
+        ends, or our current position and time if we are not in an EP. Returns (x, y, t, current ep)."""
+        if self.plan and self.plan[0]["ep"]:
             currentep = self.plan[0]["ep"]
-            while True:
-                t = self.plan[i]["t"]
-                i+=1
-                if (i>=len(self.plan)) or self.plan[i]["ep"] != currentep:
-                    break
-        t = t + 1
-        # get all the eps, except the current one
-        # eps = copy.copy(self.epagent.commitments)
-        eps = ExplorationPackageSet()
-        eps.ep_to_explore = [x.ep for x in self.epagent.commitments.values() if x.ep != currentep]
-        eps.add_ep(epoffer.ep)
-        # create an optimal path 
-        current = [self.robot.x, self.robot.y]
-        _, best_ep_path = eps.find_shortest_path_ep(current, max_evaluations=self.BID_EVALUATIONS)
-        path = xyplan_from_ep_path(best_ep_path, t)
-        if path[-1]["t"] < self.exp_policy["budget"]:
-            # FIXME: this needs to be made more sophisticated
-            # underbid with one tenth of the budget remaining
-            underbid = (self.exp_policy["budget"] - path[-1]["t"]) / 10.0
-            return True, underbid # we can bid
-        return False, 0 # we cannot bid
+            i = 0
+            while i + 1 < len(self.plan) and self.plan[i + 1]["ep"] is currentep:
+                i += 1
+            return self.plan[i]["x"], self.plan[i]["y"], self.plan[i]["t"] + 1, currentep
+        return self.robot.x, self.robot.y, self.timestep + 1, None
+
+    def schedule_end(self, eps, start, t):
+        """The time at which the shortest schedule from start, at time t, through the eps ends"""
+        if not eps:
+            return t
+        epset = ExplorationPackageSet()
+        epset.ep_to_explore = list(eps)
+        _, ep_path = epset.find_shortest_path_ep(start, max_evaluations=self.BID_EVALUATIONS)
+        return xyplan_from_ep_path(ep_path, t)[-1]["t"] + 1
+
+    def can_bid(self, epoffer):
+        """Whether we can bid for an offer, and our bid: (True, marginal cost) if the schedule through our
+        commitments and the offered EP fits into the budget, (False, None) otherwise. The marginal cost is
+        the number of timesteps by which the offered EP lengthens the schedule. The EPs we bid on and were
+        not yet awarded count as commitments, so that winning several simultaneous auctions does not
+        overcommit us."""
+        x, y, t, currentep = self.schedule_start()
+        held = [o.ep for o in self.epagent.commitments.values() if o.ep is not currentep]
+        held += [o.ep for o in self.epagent.outstanding_bids.values()]
+        t_without = self.schedule_end(held, [x, y], t)
+        t_with = self.schedule_end(held + [epoffer.ep], [x, y], t)
+        if t_with <= self.exp_policy["budget"]:
+            return True, t_with - t_without
+        return False, None
 
     def act(self, delta_t):
         """Call the following of the path"""

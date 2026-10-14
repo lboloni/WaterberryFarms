@@ -11,3 +11,5 @@ exprun, and `MAREX-Flow.ipynb` executes the complete collection declared by
 
 Every notebook can also run independently. Select an exprun in its parameters
 cell; all compatible alternatives are listed there as commented assignments.
+
+The bids and the currency of the EP market are described in `DESIGN-Market.md`.

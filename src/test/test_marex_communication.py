@@ -5,7 +5,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from communication import PerfectCommunicationMedium, traffic_summary
-from papers.y2027_marex.epmarket import EPAgent
+from papers.y2027_marex.epmarket import EPAgent, EPOffer
 from papers.y2027_marex.exploration_package import ExplorationPackage
 from papers.y2027_marex.marex_policies import MAREX_Contractor, MAREX_Pioneer
 from robot import Robot
@@ -91,16 +91,21 @@ class TestMarketProtocol(unittest.TestCase):
         policies, commitments, _, _ = run_market(communication_rounds=3)
         # offered after timestep 0, broadcast, bid and awarded in the rounds of timestep 1
         self.assertEqual(commitments[0], {"con-1": [], "con-2": []})
-        # both contractors bid the prize; the tie goes to con-1, first in name order
+        # both contractors start at the home base and bid the same on the first package; the tie goes to
+        # con-1, first in name order. The first package lies on the way to the second, so con-1, which
+        # counts its bid on the first, has the lower marginal cost for the second as well
         self.assertEqual(commitments[1], {"con-1": ["pioneer-0", "pioneer-1"], "con-2": []})
 
     def test_completion_settles_the_money_on_both_sides(self):
         policies, commitments, _, _ = run_market(communication_rounds=3)
         pioneer, contractor = policies["pio"].epagent, policies["con-1"].epagent
-        # the first package is completed when con-1 moves on to the second one
+        # the first package is completed when con-1 moves on to the second one; the price is the winning
+        # bid, in timesteps of exploration budget, not the prize of the offer
         self.assertEqual([deal.offer_id for deal in pioneer.terminated_deals], ["pioneer-0"])
-        self.assertEqual(contractor.money, 10)
-        self.assertEqual(pioneer.money, 0 - 10)
+        price = pioneer.terminated_deals[0].bid_prize
+        self.assertNotEqual(price, 10)
+        self.assertEqual(contractor.money, price)
+        self.assertEqual(pioneer.money, 0 - price)
 
     def test_auction_spreads_over_timesteps_with_one_round(self):
         policies, commitments, _, _ = run_market(communication_rounds=1)
@@ -178,6 +183,69 @@ class TestMarketTraffic(unittest.TestCase):
                          2 * summary["per-type"]["ep-offer"]["bytes-transmitted"])
         self.assertEqual(summary["bytes-transmitted"], sum(record["bytes"] for record in medium.traffic))
         self.assertEqual(sum(summary["bytes-per-timestep"]), summary["bytes-transmitted"])
+
+
+def idle_contractor(name, x, y, budget=200, timestep=0):
+    """A contractor without commitments at (x, y), at the given timestep"""
+    contractor = MAREX_Contractor({"policy-name": name, "seed": 1, "budget": budget}, None)
+    Robot(name, x, y, 0).assign_policy(contractor)
+    contractor.timestep = timestep
+    return contractor
+
+
+def offer_of(ep, offer_id="pioneer-0", prize=10):
+    return EPOffer(offer_id, ep, "pioneer", prize)
+
+
+class TestMarginalCostBids(unittest.TestCase):
+    EP = ExplorationPackage(10, 14, 10, 14, step=2)
+
+    def test_idle_contractor_bids_travel_plus_coverage(self):
+        contractor = idle_contractor("con-1", 0, 0)
+        canbid, bid = contractor.can_bid(offer_of(self.EP))
+        self.assertTrue(canbid)
+        # the schedule starts at the next timestep, at the current position
+        self.assertEqual(bid, contractor.schedule_end([self.EP], [0, 0], 1) - 1)
+        self.assertGreater(bid, 0)
+
+    def test_nearer_idle_contractor_bids_lower_and_wins(self):
+        near, far = idle_contractor("con-2", 8, 8), idle_contractor("con-1", 0, 0)
+        owner = EPAgent("pioneer")
+        offer = owner.offer(self.EP, prize=10)
+        for contractor in [near, far]:
+            _, bid = contractor.can_bid(offer_of(self.EP, offer.offer_id))
+            owner.receive_bid(offer.offer_id, contractor.name, bid)
+        self.assertLess(offer.bids["con-2"], offer.bids["con-1"])
+        self.assertEqual(owner.clear(offer.offer_id).assigned_to_name, "con-2")
+
+    def test_bid_starts_where_the_current_ep_ends(self):
+        contractor = idle_contractor("con-1", 0, 0)
+        # inside an EP whose last step is next to the offered EP
+        current = ExplorationPackage(0, 8, 0, 8, step=2)
+        contractor.plan = [{"x": 0, "y": 0, "t": 1, "ep": current}, {"x": 9, "y": 9, "t": 2, "ep": current},
+                           {"x": 50, "y": 50, "t": 3, "ep": None}]
+        x, y, t, ep = contractor.schedule_start()
+        self.assertEqual((x, y, t, ep), (9, 9, 3, current))
+        _, bid = contractor.can_bid(offer_of(self.EP))
+        _, bid_from_origin = idle_contractor("con-2", 0, 0).can_bid(offer_of(self.EP))
+        self.assertLess(bid, bid_from_origin)
+
+    def test_outstanding_bids_count_as_commitments(self):
+        contractor = idle_contractor("con-1", 0, 0)
+        other = offer_of(ExplorationPackage(30, 34, 30, 34, step=2), "pioneer-1")
+        _, alone = contractor.can_bid(offer_of(self.EP))
+        _, first = contractor.can_bid(other)
+        contractor.epagent.bid(other)
+        canbid, with_other = contractor.can_bid(offer_of(self.EP))
+        self.assertTrue(canbid)
+        # with the other EP held, the bid is the change of a longer schedule, not the cost of the EP alone
+        self.assertEqual(with_other, contractor.schedule_end([other.ep, self.EP], [0, 0], 1)
+                         - contractor.schedule_end([other.ep], [0, 0], 1))
+        self.assertNotEqual(with_other, alone)
+
+    def test_infeasible_offer_gets_no_bid(self):
+        contractor = idle_contractor("con-1", 0, 0, budget=20)
+        self.assertEqual(contractor.can_bid(offer_of(self.EP)), (False, None))
 
 
 if __name__ == "__main__":

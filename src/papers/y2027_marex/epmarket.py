@@ -8,6 +8,11 @@ by exchanging messages through the communication medium (see marex_policies.py a
 DESIGN-COMMUNICATION.md). Offers are identified by their offer id, because every recipient of a
 message works with its own copy of the offer.
 
+The currency of the market is one timestep of exploration budget. An offer carries the offering agent's
+estimate of the value of the EP (its prize), which does not restrict the bids. A contractor bids the
+marginal cost of the EP, the number of timesteps by which it lengthens its schedule, and the offer is
+awarded to the lowest bid, at the price of that bid.
+
 """
 import pprint
 import textwrap
