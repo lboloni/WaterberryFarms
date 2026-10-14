@@ -94,7 +94,7 @@ class EPAgent:
         self.agreed_deals[offer_id] = epoff
         return epoff
 
-    def offer_finished(self, offer_id, real_value):
+    def offer_finished(self, offer_id, real_value=0):
         """The contractor executed our offer: pay the prize, receive the real value."""
         epoff = self.agreed_deals.pop(offer_id)
         epoff.real_value = real_value
@@ -124,7 +124,7 @@ class EPAgent:
         self.commitments[offer_id] = epoff
         return epoff
 
-    def commitment_executed(self, offer_id, real_value):
+    def commitment_executed(self, offer_id, real_value=0):
         """We executed a commitment: we receive the prize"""
         epoff = self.commitments.pop(offer_id)
         epoff.real_value = real_value

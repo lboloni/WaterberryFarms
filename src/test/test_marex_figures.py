@@ -86,8 +86,8 @@ MARKET = {"robot-names": ["pio", "con-1", "con-2"], "communication-traffic": [
     send(9, 1, "con-1", "pio", {"type": "ep-bid", "offer-id": "pio-1", "value": 6}),
     send(9, 1, "con-2", "pio", {"type": "ep-bid", "offer-id": "pio-1", "value": 6}),
     send(9, 2, "pio", "con-1", {"type": "ep-award", "offer-id": "pio-1", "price": 6}),
-    send(20, 0, "con-2", "pio", {"type": "ep-completed", "offer-id": "pio-0", "real-value": 0}),
-    send(30, 0, "con-1", "pio", {"type": "ep-completed", "offer-id": "pio-1", "real-value": 0})],
+    send(20, 0, "con-2", "pio", {"type": "ep-completed", "offer-id": "pio-0"}),
+    send(30, 0, "con-1", "pio", {"type": "ep-completed", "offer-id": "pio-1"})],
     # detections (TYLCV 0) of the Pioneer at timesteps 2, 3 and 6, 7, 8
     "observations": [[observation("pio", t, 0.0 if t in (2, 3, 6, 7, 8) else 1.0),
                       observation("con-1", t, 0.0)] for t in range(10)]}
@@ -111,7 +111,7 @@ class TestMarketSequence(unittest.TestCase):
                    send(4, 1, "con-2", "con-1", {"type": "ep-bid", "offer-id": "con-0", "value": 3}),
                    send(4, 1, "pio", "con-1", {"type": "ep-bid", "offer-id": "con-0", "value": 3}),
                    send(4, 2, "con-1", "con-2", {"type": "ep-award", "offer-id": "con-0", "price": 3}),
-                   send(8, 0, "con-2", "con-1", {"type": "ep-completed", "offer-id": "con-0", "real-value": 0})]
+                   send(8, 0, "con-2", "con-1", {"type": "ep-completed", "offer-id": "con-0"})]
         market = dict(MARKET, **{"communication-traffic": traffic + MARKET["communication-traffic"]})
         self.assertEqual(choose_lifecycle(market_lifecycles(market))["offer-id"], "pio-1")
 

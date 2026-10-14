@@ -132,7 +132,7 @@ class MAREX_Policy(Policy):
     def track_streak(self, obs):
         """Extend the streak of detections with an observation; returns the streak if the observation ended
         it, otherwise None. A streak is a run of consecutive observations with a TYLCV value below
-        streak_below (by default the destroyed plants)."""
+        streak_below (by default the infected and the destroyed plants)."""
         if obs["TYLCV"]["value"] < self.streak_below:
             self.detections.append([obs["x"], obs["y"]])
             return None
@@ -205,7 +205,7 @@ class MAREX_Policy(Policy):
         self.epagent.receive_bid(message.content["offer-id"], message.sender_name, message.content["value"])
 
     def on_ep_completed(self, message):
-        self.epagent.offer_finished(message.content["offer-id"], message.content["real-value"])
+        self.epagent.offer_finished(message.content["offer-id"])
 
 class MAREX_Pioneer(MAREX_Policy):
     """Implements the Pioneer agent for the MAREX paper: it explores with random waypoints, offers EPs around
@@ -236,7 +236,7 @@ class MAREX_Pioneer(MAREX_Policy):
 
         self.robot.add_action(f"loc [{self.plan[0]['x']}, {self.plan[0]['y']}]")
         self.plan.pop(0) # move on with the plan
-        # the streaks of detections, around which we offer EPs; FIXME: only the destroyed plants count
+        # the streaks of detections, around which we offer EPs
         if len(self.observations) == 0:
             return
         streak = self.track_streak(self.observations[-1])
@@ -293,12 +293,11 @@ class MAREX_Contractor(MAREX_Policy):
     def report_completion(self, epoff):
         """We finished exploring a committed EP: report it to the offering agent, or, for our own offer,
         settle it in our own ledger without a message"""
-        epoff = self.epagent.commitment_executed(epoff.offer_id, real_value = self.current_real_value)
+        epoff = self.epagent.commitment_executed(epoff.offer_id)
         if epoff.offer_id in self.epagent.agreed_deals:
-            self.epagent.offer_finished(epoff.offer_id, epoff.real_value)
+            self.epagent.offer_finished(epoff.offer_id)
         else:
-            self.outbox.append((epoff.offering_agent_name, {"type": "ep-completed",
-                "offer-id": epoff.offer_id, "real-value": epoff.real_value}))
+            self.outbox.append((epoff.offering_agent_name, {"type": "ep-completed", "offer-id": epoff.offer_id}))
 
     def inside_own_ep(self, x, y):
         """Whether a cell is inside the EP we are exploring or one of our commitments"""
@@ -395,7 +394,6 @@ class MAREX_Contractor(MAREX_Policy):
 
         self.replan_needed = False
         self.current_epoffer = None
-        self.current_real_value = 0 # accumulated real value for the offer
         # self.robot.oldplans[self.timestep] = copy.copy(self.plan)        
 
         if t > 1:
@@ -437,10 +435,22 @@ class MAREX_Contractor(MAREX_Policy):
             return True, t_with - t_without
         return False, None
 
+    def report_left_ep(self):
+        """Report the completion of the EP we were exploring if the plan has left it: the next step is in
+        another EP, or outside the EPs (ep None, e.g. after our last EP). Called before the replanning, so
+        that the finished EP is no longer among the commitments that the replanning and the bids use."""
+        if self.current_epoffer is None:
+            return
+        if self.plan and self.plan[0]["ep"] is self.current_epoffer.ep:
+            return
+        self.report_completion(self.current_epoffer)
+        self.current_epoffer = None
+
     def act(self, delta_t):
         """Call the following of the path"""
         self.timestep += delta_t
         self.epagent.expire_bids(self.rounds)
+        self.report_left_ep()
         self.replan()
         # just verify that the time is the right one
         if self.plan[0]["t"] != self.timestep:
@@ -455,17 +465,6 @@ class MAREX_Contractor(MAREX_Policy):
 
     
 
-        # if the observation is a new one, add it to the value of the offer
-        if self.current_epoffer:
-            # FIXME: handle new observations, I will need to create a separate function for this, for the time being the value is zero, but should not be
-            self.current_real_value += 0
-        # terminating the current epoffer and marking it as executed
-        # FIXME: self.plan[0]["ep"] supposed to fix when we are not in a new ep... but will this finish the last one?
-        if self.current_epoffer and self.plan[0]["ep"] and self.current_epoffer.ep != self.plan[0]["ep"]:
-            # current ep was terminated             
-            self.report_completion(self.current_epoffer)
-            self.current_epoffer = None
-            self.current_real_value = 0
         # if the new one is the start of a new epoffer, start it
         if self.plan[0]["ep"] is not None: 
             self.current_epoffer = self.offer_of(self.plan[0]["ep"])

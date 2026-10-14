@@ -99,13 +99,13 @@ class TestMarketProtocol(unittest.TestCase):
     def test_completion_settles_the_money_on_both_sides(self):
         policies, commitments, _, _ = run_market(communication_rounds=3)
         pioneer, contractor = policies["pio"].epagent, policies["con-1"].epagent
-        # the first package is completed when con-1 moves on to the second one; the price is the winning
-        # bid, in timesteps of exploration budget, not the prize of the offer
-        self.assertEqual([deal.offer_id for deal in pioneer.terminated_deals], ["pioneer-0"])
-        price = pioneer.terminated_deals[0].bid_prize
-        self.assertNotEqual(price, 10)
-        self.assertEqual(contractor.money, price)
-        self.assertEqual(pioneer.money, 0 - price)
+        # every package is completed when con-1's plan leaves it, the last one included; the price is the
+        # winning bid, in timesteps of exploration budget, not the prize of the offer
+        self.assertEqual([deal.offer_id for deal in pioneer.terminated_deals], ["pioneer-0", "pioneer-1"])
+        prices = [deal.bid_prize for deal in pioneer.terminated_deals]
+        self.assertNotIn(10, prices)
+        self.assertEqual(contractor.money, sum(prices))
+        self.assertEqual(pioneer.money, 0 - sum(prices))
 
     def test_auction_spreads_over_timesteps_with_one_round(self):
         policies, commitments, _, _ = run_market(communication_rounds=1)
@@ -176,9 +176,9 @@ class TestMarketTraffic(unittest.TestCase):
         _, _, medium, _ = run_market(communication_rounds=3, timesteps=timesteps)
         summary = traffic_summary(medium.traffic, timesteps)
         per_type = {message_type: totals["messages"] for message_type, totals in summary["per-type"].items()}
-        # two offers broadcast, both bid by both contractors, both awarded to con-1, the first one completed
+        # two offers broadcast, both bid by both contractors, both awarded to con-1 and completed
         self.assertEqual(per_type, {"location": 3 * (timesteps - 1), "ep-offer": 2, "ep-bid": 4,
-                                    "ep-award": 2, "ep-completed": 1})
+                                    "ep-award": 2, "ep-completed": 2})
         self.assertEqual(summary["per-type"]["ep-offer"]["bytes-delivered"],
                          2 * summary["per-type"]["ep-offer"]["bytes-transmitted"])
         self.assertEqual(summary["bytes-transmitted"], sum(record["bytes"] for record in medium.traffic))
@@ -275,6 +275,45 @@ class TestLostBids(unittest.TestCase):
         self.assertEqual(sorted(offer.offer_id for offer in loser.lost_bids), ["pioneer-0", "pioneer-1"])
 
 
+class TestCompletionReport(unittest.TestCase):
+    EP = ExplorationPackage(10, 14, 10, 14, step=2)
+    OTHER = ExplorationPackage(30, 34, 30, 34, step=2)
+
+    def exploring_contractor(self):
+        """A contractor at (10, 10) exploring its only EP, whose plan leaves the EP after two steps"""
+        contractor = idle_contractor("con-1", 10, 10)
+        epoff = offer_of(self.EP)
+        epoff.bid_prize = 5
+        contractor.epagent.commitments[epoff.offer_id] = epoff
+        contractor.current_epoffer = epoff
+        contractor.plan = [{"x": 10, "y": 10, "t": 0, "ep": self.EP}, {"x": 11, "y": 10, "t": 1, "ep": self.EP},
+                           {"x": 12, "y": 10, "t": 2, "ep": None}]
+        return contractor
+
+    def test_last_ep_reported_when_the_plan_leaves_it(self):
+        contractor = self.exploring_contractor()
+        contractor.report_left_ep()
+        self.assertEqual(contractor.outbox, [])
+        contractor.plan.pop(0)
+        contractor.report_left_ep()
+        self.assertEqual(contractor.outbox, [])
+        # the next step is a random waypoint (ep None): the EP is finished
+        contractor.plan.pop(0)
+        contractor.report_left_ep()
+        self.assertEqual(contractor.outbox, [("pioneer", {"type": "ep-completed", "offer-id": "pioneer-0"})])
+        self.assertIsNone(contractor.current_epoffer)
+        self.assertEqual(contractor.epagent.commitments, {})
+
+    def test_finished_ep_does_not_count_in_the_bids(self):
+        contractor = self.exploring_contractor()
+        contractor.plan = contractor.plan[2:]
+        _, idle_bid = idle_contractor("con-2", 10, 10).can_bid(offer_of(self.OTHER, "pioneer-1"))
+        # before the report, the finished EP would lengthen the schedule
+        self.assertNotEqual(contractor.can_bid(offer_of(self.OTHER, "pioneer-1"))[1], idle_bid)
+        contractor.report_left_ep()
+        self.assertEqual(contractor.can_bid(offer_of(self.OTHER, "pioneer-1"))[1], idle_bid)
+
+
 def destroyed(x, y, t=0):
     """An observation of a destroyed plant (a detection)"""
     return {"x": x, "y": y, "time": t, "TYLCV": {"value": 0.0}}
@@ -354,7 +393,6 @@ class TestContractorOffers(unittest.TestCase):
         self.assertIn(offer.offer_id, contractor.epagent.commitments)
         self.assertTrue(contractor.replan_needed)
         # its completion is settled in our own ledger, without a message
-        contractor.current_real_value = 0
         contractor.report_completion(offer)
         self.assertEqual(contractor.outbox, [])
         self.assertEqual(contractor.epagent.commitments, {})

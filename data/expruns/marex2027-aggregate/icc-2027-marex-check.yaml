@@ -1,0 +1,19 @@
+name: Check of the setup and of the MAREX code, the MAREX base runs of icc-2027-replicated only (the paper aggregate), with the same factors
+# the base runs to replicate: the MAREX runs of icc-2027-replicated
+runs:
+  - clustered-marex
+  - unclustered-marex
+  - clustered-200-marex
+  - unclustered-200-marex
+  - clustered-200-6-marex
+  - unclustered-200-6-marex
+  - clustered-6-marex
+  - unclustered-6-marex
+  - clustered-10-marex
+  - unclustered-10-marex
+  - clustered-200-10-marex
+  - unclustered-200-10-marex
+# crossed: 5 maps x 4 behaviors = 20 replications per base run; a check runs the first (replications: 1)
+factors:
+  map-seed: {code: m, values: [1, 2, 3, 4, 5]}          # the seed of the generated disease map
+  behavior-seed: {code: b, values: [1, 2, 3, 4]}        # the seed from which the robot seeds are derived

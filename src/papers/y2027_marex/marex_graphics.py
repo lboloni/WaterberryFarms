@@ -444,9 +444,7 @@ def show_market_sequence(exp_dest, results, offer_id=None, output_filename="mark
                         f"exploring the EP\n{completed['timestep'] - award['timestep']} timesteps",
                         ha="left" if side > 0 else "right", va="center", fontsize=6, color="#333333")
                 y = y_end + 0.3
-                value = completed["content"].get("real-value")
-                text = f"COMPLETED {completed['bytes']} B" + (f", value {value:.0f}" if value else "")
-                message(winner, pioneer, y, text, label_x=x[pioneer] + 0.08, align="left")
+                message(winner, pioneer, y, f"COMPLETED {completed['bytes']} B", label_x=x[pioneer] + 0.08, align="left")
                 ticks.append((y, f"{completed['timestep']}, r{completed['round']}"))
 
         # the lifelines and their heads, the location broadcasts as a note

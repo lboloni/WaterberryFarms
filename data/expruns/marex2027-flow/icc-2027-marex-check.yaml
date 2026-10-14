@@ -1,0 +1,25 @@
+name: Check of the setup and of the MAREX code, a MAREX-only version of icc-2027-paper, the example runs of MAREX with their illustrations and the MAREX replications, without the figures of the aggregate, which compare with the baselines
+run-experiment: marex2027-run
+# the example runs of MAREX, teams of 3
+runs:
+  - clustered-marex
+  - unclustered-marex
+  - clustered-200-marex
+  - unclustered-200-marex
+figure-experiment: marex2027-figure
+# the illustrations of MAREX, drawn from the example runs
+figures:
+  - detection-map-clustered-marex
+  - detection-map-unclustered-marex
+  - detection-map-clustered-200-marex
+  - detection-map-unclustered-200-marex
+  - replanning-clustered-marex
+  - replanning-unclustered-marex
+  - replanning-clustered-200-marex
+  - replanning-unclustered-200-marex
+  - market-sequence
+# the replications of the MAREX base runs; run with replications: 1 for a quick check
+aggregate-experiment: marex2027-aggregate
+aggregate: icc-2027-marex-check
+# the figures of the aggregate compare MAREX with the baselines, and read icc-2027-replicated: none here
+aggregate-figures: []
