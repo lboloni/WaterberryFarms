@@ -1,9 +1,14 @@
-flows_path: '\a\b\c\WBF-Flows'
+# A sample of the machine-specific settings file, to which the configpath of
+# ~/.config/WaterBerryFarms/mainsettings.yaml points.
+
+# the location where the system dependent experiment config files are
+experiment_system_dependent_dir: '/a/b/c/WBF-settings/experiment-config'
+# the location where the experiment data is put
+# the data of an exp/run goes to experiment_data/experiment/run
+experiment_data: '/a/b/c/WBF-data'
+# the directory where the flow workspaces go on this machine
+flows_path: '/a/b/c/WBF-Flows'
 
 WBF:
-  # Directory for the checkout of the WaterBerryFarms
-  code_dir: '\a\b\c\WaterBerryFarms\'
-
-MRMD:
-  # Top level directory for the data, eg. the one with other WBF
-  data_dir: '\a\b\c\WBF'
+  # top level directory for the data of the notebooks that do not use exp/runs
+  data_dir: '/a/b/c/WBF-data'

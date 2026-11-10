@@ -24,17 +24,21 @@ It contains the following major components:
 
 ## Installation
 
-Waterberry Farms needs Python 3.10 or newer, and the [ExpRunFlow](https://github.com/lboloni/ExpRunFlow) exp/run and flow library checked out next to this repository. In a virtual environment, from the root of this repository:
+Waterberry Farms needs Python 3.12 or newer, and the [ExpRunFlow](https://github.com/lboloni/ExpRunFlow) exp/run and flow library checked out next to this repository. In a virtual environment, from the root of this repository:
 
 ```shell
 python -m pip install -e "../ExpRunFlow[flow]"
 python -m pip install -r requirements.txt
 ```
 
-ExpRunFlow brings PyTorch, papermill and tqdm. `requirements.txt` lists the simulator's own libraries: numpy, scipy, scikit-learn, matplotlib, pandas, imageio, PyYAML, networkx, and ipykernel. ipykernel is needed because the flows execute their notebooks with the `python3` kernel of the environment. The quotes around `"../ExpRunFlow[flow]"` are required in zsh, the default shell on macOS.
+ExpRunFlow brings PyTorch, papermill and tqdm. `requirements.txt` lists the simulator's own libraries: numpy, scipy, scikit-learn, matplotlib, pandas, imageio, PyYAML, networkx, GPy, and ipykernel. ipykernel is needed because the flows execute their notebooks with the `python3` kernel of the environment. The quotes around `"../ExpRunFlow[flow]"` are required in zsh, the default shell on macOS.
+
+The exp/run framework reads two settings files, which are outside the repository:
+- `~/.config/WaterBerryFarms/mainsettings.yaml`, which points to the settings file of this machine. Start from `template-config-WaterBerryFarms-mainsettings.yaml`.
+- the settings file of the machine, with the directories of the experiment data, of the machine-dependent exp/run files and of the flow workspaces. Start from `template-settings-MACHINE.yaml`.
 
 Optional libraries, for a few notebooks only:
-- `ipywidgets`, for the legacy `src/notebooks/Robot.ipynb`;
+- `ipywidgets`, for the legacy `obsolete/notebooks/Robot.ipynb`;
 - `moviepy` 1.x, for `src/notebooks/papers/Video-WaterBerryBenchmarkArxiv.ipynb`, which uses `moviepy.editor`, removed in moviepy 2.
 
 Check the installation with the test suite (see `TESTING.md`):
@@ -46,7 +50,7 @@ MPLBACKEND=Agg python -m unittest discover -s src/test
 ## How to use
 
 * The code is in `src`, the built-in exp/run templates in `data/expruns`.
-* In order to learn the operation of various components, you might want to run the Jupyter notebooks Environment-experiments, IM-experiments, Robot and Policy.
+* In order to learn the operation of various components, you might want to run the Jupyter notebooks Scenarios, Communication, IM-experiments and ObservationRecord in `src/notebooks`.
 
 ## Explicit simulation API
 
@@ -90,7 +94,7 @@ Built-in exp/run templates are organized by family under `data/expruns`.
 The two supported flow notebooks are:
 
 - `src/notebooks/Flow-1Robot1Day.ipynb` for the single-robot benchmark.
-- `src/notebooks/Flow-nRobot1Day.ipynb` for the MAREX multi-robot benchmark.
+- `src/notebooks/Flow-nRobot1Day.ipynb` for the MRMR multi-robot benchmark (the frozen `papers/y2025_mrmr` code).
 
 Each flow creates an external workspace below the configured `flows_path`,
 precomputes every referenced environment once, runs the selected algorithms,
