@@ -87,8 +87,11 @@ class TestFlowMetadata(unittest.TestCase):
                         (SRC_ROOT / notebook).is_file(),
                         f"{family}/{run_path.stem}: {notebook}")
 
-    def test_flow_notebooks_have_no_saved_execution_state(self):
-        for path in FLOW_NOTEBOOKS:
+    def test_notebooks_have_no_saved_execution_state(self):
+        """No notebook of the repository keeps outputs or execution counts"""
+        notebooks = [path for path in SRC_ROOT.parent.rglob("*.ipynb") if ".ipynb_checkpoints" not in path.parts]
+        self.assertTrue(set(FLOW_NOTEBOOKS) <= set(notebooks))
+        for path in notebooks:
             with path.open() as handle:
                 notebook = json.load(handle)
             for cell in notebook["cells"]:
