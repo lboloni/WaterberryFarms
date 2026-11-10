@@ -5,9 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 import numpy as np
 import math
-import bz2
 import pathlib
-import pickle
 import copy
 
 import logging
@@ -172,7 +170,7 @@ class WaterberryFarmEnvironment(Environment):
         use_saved: if true, the fields are replayed from the values precomputed into savedir. If false, 
         the field models are run, and their values are saved into savedir, or not saved if savedir is None.
         tylcv, ccr, soil: the parameters of the field models; the default values were calibrated in 
-        ScenarioDesignWaterberryFarm. A None infection_seeds or spread_dimension is scaled with the grid."""
+        ScenarioDesignWaterberryFarm (now in obsolete/notebooks). A None infection_seeds or spread_dimension is scaled with the grid."""
         super().__init__(geometry.width, geometry.height, seed)
         self.geometry = geometry
         self.use_saved = use_saved
@@ -518,49 +516,3 @@ def get_datadir():
     datadir = pathlib.Path(Config()["WBF"]["data_dir"])
     datadir.mkdir(parents=True, exist_ok=True)
     return datadir
-
-
-def create_wbfe(saved: bool, wbf_prec=None, typename="Miniberry-10"):
-    """Helper function for the creation of a waterberry farm environment on which we can run experiments. It performs a caching process, if the files already exists, it just reloads them. This will save time for expensive simulations."""
-    # p = pathlib.Path.cwd()
-    # p = pathlib.Path(__file__).parent.resolve().parent.parent
-    # datadir = pathlib.Path(p.parent, "__Temporary", p.name + "_data", typename)
-    datadir = get_datadir()
-    savedir = pathlib.Path(datadir, typename)
-    savedir.mkdir(parents=True, exist_ok=True)
-    path_geometry = pathlib.Path(savedir, "farm_geometry")
-    path_environment = pathlib.Path(savedir, "farm_environment")
-    if path_geometry.exists():
-        logging.info("loading the geometry and environment from saved data")
-        with bz2.open(path_geometry, "rb") as f:
-            wbf = pickle.load(f)
-        # with open(path_environment, "rb") as f:
-        #    wbfe = pickle.load(f)
-        #    wbfe.saved = saved
-        logging.info("loading done")
-        wbfe = WaterberryFarmEnvironment(wbf, saved, seed=10, savedir=savedir)
-        return wbf, wbfe, savedir
-    if wbf_prec == None:
-        if typename == "Miniberry-10":
-            wbf = MiniberryFarm(scale=1)
-        elif typename == "Miniberry-30":
-            wbf = MiniberryFarm(scale=3)
-        elif typename == "Miniberry-100":
-            wbf = MiniberryFarm(scale=10)
-        elif typename == "Miniberry-200":
-            wbf = MiniberryFarm(scale=20)
-        elif typename == "Waterberry":
-            wbf = WaterberryFarm()
-        else:
-            raise Exception(f"Unknown type {typename}")
-        # wbf = MiniberryFarm(scale=10)
-    else:
-        wbf = wbf_prec
-    wbf.create_type_map()
-    wbfe = WaterberryFarmEnvironment(wbf, saved, seed=10, savedir=savedir)
-    savedir.mkdir(parents=True, exist_ok=True)
-    with bz2.open(path_geometry, "wb") as f:
-        pickle.dump(wbf, f)
-    with bz2.open(path_environment, "wb") as f:
-        pickle.dump(wbfe, f)
-    return wbf, wbfe, savedir

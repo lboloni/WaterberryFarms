@@ -10,7 +10,7 @@ from robot import Robot
 from policy import GoToLocationPolicy, FollowPathPolicy, RandomWaypointPolicy, \
     AbstractWaypointPolicy
 from path_generators import find_fixed_budget_spiral, generate_lawnmower, find_fixed_budget_lawnmower, generate_spiral_path, find_fixed_budget_spiral
-from water_berry_farm import create_wbfe, WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
+from water_berry_farm import WaterberryFarm, MiniberryFarm, WaterberryFarmInformationModel, WBF_MultiScore
 
 import numpy as np
 import pathlib

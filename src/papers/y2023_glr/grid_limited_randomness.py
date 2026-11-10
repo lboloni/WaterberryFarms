@@ -169,5 +169,5 @@ def generate_GLR_CA(exp_policy: Experiment,
     path = GLR_CristophidesAlgorithm([], [0,0], geo, time = geo["timesteps-per-day"], seed=seed, h_cells=h_cells, v_cells=v_cells)
     print(f"end end-of-path {h_cells}x{v_cells}")
     policy = FollowPathPolicy(vel = geo["velocity"], waypoints = path, repeat = True)
-    policy.name = f"GLR-SD-{h_cells}x{v_cells}"
+    policy.name = f"GLR-CA-{h_cells}x{v_cells}"
     return policy

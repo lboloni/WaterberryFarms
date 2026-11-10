@@ -401,7 +401,7 @@ class SoilMoistureEnvironment(ScalarFieldEnvironment):
         return value
 
 #
-# FIXME: remove them from here, this should just go into the Environment-experiments
+# FIXME: remove them from here, this should just go into a notebook
 #
 
 def animate(env, axesimage, i):
