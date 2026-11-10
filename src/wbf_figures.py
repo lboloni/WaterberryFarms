@@ -37,8 +37,6 @@ from matplotlib.path import Path
 from matplotlib import animation
 import matplotlib.lines as lines
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger().setLevel(logging.INFO)
 
 ROBOT_COLORS = ["red", "blue", "green", "orange", "pink"]
 

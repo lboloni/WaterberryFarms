@@ -41,10 +41,11 @@ class Robot:
     
 
     def __getstate__(self):
-        """Specifying that when saving the robot, I won't pickle the env, im and policy"""
+        """Specifying that when saving the robot, I won't pickle the env, im, policy and the communication 
+        medium (which refers to the environment and the other robots)"""
         state = self.__dict__.copy()
         # remove fields you don't want to pickle
-        dont_pickle = ['policy', 'im', 'env']
+        dont_pickle = ['policy', 'im', 'env', 'com']
         for field in dont_pickle:        
             if field in state:
                 del state[field]

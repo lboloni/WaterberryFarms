@@ -3,22 +3,14 @@ from environment import Environment, EpidemicSpreadEnvironment, PrecalculatedEnv
 from information_model import StoredObservationIM, ObservationRecord, GaussianProcessScalarFieldIM, DiskEstimateScalarFieldIM, im_score_weighted, im_score_weighted_asymmetric, im_score, im_score_rmse
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
-from matplotlib.path import Path
-from matplotlib import animation
-from functools import partial
 import numpy as np
 import math
 import bz2
 import pathlib
 import pickle
 import copy
-import sys
 
 import logging
-# logging.basicConfig(level=logging.WARNING)
-logging.basicConfig(level=logging.INFO)
-logging.getLogger().setLevel(logging.INFO)
 
 
 class FarmGeometry:
@@ -265,35 +257,6 @@ class WaterberryFarmEnvironment(Environment):
         obs["Soil"] = soil
 
         return obs
-
-
-    def animate_TO_DELETE(self, i):
-        """Animates an environment by letting the environment proceed a timestep, then setting the values into image.
-        FIXME: this does not belong here"""
-        logging.info(f"animate {i} before proceed")
-        self.proceed(1.0)
-        logging.info(f"animate {i} after proceed")
-
-        v = self.tylcv.value.copy()
-        self.image_tylcv.set_array(v.T)
-
-        v = self.ccr.value.copy()
-        self.image_ccr.set_array(v.T)
-
-        v = self.soil.value.copy()
-        self.image_soil.set_array(v.T)
-        logging.info(f"animate {i} after setting arrays")
-
-        return [self.image_tylcv, self.image_ccr, self.image_soil]
-
-    def animate_environment_TO_DELETE(self):
-        """FIXME this does not belong here"""
-        #fig, ax = plt.subplots()
-        # im  = ax.imshow(env.value, cmap="gray", vmin=0, vmax=1.0)
-        #axesimage  = ax.imshow(env.value, vmin=0, vmax=1)
-        anim = animation.FuncAnimation(self.fig, partial(
-            self.animate), frames=100, interval=50, blit=True)
-        return anim
 
 
 class WaterberryFarmInformationModel(StoredObservationIM):

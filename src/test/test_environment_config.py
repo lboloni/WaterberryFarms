@@ -1,7 +1,9 @@
 import pathlib
+import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import matplotlib
 matplotlib.use("Agg")
@@ -14,7 +16,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from exp_run_config import Config
 from information_model import im_score_weighted, im_score_weighted_asymmetric
 from water_berry_farm import MiniberryFarm, WaterberryFarm, WBF_IM_DiskEstimator, WBF_Score_WeightedAsymmetric
-from wbf_helper import cache_is_current, create_wbfe, environment_configuration, uses_cache
+import wbf_helper
+from wbf_helper import cache_is_current, create_wbfe, environment_configuration, precompute_environment, uses_cache
 
 
 def environment_exp(directory, **values):
@@ -142,6 +145,55 @@ class TestCacheConfiguration(unittest.TestCase):
             plt.imsave(pathlib.Path(directory, "field.png"), np.zeros((10, 10)), cmap="gray", vmin=0, vmax=1)
             self.assertFalse(cache_is_current(experiment, saved))  # the picture changed
             self.assertFalse(cache_is_current(experiment, {k: v for k, v in saved.items() if k != "geometry-version"}))
+
+
+class StubExperiment:
+    """An environment exp/run with the values of environment_exp, which records itself in exprun.yaml"""
+    def __init__(self, values):
+        self.values = dict(values)
+
+    def __getitem__(self, key):
+        return self.values[key]
+
+    def save(self):
+        with open(pathlib.Path(self["data_dir"], "exprun.yaml"), "w") as f:
+            yaml.safe_dump(self.values, f)
+
+    def done(self):
+        self.values[Config.TIME_DONE] = "now"
+        self.save()
+
+
+class TestPrecomputeEnvironment(unittest.TestCase):
+    def test_precomputes_once_and_again_when_the_configuration_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            values = environment_exp(directory)
+            discarded = []
+
+            class StubConfig:
+                TIME_DONE = Config.TIME_DONE
+
+                def get_experiment(self, experiment, run, creation_style="exist-ok"):
+                    exp = StubExperiment(values)
+                    if creation_style == "discard-old":
+                        discarded.append(run)
+                        shutil.rmtree(values["data_dir"])
+                        pathlib.Path(values["data_dir"]).mkdir()
+                    if not pathlib.Path(values["data_dir"], "exprun.yaml").exists():
+                        exp.save()
+                    return exp
+
+            last_day = pathlib.Path(values["data_dir"], "precalc_tylcv", "env_value_00005.gz")
+            with mock.patch.object(wbf_helper, "Config", StubConfig):
+                precompute_environment("scenario")
+                self.assertTrue(last_day.exists())
+                precompute_environment("scenario")
+                self.assertEqual(len(discarded), 1)  # the cache is current: not recomputed
+                values["tylcv-p-transmission"] = 0.9
+                exp = precompute_environment("scenario")
+                self.assertEqual(len(discarded), 2)
+                self.assertTrue(last_day.exists())
+                self.assertTrue(cache_is_current(exp, yaml.safe_load(open(pathlib.Path(values["data_dir"], "exprun.yaml")))))
 
 
 if __name__ == "__main__":

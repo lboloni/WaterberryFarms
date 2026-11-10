@@ -16,7 +16,6 @@ from scipy.interpolate import RBFInterpolator
 from scipy.spatial import cKDTree
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from sklearn.metrics import mean_squared_error
 
 import matplotlib.pyplot as plt
 from matplotlib import animation, rc
@@ -24,8 +23,6 @@ from matplotlib import animation, rc
 import timeit
 
 from environment import Environment, DissipationModelEnvironment, EpidemicSpreadEnvironment
-
-logging.basicConfig(level=logging.WARNING)
 
 class InformationModel:
     """The ancestor of all information models. This defines the functions we can 
@@ -179,7 +176,7 @@ class AbstractScalarFieldIM(StoredObservationIM):
         """Initializes the value to the default value, the uncertainty to one."""
         super().__init__(width, height)
         self.default_value = default_value
-        self.value = np.full((self.width, self.height), default_value)
+        self.value = np.full((self.width, self.height), default_value, dtype=float)
         self.uncertainty = np.ones((self.width, self.height))
         self.probability = None
         self.prior_std = 1.0
@@ -253,7 +250,7 @@ class GaussianProcessScalarFieldIM(AbstractScalarFieldIM):
         # calculate the estimate for each gaussian process
         if prior_value is not None or prior_uncertainty is not None:
             raise Exception("GaussianProcessScalarFieldIM cannot handle priors")
-        est = np.full([self.width,self.height], self.default_value)
+        est = np.full([self.width,self.height], self.default_value, dtype=float)
         stdmap = np.ones([self.width,self.height])
         if len(observations) == 0:
             self.prior_std = 1.0
@@ -455,7 +452,7 @@ class PointEstimateScalarFieldIM(AbstractScalarFieldIM):
         if prior_value is not None:
             value = np.copy(prior_value)
         else:
-            value = np.full((self.width, self.height), self.default_value)
+            value = np.full((self.width, self.height), self.default_value, dtype=float)
         if prior_uncertainty is not None:
             uncertainty = np.copy(prior_uncertainty)
         else:
@@ -525,22 +522,16 @@ class DiskEstimateScalarFieldIM(AbstractScalarFieldIM):
         value_slice[mask] = new_value
         uncertainty_slice[mask] = 0.0
 
-def im_score(im, env):
+def im_score(env, im):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment."""
     return -np.mean(np.abs(env.value - im.value))
 
-def im_score_rmse_scikit(im, env):
-    """Scores the information model by finding the RMSE between the information model values and the real values in the environment
-    FIXME: I think that this is not working very well for 2D areas. On the other hand, it has built-in weights
-    """
-    return -mean_squared_error(env.value, im.value, squared=False)
-
-def im_score_rmse(im, env):
+def im_score_rmse(env, im):
     """Scores the information model by finding the RMSE between the information model values and the real values in the environment"""
     se = (env.value - im.value) ** 2
     return -np.sqrt(np.mean(se))
 
-def im_score_rmse_weighted(im, env, weightmap):
+def im_score_rmse_weighted(env, im, weightmap):
     """An empty area of interest (e.g. a crop that is not planted) has no error."""
     if np.sum(weightmap) == 0:
         return 0.0
@@ -549,7 +540,7 @@ def im_score_rmse_weighted(im, env, weightmap):
     weightedval= np.sqrt(np.sum(weightedse) / np.sum(weightmap)) 
     return -weightedval
 
-def im_score_weighted(im, env, weightmap):
+def im_score_weighted(env, im, weightmap):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
     The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested).
     An empty area of interest (e.g. a crop that is not planted) has no error."""
@@ -560,15 +551,17 @@ def im_score_weighted(im, env, weightmap):
     weightederror = np.multiply(wm, abserror)
     return -np.mean(weightederror)
 
-def im_score_weighted_asymmetric(im, env, weight_positive, weight_negative, weightmap):
+def im_score_weighted_asymmetric(env, im, weight_positive, weight_negative, weightmap):
     """Scores the information model by finding the average absolute difference between the prediction of the information model and the real values in the environment. 
     The weightmap must be an array of the same size as the im value, and it must have its values between 0 (not interested) and 1 (interested)
-    Weights differently positive errors (when the im is larger than env) and negative errors (when env is larger than im).
+    Weights differently the positive errors (the env is larger than the im: the estimate is worse than the 
+    reality, a false alarm) and the negative errors (the im is larger than the env: the estimate is better 
+    than the reality, a missed disease).
     An empty area of interest (e.g. a crop that is not planted) has no error."""
     if np.sum(weightmap) == 0:
         return 0.0
     wm = weightmap / np.mean(weightmap)
-    error_positive = np.multiply(wm * weight_positive, np.maximum(im.value - env.value, 0))
-    error_negative = np.multiply(wm * weight_negative, np.maximum(env.value - im.value, 0))
+    error_positive = np.multiply(wm * weight_positive, np.maximum(env.value - im.value, 0))
+    error_negative = np.multiply(wm * weight_negative, np.maximum(im.value - env.value, 0))
     return -np.mean(np.add(error_positive, error_negative))
 

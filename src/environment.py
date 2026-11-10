@@ -18,7 +18,6 @@ import random
 import pathlib
 
 import logging
-logging.basicConfig(level=logging.WARNING)
 
 
 compress_ext = "gz"
@@ -266,9 +265,7 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
             return
         else:
             if file_value.exists():
-                #raise Exception(f"PrecalculatedEnvironment: file {file_value} already exists, skipping!")
-                logging.info(f"PrecalculatedEnvironment: file {file_value} already exists, skipping!")
-                return
+                raise Exception(f"PrecalculatedEnvironment: file {file_value} already exists, the model cannot be run over an existing cache")
         # assume that the environment is passed:
         self.environment.proceed(delta_t)
         self.value = np.copy(self.environment.value)
@@ -285,7 +282,7 @@ class PrecalculatedEnvironment(ScalarFieldEnvironment):
             fig, (axvalue, axstatus) = plt.subplots(1,2)
             axesimage  = axvalue.imshow(self.environment.value, vmin=0, vmax=1, origin="lower", cmap="gray")
             axvalue.set_title("value")
-            axesimage  = axstatus.imshow(self.environment.value, vmin=-2, vmax=10, origin="lower", cmap="gray")
+            axesimage  = axstatus.imshow(self.environment.status, vmin=-2, vmax=10, origin="lower", cmap="gray")
             axstatus.set_title("status")
             fig.suptitle(f"{self.environment.name} t={timestamp}")
         else:

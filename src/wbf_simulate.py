@@ -6,10 +6,6 @@ import pickle
 import time
 
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger().setLevel(logging.INFO)
-
-
 class TimeTrack:
     """Track policy computation time and periodically report progress."""
 

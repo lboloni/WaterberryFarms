@@ -73,6 +73,14 @@ class TestEnvironment(unittest.TestCase):
             reader.proceed(1)
             np.testing.assert_array_equal(reader.value, source.value)
 
+    def test_model_is_not_run_over_an_existing_cache(self):
+        with tempfile.TemporaryDirectory() as directory:
+            savedir = pathlib.Path(directory)
+            PrecalculatedEnvironment(3, 3, IncrementEnvironment("source", 3, 3, seed=0), savedir).proceed(1)
+            again = PrecalculatedEnvironment(3, 3, IncrementEnvironment("source", 3, 3, seed=0), savedir)
+            with self.assertRaisesRegex(Exception, "already exists"):
+                again.proceed(1)
+
 
 if __name__ == "__main__":
     unittest.main()

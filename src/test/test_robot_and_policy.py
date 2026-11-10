@@ -1,9 +1,11 @@
 import pathlib
+import pickle
 import sys
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from communication import PerfectCommunicationMedium
 from policy import FollowPathPolicy, RandomWaypointPolicy
 from robot import Robot
 
@@ -51,6 +53,13 @@ class TestRobotAndPolicy(unittest.TestCase):
             robot.enact_policy(1)
         self.assertEqual(robots[0].policy.nextwaypoint, robots[1].policy.nextwaypoint)
         self.assertEqual(robots[0].pending_actions, robots[1].pending_actions)
+
+    def test_robot_is_pickled_without_its_communication_medium(self):
+        robot = Robot("robot", 0, 0, 0)
+        PerfectCommunicationMedium("environment").add_robot(robot)
+        loaded = pickle.loads(pickle.dumps(robot))
+        self.assertEqual(loaded.name, "robot")
+        self.assertFalse(hasattr(loaded, "com"))
 
     def test_observation_is_forwarded_to_policy(self):
         robot = Robot("robot", 0, 0, 0)

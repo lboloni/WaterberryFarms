@@ -36,6 +36,16 @@ class TestInformationModels(unittest.TestCase):
         np.testing.assert_array_equal(value, np.full((3, 3), 0.25))
         np.testing.assert_array_equal(uncertainty, np.ones((3, 3)))
 
+    def test_integer_default_value_gives_a_float_estimate(self):
+        for estimator in [PointEstimateScalarFieldIM(3, 3, default_value=1),
+                          GaussianProcessScalarFieldIM(3, 3, default_value=1, n_restarts_optimizer=0)]:
+            self.assertEqual(estimator.value.dtype, float)
+            estimator.add_observation(observation(1, 2, 0.5))
+            estimator.proceed(1)
+            self.assertEqual(estimator.value.dtype, float)
+            self.assertGreater(estimator.value[1, 2], 0.0)
+            self.assertLess(estimator.value[1, 2], 1.0)
+
     def test_disk_is_centered_on_observation(self):
         estimator = DiskEstimateScalarFieldIM(5, 5, disk_radius=1)
         value, uncertainty = estimator.estimate(
